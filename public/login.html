@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign In — Factory-MIOS Platform</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+/* ── Full screen gradient ── */
+body {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 20% 50%, #0a1628 0%, #050d1f 60%, #020a14 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Particle canvas ── */
+#particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Login wrap ── */
+.login-wrap {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Logo area ── */
+.logo-area {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.logo-icon-wrap {
+  width: 148px;
+  height: 148px;
+  margin: 0 auto 14px;
+  border-radius: 28px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(0,212,255,.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 34px rgba(0,212,255,.18);
+  overflow: hidden;
+}
+.login-brand-logo { width: 132px; height: 132px; object-fit: contain; display: block; }
+.logo-name {
+  font-size: 26px; font-weight: 900; letter-spacing: 3px;
+  background: linear-gradient(90deg, #00d4ff, #4488ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+}
+.logo-tagline {
+  font-size: 11px; color: #ffb300; letter-spacing: 1px;
+  text-transform: uppercase; font-weight: 700;
+}
+.logo-sub {
+  font-size: 10px; color: var(--muted); margin-top: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* ── Glass card ── */
+.glass-card {
+  background: rgba(13,27,53,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 18px;
+  padding: 32px 28px 28px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.5), 0 0 1px rgba(0,212,255,0.2);
+}
+
+/* ── Shift toggle ── */
+.shift-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.shift-option {
+  flex: 1;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  text-align: center;
+}
+.shift-option.active {
+  background: rgba(0,212,255,0.12);
+  color: var(--cyan);
+}
+.shift-option:first-child { border-right: 1px solid var(--border); }
+
+/* ── Input group with icon ── */
+.input-group {
+  position: relative;
+  margin-bottom: 14px;
+}
+.input-group .z-label {
+  display: block;
+  margin-bottom: 6px;
+}
+.input-group input.z-input {
+  padding-left: 38px;
+  font-size: 14px;
+  height: 44px;
+  color-scheme: dark;
+}
+.input-icon {
+  position: absolute;
+  left: 12px;
+  bottom: 13px;
+  font-size: 16px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+.eye-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+  line-height: 1;
+}
+.eye-btn:hover { color: var(--text); }
+
+/* ── Error box ── */
+.error-box {
+  background: rgba(255,68,68,0.08);
+  border: 1px solid rgba(255,68,68,0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--red);
+  margin-bottom: 14px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.error-box.show { display: flex; }
+
+/* ── Sign in button ── */
+.btn-signin {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1a5fff, #0040cc);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: .3px;
+  margin-bottom: 14px;
+}
+.btn-signin:hover:not(:disabled) {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(26,95,255,0.45);
+}
+.btn-signin:disabled {
+  background: var(--panel);
+  color: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Forgot link ── */
+.forgot-link {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.forgot-link a {
+  color: var(--cyan);
+  text-decoration: none;
+  opacity: 0.75;
+}
+.forgot-link a:hover { opacity: 1; text-decoration: underline; }
+
+/* ── Version badge ── */
+.version-badge {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top: 2px solid #fff;
+  border-radius: 50%;
+  animation: sp .6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ── Section label ── */
+.section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- Particle canvas -->
+<canvas id="particles"></canvas>
+
+<div class="login-wrap">
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <div class="logo-icon-wrap"><img class="login-brand-logo" src="/assets/factory-mios-logo.png" alt="Factory-MIOS logo"/></div>
+    <div class="logo-name">FACTORY-MIOS</div>
+    <div class="logo-sub">Manufacturing Intelligent Operating System</div>
+  </div>
+
+  <!-- Glass card -->
+  <div class="glass-card">
+
+    <!-- Platform admin hint (shown when redirected from /saas-platform) -->
+    <div id="platformHint" style="display:none;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px;">🏗 Platform Admin Access</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+        This area requires a <strong style="color:var(--text)">Superadmin</strong> or <strong style="color:var(--text)">Admin</strong> account.<br>
+        Default platform credentials:<br>
+        <span style="font-family:monospace;color:var(--cyan)">superadmin</span> / <span style="font-family:monospace;color:var(--cyan)">super@123</span>
+      </div>
+    </div>
+
+    <!-- Error box -->
+    <div class="error-box" id="errorBox">
+      <span>&#9888;</span>
+      <span id="errorMsg">Invalid credentials</span>
+    </div>
+
+    <!-- Username -->
+    <div class="input-group">
+      <label class="z-label" for="username">Username</label>
+      <span class="input-icon">&#128100;</span>
+      <input type="text" id="username" class="z-input" placeholder="Enter your username" autocomplete="username" autofocus/>
+    </div>
+
+    <!-- Password -->
+    <div class="input-group">
+      <label class="z-label" for="password">Password</label>
+      <span class="input-icon">&#128274;</span>
+      <input type="password" id="password" class="z-input" placeholder="Enter your password" autocomplete="current-password"/>
+      <button class="eye-btn" onclick="togglePwd()" id="eyeBtn" type="button">&#128065;</button>
+    </div>
+
+    <!-- Shift toggle -->
+    <div class="section-label">Select Shift</div>
+    <div class="shift-toggle">
+      <button class="shift-option active" id="shiftA" onclick="selectShift('A')">
+        &#9728; Day — Shift A<br/>
+        <span style="font-size:10px;opacity:.7">07:00 – 19:00</span>
+      </button>
+      <button class="shift-option" id="shiftB" onclick="selectShift('B')">
+        &#9790; Night — Shift B<br/>
+        <span style="font-size:10px;opacity:.7">19:00 – 07:00</span>
+      </button>
+    </div>
+
+    <!-- Sign in button -->
+    <button class="btn-signin" id="loginBtn" onclick="doLogin()">
+      Sign In
+    </button>
+
+    <!-- Forgot link -->
+    <div class="forgot-link">
+      <a href="#">Forgot password?</a>
+      &nbsp;·&nbsp;
+      <a href="/device-setup">Register plant</a>
+    </div>
+
+  </div><!-- /glass-card -->
+
+  <!-- Version badge -->
+  <div class="version-badge">v2.1 &nbsp;·&nbsp; Factory-MIOS</div>
+
+</div><!-- /login-wrap -->
+
+<script>
+// ── Particle animation ─────────────────────────────────────
+(function(){
+  const canvas=document.getElementById('particles');
+  const ctx=canvas.getContext('2d');
+  let W,H,pts=[];
+  function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
+  function init(){
+    resize();pts=[];
+    for(let i=0;i<55;i++)
+      pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.3+.4});
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,212,255,.3)';ctx.fill();
+      pts.forEach(q=>{
+        const d=Math.hypot(p.x-q.x,p.y-q.y);
+        if(d<130){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle=`rgba(0,212,255,${.1*(1-d/130)})`;ctx.lineWidth=.5;ctx.stroke();}
+      });
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',()=>{resize();});
+  init();draw();
+})();
+
+// ── Show platform hint if redirected from saas-platform ────
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('hint') === 'platform' || (params.get('redirect') || '').includes('saas-platform')) {
+    const el = document.getElementById('platformHint');
+    if (el) el.style.display = 'block';
+  }
+})();
+
+// ── Shift selection ────────────────────────────────────────
+let selectedShift = 'A';
+function selectShift(s){
+  selectedShift=s;
+  document.getElementById('shiftA').classList.toggle('active',s==='A');
+  document.getElementById('shiftB').classList.toggle('active',s==='B');
+}
+// Auto-detect current shift based on IST time: Shift A = 07:00–19:00
+(function(){
+  const istH = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})).getHours();
+  selectShift((istH >= 7 && istH < 19) ? 'A' : 'B');
+})();
+
+// ── If already logged in, redirect ────────────────────────
+(function(){
+  const token=localStorage.getItem('oee_token');
+  if(token){
+    fetch('/api/auth/me',{headers:{Authorization:'Bearer '+token}})
+      .then(r=>r.json())
+      .then(d=>{
+        if(d.ok){
+          const stored=JSON.parse(localStorage.getItem('oee_user')||'{}');
+          window.location.href=stored.default_page||'/';
+        }
+      }).catch(()=>{});
+  }
+})();
+
+// ── Toggle password visibility ────────────────────────────
+function togglePwd(){
+  const inp=document.getElementById('password');
+  inp.type=inp.type==='password'?'text':'password';
+  document.getElementById('eyeBtn').innerHTML=inp.type==='password'?'&#128065;':'&#128526;';
+}
+
+// ── Show error ────────────────────────────────────────────
+function showError(msg){
+  document.getElementById('errorMsg').textContent=msg;
+  document.getElementById('errorBox').classList.add('show');
+}
+function hideError(){
+  document.getElementById('errorBox').classList.remove('show');
+}
+
+// ── Login ─────────────────────────────────────────────────
+async function doLogin(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value;
+  const btn=document.getElementById('loginBtn');
+  hideError();
+  if(!username||!password){showError('Please enter username and password.');return;}
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> Signing in…';
+  try{
+    const res=await fetch('/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username,password,shift:selectedShift})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.ok){
+      showError(data.error||'Invalid username or password.');
+      btn.disabled=false;
+      btn.innerHTML='Sign In';
+      return;
+    }
+    const userInfo={...data.user,default_page:data.redirect||'/',selected_shift:selectedShift};
+    localStorage.setItem('oee_token',data.token);
+    localStorage.setItem('oee_user',JSON.stringify(userInfo));
+    // Respect ?redirect= param
+    const urlRedirect=new URLSearchParams(window.location.search).get('redirect');
+    window.location.href=urlRedirect||data.redirect||'/';
+  }catch(e){
+    showError('Server error. Please try again.');
+    btn.disabled=false;
+    btn.innerHTML='Sign In';
+  }
+}
+
+// ── Enter key ─────────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>

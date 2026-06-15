@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>OEE Dashboard · Factory-MIOS</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1B3A5C"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="OEE"/>
+  <link rel="stylesheet" href="/_shared.css"/>
+  <script src="/js/chart.min.js"></script>
+  <style>
+    .header-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:22px; }
+    .header-left { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+
+    .state-banner {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      background: var(--card);
+      transition: background .4s ease, border-color .4s ease;
+    }
+    .state-banner-icon  { font-size:2.6rem; line-height:1; }
+    .state-banner-main  { display:flex; flex-direction:column; gap:6px; }
+    .state-banner-title { font-size:1.6rem; font-weight:800; letter-spacing:.02em; }
+    .state-banner-sub   { font-size:.84rem; color:var(--muted); display:flex; flex-wrap:wrap; gap:14px; }
+    .state-banner-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+    .state-banner-parts { font-size:2.2rem; font-weight:800; line-height:1; }
+    .state-banner-plbl  { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+
+    .charts-row  { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px; }
+    .charts-row2 { display:grid; grid-template-columns:1.3fr 1fr 1.2fr; gap:16px; margin-bottom:20px; }
+
+    .shift-name { font-size:1rem; font-weight:700; margin-bottom:14px; }
+    .shift-progress-lbl { font-size:.78rem; color:var(--muted); display:flex; justify-content:space-between; margin-bottom:4px; }
+
+    .dt-legend { display:flex; flex-direction:column; gap:7px; margin-top:10px; }
+    .dt-legend-item { display:flex; align-items:center; justify-content:space-between; font-size:.78rem; }
+    .dt-legend-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-right:5px; }
+
+    @media (max-width:900px) {
+      .charts-row, .charts-row2 { grid-template-columns:1fr; }
+      .state-banner { grid-template-columns:auto 1fr; }
+      .state-banner-right { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="z-nav"></nav>
+  <main class="z-page">
+
+    <!-- Header -->
+    <div class="header-row">
+      <div class="header-left">
+        <h1 class="z-page-title">Live OEE Dashboard</h1>
+        <span class="z-badge info" id="shift-badge">Shift A</span>
+        <span class="live-dot">LIVE</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:.82rem;color:var(--muted)" id="header-date">--</span>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="z-grid-4 z-section">
+      <div class="z-kpi" style="--kpi-accent:var(--cyan)">
+        <div class="z-kpi-label">OEE</div>
+        <div class="z-kpi-row">
+          <div class="z-kpi-value skeleton" id="kpi-oee" style="--kpi-color:var(--cyan)">--%</div>
+          <div id="kpi-oee-donut"></div>
+        </div>
+        <div class="z-bar"><div class="z-bar-fill" id="kpi-oee-bar" style="width:0%;--fill-color:var(--cyan)"></div></div>
+        <div class="z-kpi-bottom">
+          <span class="z-badge muted" id="kpi-oee-grade">--</span>
+          <span style="font-size:.75rem;color:var(--muted)">Overall</span>
+        </div>
+      </div>
+      <div class="z-kpi" style="--kpi-accent:var(--green)">
+        <div class="z-kpi-label">Availability</div>
+        <div class="z-kpi-row">
+          <div class="z-kpi-value skeleton" id="kpi-avail" style="--kpi-color:var(--green)">--%</div>
+          <div id="kpi-avail-donut"></div>
+        </div>
+        <div class="z-bar"><div class="z-bar-fill" id="kpi-avail-bar" style="width:0%;--fill-color:var(--green)"></div></div>
+        <div class="z-kpi-bottom"><span style="font-size:.75rem;color:var(--muted)">Running / Available</span></div>
+      </div>
+      <div class="z-kpi" style="--kpi-accent:var(--amber)">
+        <div class="z-kpi-label">Performance</div>
+        <div class="z-kpi-row">
+          <div class="z-kpi-value skeleton" id="kpi-perf" style="--kpi-color:var(--amber)">--%</div>
+          <div id="kpi-perf-donut"></div>
+        </div>
+        <div class="z-bar"><div class="z-bar-fill" id="kpi-perf-bar" style="width:0%;--fill-color:var(--amber)"></div></div>
+        <div class="z-kpi-bottom"><span style="font-size:.75rem;color:var(--muted)">Actual vs Ideal Speed</span></div>
+      </div>
+      <div class="z-kpi" style="--kpi-accent:var(--purple)">
+        <div class="z-kpi-label">Quality</div>
+        <div class="z-kpi-row">
+          <div class="z-kpi-value skeleton" id="kpi-qual" style="--kpi-color:var(--purple)">--%</div>
+          <div id="kpi-qual-donut"></div>
+        </div>
+        <div class="z-bar"><div class="z-bar-fill" id="kpi-qual-bar" style="width:0%;--fill-color:var(--purple)"></div></div>
+        <div class="z-kpi-bottom"><span style="font-size:.75rem;color:var(--muted)">Good / Total Parts</span></div>
+      </div>
+    </div>
+
+    <!-- Machine State Banner -->
+    <div class="state-banner" id="state-banner">
+      <div class="state-banner-icon" id="banner-icon" style="color:var(--muted)">◎</div>
+      <div class="state-banner-main">
+        <div class="state-banner-title" id="banner-state" style="color:var(--muted)">CONNECTING...</div>
+        <div class="state-banner-sub">
+          <span>Program: <span id="banner-prog">--</span></span>
+          <span>Spindle: <span id="banner-spindle">--</span> RPM</span>
+          <span>Feed: <span id="banner-feed">--</span> mm/min</span>
+          <span>Last Cycle: <strong id="banner-cycle" style="color:var(--fg)">--</strong>s &nbsp;<span id="banner-cycle-ideal" style="color:var(--cyan);font-size:.78em;opacity:.85">/ Ideal --s</span></span>
+          <span>Downtime: <strong id="banner-idle" style="color:var(--red)">--</strong></span>
+        </div>
+      </div>
+      <div class="state-banner-right">
+        <div class="state-banner-parts" id="banner-parts" style="color:var(--cyan)">--</div>
+        <div class="state-banner-plbl">Parts Count</div>
+        <div id="banner-parts-split" style="font-size:.68rem;color:var(--muted);text-align:right;margin-top:3px;display:none">
+          <span style="color:var(--cyan)" id="banner-split-a">--</span>
+          <span style="opacity:.5;margin:0 3px">+</span>
+          <span style="color:var(--purple)" id="banner-split-b">--</span>
+          <span style="opacity:.5;margin:0 2px">=</span>
+          <span style="color:var(--fg);font-weight:700" id="banner-split-total">--</span>
+          <span style="opacity:.5;margin-left:2px">today</span>
+        </div>
+        <span class="z-badge danger" id="banner-alarm" style="display:none">⚠ ALARM</span>
+      </div>
+    </div>
+
+    <!-- Row 1: Shift Card / OEE 60-min trend / Downtime donut -->
+    <div class="charts-row">
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Current Shift</span>
+          <span class="z-badge info" id="shift-badge-card">Shift A</span>
+        </div>
+        <div class="shift-name" id="shift-fullname">Shift A — 07:00 to 19:00</div>
+        <div class="shift-progress-lbl">
+          <span>Elapsed: <strong id="shift-elapsed">--</strong></span>
+          <span>Remaining: <strong id="shift-remaining">--</strong></span>
+        </div>
+        <div class="z-bar thick" style="margin-bottom:16px">
+          <div class="z-bar-fill" id="shift-bar" style="width:0%;--fill-color:var(--cyan)"></div>
+        </div>
+        <div class="z-stat-row">
+          <span class="z-stat-label">Parts Made</span>
+          <span class="z-stat-val"><span id="sc-parts">--</span> / <span id="sc-target">--</span></span>
+        </div>
+        <div class="z-bar" style="margin:4px 0 6px">
+          <div class="z-bar-fill" id="sc-parts-bar" style="width:0%;--fill-color:var(--green)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.73rem;margin-bottom:10px;padding:4px 6px;background:rgba(255,255,255,.03);border-radius:6px">
+          <span style="color:var(--muted)">🅐 <strong id="sc-parts-a" style="color:var(--cyan)">--</strong> <span style="color:var(--muted)">pcs</span></span>
+          <span style="color:var(--border)">|</span>
+          <span style="color:var(--muted)">🅑 <strong id="sc-parts-b" style="color:var(--purple)">--</strong> <span style="color:var(--muted)">pcs</span></span>
+          <span style="color:var(--border)">|</span>
+          <span style="color:var(--muted)">Target <strong id="sc-ideal-label" style="color:var(--amber)">--s</strong></span>
+        </div>
+        <div class="z-stat-row">
+          <span class="z-stat-label">Avg Cycle Time</span>
+          <span class="z-stat-val"><span id="sc-cycle">--</span> s</span>
+        </div>
+        <div class="z-stat-row">
+          <span class="z-stat-label">Downtime</span>
+          <span class="z-stat-val"><span id="sc-downtime">--</span> min</span>
+        </div>
+        <div class="z-stat-row">
+          <span class="z-stat-label">Shift OEE</span>
+          <span class="z-stat-val" id="sc-oee">--%</span>
+        </div>
+      </div>
+
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Last 2 Shifts · OEE</span>
+          <span class="live-dot">LIVE</span>
+        </div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="oee-line-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Downtime Breakdown</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center">
+          <div class="chart-wrap" style="height:140px">
+            <canvas id="downtime-chart"></canvas>
+          </div>
+          <div class="dt-legend" id="dt-legend">
+            <div class="dt-legend-item"><span style="display:flex;align-items:center"><span class="dt-legend-dot" style="background:#ff4444"></span>Breakdown</span><span>--m</span></div>
+            <div class="dt-legend-item"><span style="display:flex;align-items:center"><span class="dt-legend-dot" style="background:#ffb300"></span>Setup</span><span>--m</span></div>
+            <div class="dt-legend-item"><span style="display:flex;align-items:center"><span class="dt-legend-dot" style="background:#4488ff"></span>Planned</span><span>--m</span></div>
+            <div class="dt-legend-item"><span style="display:flex;align-items:center"><span class="dt-legend-dot" style="background:#a855f7"></span>Other</span><span>--m</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: 7-day OEE / Hourly parts / Recent shifts table -->
+    <div class="charts-row2">
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">7-Day OEE Trend</span>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="week-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Hourly Parts</span>
+          <span class="z-badge muted" id="hourly-lbl">Shift A</span>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="hourly-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Recent Shifts</span>
+          <a href="/reports.html" class="z-btn ghost sm">All Reports</a>
+        </div>
+        <div class="z-table-wrap">
+          <table class="z-table">
+            <thead>
+              <tr><th>Date</th><th>Shift</th><th>OEE</th><th>Avail</th><th>Perf</th><th>Parts</th><th>Grade</th></tr>
+            </thead>
+            <tbody id="shifts-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── My Dashboards row ─────────────────── -->
+    <div id="my-dashboards-row" style="margin-top:24px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">📋 My Saved Dashboards</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Your custom dashboard views</div>
+        </div>
+        <a href="/my-dashboards" style="font-size:11px;color:var(--cyan);text-decoration:none;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.15);border-radius:7px;padding:5px 12px;">View All →</a>
+      </div>
+      <div id="home-dash-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;"></div>
+    </div>
+  </main>
+  <div id="z-toasts"></div>
+  <script src="/_shared.js"></script>
+  <script>
+  const MACHINE = 'MACHINE001';
+  let IDEAL_CYCLE = 45;   // updated dynamically from program_master via /api/cnc/oee
+  let oeeLineChart, weekChart, hourlyChart, downtimeChart;
+
+  Chart.defaults.color = '#6b8cae';
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+
+  function cDef() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0d1e35',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          titleColor: '#e8f4fd',
+          bodyColor: '#6b8cae'
+        }
+      }
+    };
+  }
+
+  function setupCharts() {
+    oeeLineChart = new Chart(document.getElementById('oee-line-chart'), {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          { label:'OEE',          data:[], backgroundColor:'rgba(0,212,255,.65)',  borderColor:'#00d4ff', borderWidth:1, borderRadius:4 },
+          { label:'Availability', data:[], backgroundColor:'rgba(0,255,136,.55)',  borderColor:'#00ff88', borderWidth:1, borderRadius:4 },
+          { label:'Performance',  data:[], backgroundColor:'rgba(255,179,0,.55)',  borderColor:'#ffb300', borderWidth:1, borderRadius:4 },
+          { label:'Quality',      data:[], backgroundColor:'rgba(168,85,247,.55)', borderColor:'#a855f7', borderWidth:1, borderRadius:4 },
+        ]
+      },
+      options: Object.assign(cDef(), {
+        plugins: Object.assign(cDef().plugins, {
+          legend: { display: true, position:'bottom', labels:{ color:'#6b8cae', boxWidth:10, font:{size:10} } }
+        }),
+        scales: {
+          x: { grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ color:'#6b8cae' } },
+          y: { min:0, max:100, grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ callback: v => v+'%', color:'#6b8cae' } }
+        }
+      })
+    });
+
+    weekChart = new Chart(document.getElementById('week-chart'), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label:'OEE%', data:[], backgroundColor: ctx => { const v=ctx.raw; return v>=85?'rgba(0,255,136,.55)':v>=65?'rgba(255,179,0,.55)':'rgba(255,68,68,.55)'; }, borderColor: ctx => { const v=ctx.raw; return v>=85?'#00ff88':v>=65?'#ffb300':'#ff4444'; }, borderWidth:1, borderRadius:5 }] },
+      options: Object.assign(cDef(), { scales: {
+        x: { grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { min:0, max:100, grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ callback: v => v+'%' } }
+      }})
+    });
+
+    hourlyChart = new Chart(document.getElementById('hourly-chart'), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label:'Parts', data:[], backgroundColor:'rgba(0,180,255,.45)', borderColor:'#00d4ff', borderWidth:1, borderRadius:4 }] },
+      options: Object.assign(cDef(), { scales: {
+        x: { grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { min:0, grid:{ color:'rgba(255,255,255,.04)' } }
+      }})
+    });
+
+    downtimeChart = new Chart(document.getElementById('downtime-chart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Breakdown','Setup','Planned','Other'],
+        datasets: [{ data:[1,1,1,1], backgroundColor:['rgba(255,68,68,.7)','rgba(255,179,0,.7)','rgba(68,136,255,.7)','rgba(168,85,247,.7)'], borderColor:['#ff4444','#ffb300','#4488ff','#a855f7'], borderWidth:1, hoverOffset:6 }]
+      },
+      options: Object.assign(cDef(), { cutout:'70%' })
+    });
+  }
+
+  function renderKPIs(d) {
+    // ── Update IDEAL_CYCLE from the API's dynamic program lookup ──────────
+    // d.target_cycle_time is now always the real program ideal (245s for O0016)
+    // not the stored default 45s.
+    if (d.target_cycle_time && d.target_cycle_time > 0) {
+      IDEAL_CYCLE = d.target_cycle_time;
+      // Show ideal cycle in the Current Shift parts-split row (amber label)
+      const idealLbl = document.getElementById('sc-ideal-label');
+      if (idealLbl) idealLbl.textContent = IDEAL_CYCLE + 's';
+    }
+
+    function updKpi(id, barId, donutId, gradeId, val, color) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = fmtPct(val); el.style.setProperty('--kpi-color', color); el.classList.remove('skeleton'); zFlash(el); }
+      const bar = document.getElementById(barId);
+      if (bar) { bar.style.width = Math.min(100, Math.max(0, val||0))+'%'; bar.style.setProperty('--fill-color', color); }
+      const dn = document.getElementById(donutId);
+      if (dn) dn.innerHTML = zDonut(val, color, 56, 5);
+      if (gradeId) {
+        const g = document.getElementById(gradeId);
+        if (g) { g.textContent = oeeGrade(val); g.className = 'z-badge '+(val>=85?'success':val>=65?'warning':'danger'); }
+      }
+    }
+    updKpi('kpi-oee',   'kpi-oee-bar',   'kpi-oee-donut',   'kpi-oee-grade', d.oee,          oeeColor(d.oee));
+    updKpi('kpi-avail', 'kpi-avail-bar', 'kpi-avail-donut', null,            d.availability,  oeeColor(d.availability));
+    updKpi('kpi-perf',  'kpi-perf-bar',  'kpi-perf-donut',  null,            d.performance,   oeeColor(d.performance));
+    updKpi('kpi-qual',  'kpi-qual-bar',  'kpi-qual-donut',  null,            d.quality,        oeeColor(d.quality));
+
+    const scOee = document.getElementById('sc-oee');
+    if (scOee) { scOee.textContent = fmtPct(d.oee); scOee.style.color = oeeColor(d.oee); }
+    if (d.parts_produced != null) {
+      zSet('sc-parts', fmtInt(d.parts_produced));
+      // Compute target from the correct ideal cycle: 12h × 3600 / idealCycle × 90%
+      // API may still return old stored target_parts (900 from 45s default) — recalculate
+      const dynIdeal = d.target_cycle_time && d.target_cycle_time > 0 ? d.target_cycle_time : IDEAL_CYCLE;
+      const dynTgt = dynIdeal > 0 ? Math.floor(43200 / dynIdeal) : (d.target_parts || 900);
+      // Use API target_parts only if it matches the correct formula (sanity check: not 900 when ideal > 100s)
+      const tgt = (d.target_parts && d.target_parts < 500 && dynIdeal > 100) ? d.target_parts : dynTgt;
+      zSet('sc-target', tgt);
+      const pb = document.getElementById('sc-parts-bar');
+      if (pb) pb.style.width = Math.min(100, (d.parts_produced / tgt * 100))+'%';
+    }
+    if (d.downtime_min != null) zSet('sc-downtime', fmtNum(d.downtime_min, 0));
+    if (d.avg_cycle_time != null) zSet('sc-cycle', fmtNum(d.avg_cycle_time, 1));
+  }
+
+  function renderStateBanner(m) {
+    if (!m) return;
+    const state = (m.machine_state || 'IDLE').toUpperCase();
+    const color = stateColor(state);
+    const icons = { RUNNING:'⚙', STOPPED:'⏹', ALARM:'⚠', IDLE:'◎' };
+    const banner = document.getElementById('state-banner');
+    if (banner) { banner.style.borderColor = color+'44'; banner.style.background = color+'0d'; }
+    const iconEl = document.getElementById('banner-icon');
+    if (iconEl) { iconEl.textContent = icons[state]||'◎'; iconEl.style.color = color; }
+    const stateEl = document.getElementById('banner-state');
+    if (stateEl) { stateEl.textContent = state; stateEl.style.color = color; }
+    zSet('banner-prog',    m.program_no ? 'O'+String(m.program_no).padStart(4,'0') : (m.auto_mode==='MDI'?'MDI MODE':'--'));
+    zSet('banner-spindle', m.spindle_speed != null ? fmtInt(m.spindle_speed) : '--');
+    zSet('banner-feed',    m.feed_rate    != null ? fmtInt(m.feed_rate)     : '--');
+    zSet('banner-cycle',   m.last_cycle_time_sec != null ? fmtNum(m.last_cycle_time_sec,1) : '--');
+    // Show ideal (target) cycle from program_master alongside actual
+    const idealEl = document.getElementById('banner-cycle-ideal');
+    if (idealEl) {
+      if (IDEAL_CYCLE && IDEAL_CYCLE > 0) {
+        const actual = parseFloat(m.last_cycle_time_sec) || 0;
+        const faster = actual > 0 && actual < IDEAL_CYCLE;
+        idealEl.innerHTML = '/ Ideal <strong style="color:'+(faster?'var(--green)':'var(--cyan)')+'">'+IDEAL_CYCLE+'s</strong>';
+      } else {
+        idealEl.textContent = '';
+      }
+    }
+    zSet('banner-parts',   m.part_count   != null ? fmtInt(m.part_count)   : '--');
+    // banner-idle is updated by renderShiftDowntime() from live API shift_downtime
+    // Fallback: current window idle time if shift_downtime not yet available
+    const _idleSec = parseFloat(m.idle_time_sec) || 0;
+    if (!window._shiftDTRendered) zSet('banner-idle', fmtHM(_idleSec / 60));
+    const alEl = document.getElementById('banner-alarm');
+    if (alEl) alEl.style.display = m.alarm_active ? '' : 'none';
+  }
+
+  function renderShiftCard() {
+    const info = zShiftInfo();
+    const pct  = Math.min(100, info.elapsed / (12*60) * 100);
+    zSet('shift-elapsed',   fmtHM(info.elapsed));
+    zSet('shift-remaining', fmtHM(info.remaining));
+    const sb = document.getElementById('shift-bar');
+    if (sb) sb.style.width = pct+'%';
+    zSet('shift-fullname', info.shift==='A'?'Shift A — 07:00 to 19:00':'Shift B — 19:00 to 07:00');
+    const sbc = document.getElementById('shift-badge-card');
+    if (sbc) sbc.textContent = 'Shift '+info.shift;
+    const sbm = document.getElementById('shift-badge');
+    if (sbm) sbm.textContent = 'Shift '+info.shift;
+    const hl = document.getElementById('hourly-lbl');
+    if (hl) hl.textContent = 'Shift '+info.shift;
+  }
+
+  function renderWeekChart(trend) {
+    if (!weekChart || !trend) return;
+    weekChart.data.labels   = trend.map(r => { try { return new Date(r.day).toLocaleDateString('en-IN',{day:'numeric',month:'short',timeZone:'Asia/Kolkata'}); } catch{return r.day;} });
+    weekChart.data.datasets[0].data = trend.map(r => parseFloat(r.oee)||0);
+    weekChart.update('none');
+  }
+
+  function renderHourlyChart(rows) {
+    if (!hourlyChart || !rows) return;
+    hourlyChart.data.labels = rows.map(r => { try { return new Date(r.bucket).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false}); } catch{return r.bucket;} });
+    hourlyChart.data.datasets[0].data = rows.map(r => parseInt(r.parts_made)||0);
+    hourlyChart.update('none');
+  }
+
+  function renderShiftsTable(shifts) {
+    const tbody = document.getElementById('shifts-tbody');
+    if (!tbody) return;
+    if (!shifts || !shifts.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No data</td></tr>'; return; }
+    tbody.innerHTML = shifts.slice(0,8).map(s => {
+      const o = parseFloat(s.oee);
+      const p = parseFloat(s.performance);
+      return `<tr>
+        <td style="font-size:.8rem;color:var(--muted)">${s.shift_date||s.date||'--'}</td>
+        <td><span class="z-badge ${s.shift==='A'?'info':'purple'}">Shift ${s.shift||'--'}</span></td>
+        <td style="font-weight:700;color:${oeeColor(o)}">${fmtPct(o)}</td>
+        <td>${fmtPct(s.availability)}</td>
+        <td style="color:${oeeColor(p)}">${fmtPct(p)}</td>
+        <td>${fmtInt(s.parts_produced)}</td>
+        <td>${oeeGradeBadge(o)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Downtime Breakdown chart ──────────────────────────────────────────
+  // Only reads user-entered data:
+  //   • cnc_downtime_rca → Medium/Major RCA records (downtime_category field)
+  //   • cnc_downtime_log → Manual entries (reason_code field)
+  // Shows "--m" until user logs data via Downtime Analysis page.
+  function mapDTCategory(cat, type) {
+    const c = (cat||'').toLowerCase();
+    const t = (type||'').toUpperCase();
+    if (c.includes('breakdown')||c.includes('fault')||c.includes('failure')||
+        c.includes('alarm')||c.includes('spindle')||c.includes('coolant')||
+        c.includes('hydraulic')||c.includes('pneumatic')||c.includes('electrical')||
+        c.includes('mechanical')) return 'Breakdown';
+    if (c.includes('setup')||c.includes('program')||c.includes('changeover')||
+        c.includes('tool')||c.includes('fixture')||c.includes('inspection')||
+        c.includes('first-off')||c.includes('re-work')) return 'Setup';
+    if (t==='PLANNED'||c.includes('maintenance')||c.includes('cleaning')||
+        c.includes('5s')||c.includes('planned')||c.includes('shift change')) return 'Planned';
+    return 'Other';
+  }
+
+  async function loadDowntimeChart() {
+    if (!downtimeChart) return;
+    const cats = {Breakdown:0, Setup:0, Planned:0, Other:0};
+    let loggedEvents = 0;
+    const shift   = zCurrentShift();
+    const dateStr = zOEEDate(shift);
+
+    // ── RCA records (Medium / Major downtime with user-entered category) ──
+    try {
+      const ev = await zFetch(`/api/cnc/downtime-events?machine=${MACHINE}&date=${dateStr}&shift=${shift}`);
+      if (ev && ev.ok && ev.events) {
+        ev.events.forEach(e => {
+          // Only count events where user has entered a category in RCA panel
+          const cat = e.rca?.downtime_category || e.downtime_category || '';
+          if (!cat) return;                          // skip uncategorized
+          const dur = parseFloat(e.duration_min) || (parseFloat(e.duration_sec)||0)/60;
+          cats[mapDTCategory(cat, '')] += dur;
+          loggedEvents++;
+        });
+      }
+    } catch(e) {}
+
+    // ── Manual entries (user-entered from "+ Define Downtime" form) ───────
+    try {
+      const lg = await zFetch(`/api/cnc/downtime-log?machine=${MACHINE}&date=${dateStr}&shift=${shift}&limit=200`);
+      const rows = (lg?.data || lg?.rows || []);
+      rows.forEach(r => {
+        const dur = parseFloat(r.duration_min)||0;
+        if (!dur) return;
+        cats[mapDTCategory(r.reason_code||'', r.type||'')] += dur;
+        loggedEvents++;
+      });
+    } catch(e) {}
+
+    // ── Render ────────────────────────────────────────────────────────────
+    const vals   = [cats.Breakdown, cats.Setup, cats.Planned, cats.Other];
+    const hasAny = loggedEvents > 0 && vals.some(v=>v>0);
+    downtimeChart.data.datasets[0].data = hasAny ? vals : [1,1,1,1];
+    downtimeChart.update('none');
+    const legend = document.getElementById('dt-legend');
+    if (legend) {
+      const colors = ['#ff4444','#ffb300','#4488ff','#a855f7'];
+      const labels = ['Breakdown','Setup','Planned','Other'];
+      legend.innerHTML = labels.map((l,i) => {
+        const m   = vals[i];
+        const txt = !hasAny ? '--m' : (m>=60 ? (m/60).toFixed(1)+'h' : Math.round(m)+'m');
+        const clr = (hasAny && m>0) ? colors[i] : 'var(--muted)';
+        return `<div class="dt-legend-item"><span style="display:flex;align-items:center"><span class="dt-legend-dot" style="background:${colors[i]}"></span>${l}</span><span style="color:${clr};font-weight:600">${txt}</span></div>`;
+      }).join('');
+    }
+  }
+
+  function fetchLastShiftsChart() {
+    zFetch('/api/cnc/shifts?machine='+MACHINE+'&limit=2')
+      .then(d => {
+        if (!d || !oeeLineChart) return;
+        const shifts = (d.shifts || d.rows || []).slice(0, 2).reverse(); // oldest first
+        if (!shifts.length) return;
+        // Labels: "Shift A · 28 May"
+        oeeLineChart.data.labels = shifts.map(s => {
+          const date = s.shift_date || s.date || '';
+          let dLabel = date;
+          try { dLabel = new Date(date+'T12:00:00Z').toLocaleDateString('en-IN',{day:'numeric',month:'short'}); } catch{}
+          return 'Shift ' + (s.shift||'?') + ' · ' + dLabel;
+        });
+        oeeLineChart.data.datasets[0].data = shifts.map(s => Math.round(parseFloat(s.oee)||0));
+        oeeLineChart.data.datasets[1].data = shifts.map(s => Math.round(parseFloat(s.availability)||0));
+        oeeLineChart.data.datasets[2].data = shifts.map(s => Math.round(parseFloat(s.performance)||0));
+        oeeLineChart.data.datasets[3].data = shifts.map(s => Math.round(parseFloat(s.quality)||0));
+        oeeLineChart.update('none');
+
+        // ── Wire up Shift A / B parts split in Current Shift card + banner ──
+        const allShifts = (d.shifts || d.rows || []).slice(0, 2);
+        const shiftA = allShifts.find(s => s.shift === 'A');
+        const shiftB = allShifts.find(s => s.shift === 'B');
+        const pA = shiftA ? (parseInt(shiftA.parts_produced)||0) : null;
+        const pB = shiftB ? (parseInt(shiftB.parts_produced)||0) : null;
+        // Current Shift card
+        const partsAEl = document.getElementById('sc-parts-a');
+        const partsBEl = document.getElementById('sc-parts-b');
+        if (partsAEl) partsAEl.textContent = pA !== null ? fmtInt(pA) : '--';
+        if (partsBEl) partsBEl.textContent = pB !== null ? fmtInt(pB) : '--';
+        // Banner parts split (A + B = today total)
+        const splitDiv = document.getElementById('banner-parts-split');
+        const elA = document.getElementById('banner-split-a');
+        const elB = document.getElementById('banner-split-b');
+        const elT = document.getElementById('banner-split-total');
+        if (splitDiv && (pA !== null || pB !== null)) {
+          if (elA) elA.textContent = 'A:' + fmtInt(pA||0);
+          if (elB) elB.textContent = 'B:' + fmtInt(pB||0);
+          if (elT) elT.textContent = fmtInt((pA||0)+(pB||0));
+          splitDiv.style.display = '';
+        }
+      }).catch(()=>{});
+  }
+
+  function fetchAll() {
+    const shift = zCurrentShift();
+    const today = zOEEDate(shift); // handles Shift B crossing midnight
+
+    zFetch('/api/cnc/live?machine='+MACHINE)
+      .then(d => {
+        if (d && d.ok && d.machine) renderStateBanner(d.machine);
+        if (d && d.ok && d.shift_downtime) {
+          // Update banner "Idle" label → real shift downtime
+          const dtMin = d.shift_downtime.downtime_min || 0;
+          const dtSec = d.shift_downtime.downtime_sec || 0;
+          window._shiftDTRendered = true;
+          zSet('banner-idle', fmtHM(dtMin));
+          // Also update sc-downtime if OEE endpoint hasn't loaded yet
+          const scDT = document.getElementById('sc-downtime');
+          if (scDT && scDT.textContent === '--') scDT.textContent = dtMin;
+        }
+      })
+      .catch(()=>{});
+
+    zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+today)
+      .then(d => {
+        if(d&&d.ok) {
+          renderKPIs(d);          // sets IDEAL_CYCLE from d.target_cycle_time
+          fetchLastShiftsChart(); // re-render trend now that IDEAL_CYCLE is correct
+        }
+      })
+      .catch(()=>{});
+
+    zFetch('/api/cnc/production-trend?days=7&machine='+MACHINE)
+      .then(d => { if(d&&d.ok&&d.trend) renderWeekChart(d.trend); })
+      .catch(()=>{});
+
+    zFetch('/api/cnc/shifts?machine='+MACHINE)
+      .then(d => { if(d&&d.ok&&d.shifts) renderShiftsTable(d.shifts); })
+      .catch(()=>{});
+
+    const hourlyShift = zCurrentShift();
+    zFetch('/api/cnc/hourly-shift?date='+today+'&shift='+hourlyShift+'&machine='+MACHINE)
+      .then(d => { if(d&&d.ok&&d.rows) renderHourlyChart(d.rows); })
+      .catch(()=>{});
+
+    loadDowntimeChart();
+
+    fetchLastShiftsChart();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setupCharts();
+    zParticles();
+    document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    renderShiftCard();
+    fetchAll();
+
+    try {
+      const ws = new WebSocket('ws://'+location.host);
+      ws.onmessage = e => { try{ const d=JSON.parse(e.data); const m=d.machine||d; if(m&&m.machine_state) renderStateBanner(m); }catch{} };
+      ws.onerror = ()=>{};
+    } catch{}
+
+    setInterval(function(){
+      zFetch('/api/cnc/live?machine='+MACHINE)
+        .then(d=>{ if(d&&d.ok&&d.machine) renderStateBanner(d.machine); })
+        .catch(()=>{});
+    }, 5000);
+
+    setInterval(fetchAll, 30000);
+    setInterval(function(){ renderShiftCard(); }, 60000);
+
+    loadHomeDashboards();
+  });
+
+// ── Load My Dashboards row ───────────────────────────────
+function loadHomeDashboards() {
+  fetch('/api/dashboards/list')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var list = (data && data.dashboards) ? data.dashboards : [];
+      if (!list.length) return;
+      var row  = document.getElementById('my-dashboards-row');
+      var grid = document.getElementById('home-dash-grid');
+      if (!row || !grid) return;
+      row.style.display = 'block';
+      var GRADIENTS = ['linear-gradient(135deg,#0a1628,#0d2040)','linear-gradient(135deg,#051220,#0d3060)','linear-gradient(135deg,#0a2015,#103828)','linear-gradient(135deg,#1a0a28,#2d1060)','linear-gradient(135deg,#201008,#502010)'];
+      grid.innerHTML = list.slice(0, 6).map(function(d, i) {
+        var t   = d.theme || {};
+        var bg  = t.bgImage ? 'url(' + t.bgImage + ') center/cover' : (t.bgColor || GRADIENTS[i % GRADIENTS.length]);
+        var wc  = (d.widgets || []).length;
+        var vis = d.visibility === 'draft' ? '🔒' : '🌐';
+        return '<a href="/view/' + d.slug + '" style="display:block;text-decoration:none;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .2s;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'\'">' +
+          '<div style="height:60px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;">' +
+            (t.logoUrl ? '<img src="' + t.logoUrl + '" style="max-height:22px;max-width:60px;position:absolute;left:8px;top:50%;transform:translateY(-50%)" onerror="this.remove()"/>' : '') +
+            (t.icon || '📊') +
+          '</div>' +
+          '<div style="padding:10px 12px;">' +
+            '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + vis + ' ' + d.name + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);">' + wc + ' widget' + (wc!==1?'s':'') + '</div>' +
+          '</div>' +
+        '</a>';
+      }).join('') +
+      (list.length > 6 ? '<a href="/my-dashboards" style="display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:12px;min-height:100px;text-decoration:none;color:var(--muted);font-size:12px;transition:all .2s" onmouseover="this.style.borderColor=\'rgba(0,212,255,.3)\'" onmouseout="this.style.borderColor=\'var(--border)\'">+' + (list.length-6) + ' more →</a>' : '');
+    })
+    .catch(function(){});
+}
+  </script>
+</body>
+</html>

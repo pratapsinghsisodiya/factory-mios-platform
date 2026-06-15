@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Entry — OEE Dashboard</title>
+<link rel="stylesheet" href="/_shared.css">
+<script src="/_shared.js"></script>
+<script src="/js/chart.min.js"></script>
+<style>
+/* ── Page header ── */
+.page-header { display:flex; align-items:center; justify-content:space-between; padding:1.2rem 1.5rem .8rem; border-bottom:1px solid var(--border); }
+.page-header h1 { font-size:1.25rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:.5rem; }
+
+/* ── Selector bar ── */
+.sel-bar { display:flex; gap:.75rem; align-items:flex-end; padding:.85rem 1.5rem; background:rgba(0,255,136,.025); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.sel-grp { display:flex; flex-direction:column; gap:.3rem; }
+.sel-grp label { font-size:.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.sel-grp select, .sel-grp input[type=date] {
+  background:var(--card); border:1px solid var(--border); color:var(--text);
+  border-radius:7px; padding:.48rem .75rem; font-size:.83rem; font-family:inherit;
+  min-width:160px; cursor:pointer;
+}
+.sel-grp select:focus, .sel-grp input:focus { outline:none; border-color:var(--green); }
+.btn-load { padding:.5rem 1.1rem; background:var(--green); color:#000; font-weight:700; font-size:.82rem; border:none; border-radius:7px; cursor:pointer; font-family:inherit; align-self:flex-end; }
+.btn-load:hover { opacity:.88; }
+.btn-load:disabled { opacity:.5; cursor:default; }
+
+/* ── Latest 2-shift summary ── */
+.shift-summary { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; padding:.9rem 1.5rem; border-bottom:1px solid var(--border); }
+.ss-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:.85rem 1rem; display:flex; gap:.9rem; align-items:center; flex-wrap:wrap; }
+.ss-card.active-card { border-color:rgba(0,255,136,.3); background:rgba(0,255,136,.04); }
+.ss-card .ss-label { font-size:.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; background:rgba(255,255,255,.06); padding:.18rem .55rem; border-radius:6px; white-space:nowrap; }
+.ss-stat { text-align:center; min-width:52px; }
+.ss-stat .sv { font-size:1rem; font-weight:800; color:var(--text); }
+.ss-stat .sk { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:.1rem; }
+.ss-ring { position:relative; width:48px; height:48px; flex-shrink:0; }
+.ss-ring canvas { position:absolute; top:0; left:0; }
+.ss-ring .sr-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.62rem; font-weight:800; }
+.ss-date { font-size:.68rem; color:var(--muted); margin-left:auto; white-space:nowrap; }
+
+/* ── KPI row ── */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; padding:1rem 1.5rem; }
+.kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; align-items:center; gap:.9rem; position:relative; overflow:hidden; }
+.kpi-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px 0 0 4px; background:var(--accent-color,var(--cyan)); }
+.kpi-icon { font-size:1.6rem; line-height:1; }
+.kpi-body { flex:1; min-width:0; }
+.kpi-label { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+.kpi-value { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1.1; margin-top:.15rem; }
+.kpi-sub { font-size:.7rem; color:var(--muted); margin-top:.2rem; }
+
+/* ── Main grid ── */
+.main-grid { display:grid; grid-template-columns:410px 1fr; gap:1.25rem; padding:0 1.5rem 1.5rem; }
+@media(max-width:900px){ .main-grid{grid-template-columns:1fr;} .kpi-row{grid-template-columns:repeat(2,1fr);} .shift-summary{grid-template-columns:1fr;} .sel-bar{gap:.5rem;} }
+
+/* ── Form ── */
+.form-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.form-card h2 { font-size:.92rem; font-weight:700; color:var(--text); margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-bottom:.7rem; }
+.form-full { margin-bottom:.7rem; }
+label { display:block; font-size:.7rem; color:var(--muted); margin-bottom:.28rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+input[type=text],input[type=email],input[type=number],select,textarea {
+  width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+  border-radius:7px; padding:.52rem .72rem; font-size:.84rem; font-family:inherit;
+  transition:border-color .2s; box-sizing:border-box;
+}
+input:focus,select:focus,textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(0,255,136,.1); }
+textarea { resize:vertical; min-height:60px; }
+
+/* ── Shift context in form ── */
+.shift-ctx-box { background:rgba(0,255,136,.06); border:1px solid rgba(0,255,136,.2); border-radius:9px; padding:.65rem .9rem; margin-bottom:.75rem; display:none; }
+.shift-ctx-box .ctx-row { display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; }
+.shift-ctx-box .ctx-item { text-align:center; }
+.shift-ctx-box .ctx-item .cv { font-size:1.05rem; font-weight:800; color:var(--text); }
+.shift-ctx-box .ctx-item .ck { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.shift-ctx-box .ctx-label { font-size:.7rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+
+/* ── Qty stepper ── */
+.qty-row { display:flex; gap:.5rem; align-items:center; }
+.qty-btn { width:34px; height:34px; border-radius:7px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s; flex-shrink:0; }
+.qty-btn:hover { border-color:var(--green); }
+input#f-rejected { text-align:center; font-size:1.1rem; font-weight:700; width:72px; flex-shrink:0; }
+.sev-display { display:flex; align-items:center; justify-content:space-between; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.5rem .72rem; font-size:.84rem; flex:1; }
+.sev-badge { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:20px; letter-spacing:.06em; }
+.sev-minor   { background:rgba(100,100,120,.2); color:#a0a0c0; }
+.sev-second  { background:rgba(255,179,0,.15);  color:var(--amber); }
+.sev-major   { background:rgba(255,68,68,.15);  color:#ff4444; }
+
+/* ── OEE impact preview ── */
+.oee-impact { background:rgba(0,200,255,.05); border:1px solid rgba(0,200,255,.2); border-radius:8px; padding:.55rem .85rem; font-size:.77rem; color:var(--cyan); margin-top:.7rem; display:none; }
+
+/* ── Submit button ── */
+.btn-submit { width:100%; padding:.72rem; background:var(--green); color:#000; font-weight:700; font-size:.88rem; border:none; border-radius:9px; cursor:pointer; font-family:inherit; margin-top:.5rem; transition:opacity .15s; }
+.btn-submit:hover { opacity:.88; }
+.btn-submit:disabled { opacity:.5; cursor:default; }
+
+/* ── Right panel ── */
+.right-panel { display:flex; flex-direction:column; gap:1rem; }
+.panel-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.panel-card h2 { font-size:.88rem; font-weight:700; color:var(--text); margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; }
+
+/* ── Log table ── */
+.events-table { width:100%; border-collapse:collapse; font-size:.77rem; }
+.events-table th { text-align:left; padding:.42rem .55rem; color:var(--muted); border-bottom:1px solid var(--border); font-size:.67rem; text-transform:uppercase; letter-spacing:.05em; }
+.events-table td { padding:.42rem .55rem; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.events-table tr:hover td { background:rgba(255,255,255,.03); }
+.del-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:.82rem; padding:.12rem .32rem; border-radius:5px; transition:color .15s; }
+.del-btn:hover { color:#ff4444; background:rgba(255,68,68,.1); }
+.dur-pill { display:inline-block; font-size:.68rem; font-weight:700; padding:.09rem .42rem; border-radius:20px; }
+.dur-minor  { background:rgba(100,100,120,.2); color:#a0a0c0; }
+.dur-second { background:rgba(255,179,0,.15);  color:var(--amber); }
+.dur-major  { background:rgba(255,68,68,.15);  color:#ff4444; }
+
+/* ── Filter bar ── */
+.filter-bar { display:flex; gap:.55rem; margin-bottom:.85rem; align-items:center; flex-wrap:wrap; }
+.filter-bar select { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:.35rem .6rem; font-size:.77rem; font-family:inherit; width:auto; }
+.filter-btn { padding:.35rem .75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:7px; cursor:pointer; font-size:.77rem; font-family:inherit; transition:border-color .15s; }
+.filter-btn:hover { border-color:var(--green); }
+.filter-btn.active { background:rgba(0,255,136,.1); border-color:var(--green); color:var(--green); }
+.empty-msg { text-align:center; color:var(--muted); padding:2rem; font-size:.83rem; }
+
+/* ── Toast ── */
+.toast { position:fixed; bottom:1.5rem; right:1.5rem; background:var(--card); border:1px solid var(--border); color:var(--text); padding:.8rem 1.2rem; border-radius:10px; font-size:.84rem; font-weight:600; opacity:0; transform:translateY(12px); transition:all .25s; z-index:1000; max-width:320px; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.ok  { border-color:var(--green); }
+.toast.err { border-color:#ff4444; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<!-- ══ Page header ══ -->
+<div class="page-header">
+  <h1>🔴 Quality Entry</h1>
+  <div style="display:flex;gap:.6rem;align-items:center;">
+    <span id="hdr-date" style="font-size:.8rem;color:var(--muted);"></span>
+    <button onclick="loadShiftData()" class="filter-btn">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- ══ Selector bar ══ -->
+<div class="sel-bar">
+  <div class="sel-grp">
+    <label>Machine</label>
+    <select id="sel-machine" onchange="loadShiftData()">
+      <option value="MACHINE001">MACHINE001 — Demo Machine Hobbing</option>
+    </select>
+  </div>
+  <div class="sel-grp">
+    <label>Date</label>
+    <input type="date" id="sel-date" onchange="loadShiftData()">
+  </div>
+  <div class="sel-grp">
+    <label>Shift</label>
+    <select id="sel-shift" onchange="loadShiftData()">
+      <option value="A">Shift A (07:00–19:00)</option>
+      <option value="B">Shift B (19:00–07:00)</option>
+    </select>
+  </div>
+  <button class="btn-load" id="btn-load" onclick="loadShiftData()">📥 Load Shift</button>
+</div>
+
+<!-- ══ Latest 2 shifts ══ -->
+<div class="shift-summary" id="shift-summary">
+  <div class="ss-card" id="ss-card-0"><span class="ss-date">Loading…</span></div>
+  <div class="ss-card" id="ss-card-1"><span class="ss-date">Loading…</span></div>
+</div>
+
+<!-- ══ KPI row ══ -->
+<div class="kpi-row">
+  <div class="kpi-card" style="--accent-color:var(--green);">
+    <span class="kpi-icon">✅</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Good Parts</div>
+      <div class="kpi-value" id="kpi-good">—</div>
+      <div class="kpi-sub" id="kpi-good-sub">Selected shift</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#ff4444;">
+    <span class="kpi-icon">🔴</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Total Rejected</div>
+      <div class="kpi-value" id="kpi-rejected">—</div>
+      <div class="kpi-sub">Selected shift</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:var(--amber);">
+    <span class="kpi-icon">📊</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Rejection Rate</div>
+      <div class="kpi-value" id="kpi-rate">—</div>
+      <div class="kpi-sub">% of total parts</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:var(--cyan);">
+    <span class="kpi-icon">🚨</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Major Events</div>
+      <div class="kpi-value" id="kpi-major">—</div>
+      <div class="kpi-sub">&gt; 5 pcs each</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Main grid ══ -->
+<div class="main-grid">
+
+  <!-- ── Log form ── -->
+  <div class="form-card">
+    <h2>🔴 Log Quality Rejection</h2>
+
+    <!-- Loaded shift context -->
+    <div class="shift-ctx-box" id="shift-ctx-box">
+      <div class="ctx-label" id="ctx-label">Shift A — 29-May-2026</div>
+      <div class="ctx-row">
+        <div class="ctx-item"><div class="cv" id="ctx-parts">—</div><div class="ck">Parts Made</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-rej">—</div><div class="ck">Rejected</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-good">—</div><div class="ck">Good Parts</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-qual" style="color:var(--green);">—%</div><div class="ck">Quality</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-oee">—%</div><div class="ck">OEE</div></div>
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Operator Name</label>
+      <input type="text" id="f-operator" placeholder="Name of operator who detected the issue">
+    </div>
+
+    <div class="form-full">
+      <label>Defect Type</label>
+      <select id="f-defect-type" onchange="updateSeverity()">
+        <option value="">— Select defect type —</option>
+        <optgroup label="Dimensional">
+          <option>Dimensional Out of Tolerance</option>
+          <option>Bore / Diameter Oversize</option>
+          <option>Bore / Diameter Undersize</option>
+          <option>Length / Depth Error</option>
+          <option>Thread Error</option>
+          <option>Runout / Concentricity Error</option>
+        </optgroup>
+        <optgroup label="Surface">
+          <option>Surface Finish Defect</option>
+          <option>Burrs / Sharp Edges</option>
+          <option>Tool Mark / Chatter</option>
+          <option>Scratch / Dent</option>
+        </optgroup>
+        <optgroup label="Process">
+          <option>Wrong Program Run</option>
+          <option>Tool Wear Defect</option>
+          <option>Setup Error</option>
+          <option>Fixture / Clamping Error</option>
+          <option>Wrong Material</option>
+        </optgroup>
+        <optgroup label="Material">
+          <option>Raw Material Defect</option>
+          <option>Porosity / Inclusion</option>
+          <option>Hardness Out of Spec</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option>Operator Error</option>
+          <option>Missing Feature</option>
+          <option>Other / Unknown</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="form-full">
+      <label>Pieces Rejected</label>
+      <div class="qty-row">
+        <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+        <input type="number" id="f-rejected" value="1" min="1" max="9999" oninput="updateSeverity();updateOeeImpact();">
+        <button class="qty-btn" onclick="adjustQty(1)">+</button>
+        <div class="sev-display">
+          <span id="sev-dur" style="color:var(--muted);">1 pc rejected</span>
+          <span class="sev-badge sev-minor" id="sev-badge">MINOR</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Good Parts This Log Period <span style="color:var(--muted);font-weight:400;">(auto from machine data)</span></label>
+      <input type="number" id="f-good" value="0" min="0">
+    </div>
+
+    <div class="form-full">
+      <label>Defect Description</label>
+      <textarea id="f-reason" placeholder="Describe the defect in detail…"></textarea>
+    </div>
+
+    <div class="form-full">
+      <label>Action to Take</label>
+      <textarea id="f-action" placeholder="Corrective / preventive action…" rows="2"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label>Assign To</label>
+        <input type="text" id="f-assignee" placeholder="Quality lead">
+      </div>
+      <div>
+        <label>Email (Major only)</label>
+        <input type="email" id="f-email" placeholder="person@company.com">
+      </div>
+    </div>
+
+    <!-- OEE impact preview -->
+    <div class="oee-impact" id="oee-impact">
+      📊 Quality impact: <strong id="oee-before">—</strong> → <strong id="oee-after">—</strong>
+      &nbsp;·&nbsp; Rejection rate will be <strong id="rej-rate-preview">—</strong>
+    </div>
+
+    <button class="btn-submit" id="submit-btn" onclick="submitQuality()">🔴 Log Rejection Event</button>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div class="right-panel">
+
+    <div class="panel-card">
+      <h2>📊 Rejection Pareto — by Defect Type</h2>
+      <canvas id="pareto-chart" height="155"></canvas>
+    </div>
+
+    <div class="panel-card" style="flex:1;">
+      <h2>📋 Rejection Log</h2>
+      <div class="filter-bar">
+        <select id="fil-shift" onchange="renderEvents()" style="width:130px;">
+          <option value="">Both Shifts</option>
+          <option value="A">Shift A</option>
+          <option value="B">Shift B</option>
+        </select>
+        <button class="filter-btn active" id="fil-all"   onclick="setFilter('all')">All</button>
+        <button class="filter-btn" id="fil-major" onclick="setFilter('MAJOR')">🚨 Major</button>
+        <button class="filter-btn" id="fil-sec"   onclick="setFilter('SECOND_LEVEL')">⚠️ 2nd</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Date / Shift</th>
+              <th>Hour</th>
+              <th>Operator</th>
+              <th>Defect Type</th>
+              <th>Rejected</th>
+              <th>Severity</th>
+              <th>Assigned</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr><td colspan="8" class="empty-msg">Select machine, date and shift above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MACHINE_DEFAULT = 'MACHINE001';
+let _allEvents   = [];
+let _shiftCtx    = null;   // loaded shift context from oee_results
+let _liveParts   = 0;
+let _sevFilter   = 'all';
+let _paretoChart = null;
+let _machines    = [];
+
+// ── Init ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  zCheckAuth();
+  zRenderNav('quality');
+
+  const ist   = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const h     = ist.getHours();
+  const shift = (h >= 7 && h < 19) ? 'A' : 'B';
+  const dateStr = ist.toLocaleDateString('en-CA');
+
+  document.getElementById('sel-date').value  = dateStr;
+  document.getElementById('sel-shift').value = shift;
+  document.getElementById('hdr-date').textContent =
+    ist.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+  try {
+    const u = JSON.parse(localStorage.getItem('oee_user') || '{}');
+    document.getElementById('f-operator').value = u.name || u.username || '';
+  } catch(_) {}
+
+  loadMachines().then(() => loadShiftData());
+  updateSeverity();
+
+  // Mark good-parts as user-edited on manual change
+  document.getElementById('f-good').addEventListener('input', function() { this._userEdited = true; });
+});
+
+// ── Load machine list ─────────────────────────────────────────────
+async function loadMachines() {
+  try {
+    const d = await zFetch('/api/cnc/machines-list');
+    if (d && d.data && d.data.length) {
+      _machines = d.data;
+      const sel = document.getElementById('sel-machine');
+      sel.innerHTML = '';
+      d.data.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.machine_id;
+        const plant = m.plant_name && m.plant_name !== '—' ? ` (${m.plant_name})` : '';
+        opt.textContent = `${m.machine_id} — ${m.machine_name}${plant}`;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(_) {
+    // Fallback: keep MACHINE001 as default
+  }
+}
+
+// ── Load data for selected machine/date/shift ─────────────────────
+async function loadShiftData() {
+  const machine = document.getElementById('sel-machine').value  || MACHINE_DEFAULT;
+  const date    = document.getElementById('sel-date').value;
+  const shift   = document.getElementById('sel-shift').value;
+
+  const btn = document.getElementById('btn-load');
+  btn.disabled = true; btn.textContent = '⏳ Loading…';
+
+  try {
+    // Load rejection log for selected machine/date/shift
+    const qp = new URLSearchParams({ machine, date });
+    if (shift) qp.set('shift', shift);
+    const d = await zFetch('/api/cnc/rejection-log?' + qp);
+    _allEvents = (d && d.data) ? d.data : [];
+
+    // Shift context
+    const ctxArr = (d && d.shift_context) ? d.shift_context : [];
+    _shiftCtx = ctxArr.find(c => c.shift === shift) || ctxArr[0] || null;
+    _liveParts = (d && d.live_parts) ? (d.live_parts[shift] || 0) : 0;
+
+    // Load latest 2 shifts (uses oee_results for this machine)
+    loadLatest2Shifts(machine);
+
+    // Update form context + KPIs
+    renderShiftCtxBox();
+    updateKPIs();
+    renderEvents();
+    buildPareto();
+    updateOeeImpact();
+  } catch(e) {
+    showToast('Load failed: ' + (e.message || 'server error'), 'err');
+  }
+
+  btn.disabled = false; btn.textContent = '📥 Load Shift';
+}
+
+// ── Latest 2 shifts cards ─────────────────────────────────────────
+async function loadLatest2Shifts(machine) {
+  try {
+    const d = await zFetch(`/api/cnc/shifts?machine=${encodeURIComponent(machine)}&limit=2`);
+    const shifts = (d && d.shifts) ? d.shifts : [];
+    renderSummaryCards(shifts);
+  } catch(_) {
+    renderSummaryCards([]);
+  }
+}
+
+function renderSummaryCards(shifts) {
+  for (let i = 0; i < 2; i++) {
+    const card = document.getElementById('ss-card-' + i);
+    const s    = shifts[i];
+    if (!s) { card.innerHTML = '<span class="ss-date" style="color:var(--muted);">No shift data</span>'; card.className='ss-card'; return; }
+
+    const parts  = parseInt(s.parts_produced) || 0;
+    const rej    = parseInt(s.rejection_count) || 0;
+    const good   = Math.max(0, parts - rej);
+    const qual   = parseFloat(s.quality) || (parts > 0 ? 100 : 100);
+    const qualN  = Math.min(100, qual);
+    const colour = qualN >= 99 ? '#00ff88' : qualN >= 95 ? '#00cc66' : qualN >= 90 ? '#ffb300' : '#ff4444';
+
+    const selMachine = document.getElementById('sel-machine').value;
+    const selDate    = document.getElementById('sel-date').value;
+    const isActive   = s.date === selDate && s.shift === document.getElementById('sel-shift').value
+                       && (s.machine_id || MACHINE_DEFAULT) === selMachine;
+    card.className = 'ss-card' + (isActive ? ' active-card' : '');
+
+    card.innerHTML = `
+      <span class="ss-label">Shift ${s.shift}</span>
+      <div class="ss-stat"><div class="sv">${parts > 0 ? parts.toLocaleString() : '—'}</div><div class="sk">Parts</div></div>
+      <div class="ss-stat"><div class="sv" style="color:${rej>0?'#ff4444':'var(--green)'}">${rej}</div><div class="sk">Rejected</div></div>
+      <div class="ss-stat"><div class="sv">${parts > 0 ? good.toLocaleString() : '—'}</div><div class="sk">Good</div></div>
+      <div class="ss-ring">
+        <canvas id="sr-${i}" width="48" height="48"></canvas>
+        <div class="sr-val" id="sr-v-${i}" style="color:${colour}">${qualN.toFixed(1)}%</div>
+      </div>
+      <span class="ss-date">${s.date || '—'}</span>
+    `;
+
+    // Draw ring gauge
+    requestAnimationFrame(() => {
+      const cvs = document.getElementById('sr-' + i);
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      ctx.clearRect(0, 0, 48, 48);
+      ctx.beginPath(); ctx.arc(24,24,19,0,Math.PI*2); ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=4; ctx.stroke();
+      const pct = qualN / 100;
+      ctx.beginPath(); ctx.arc(24,24,19,-Math.PI/2,-Math.PI/2+pct*Math.PI*2); ctx.strokeStyle=colour; ctx.lineWidth=4; ctx.lineCap='round'; ctx.stroke();
+    });
+  }
+}
+
+// ── Shift context box in form ─────────────────────────────────────
+function renderShiftCtxBox() {
+  const box   = document.getElementById('shift-ctx-box');
+  const shift = document.getElementById('sel-shift').value;
+  const date  = document.getElementById('sel-date').value;
+  const ctx   = _shiftCtx;
+  const live  = _liveParts;
+
+  const parts  = ctx ? Math.max(parseInt(ctx.parts_produced)||0, live) : live;
+  const rej    = ctx ? parseInt(ctx.rejection_count)||0 : 0;
+  const good   = Math.max(0, parts - rej);
+  const qual   = ctx ? parseFloat(ctx.quality)||100 : (parts > 0 ? Math.round(good/parts*100) : 100);
+  const oee    = ctx ? parseFloat(ctx.oee)||0 : 0;
+
+  document.getElementById('ctx-label').textContent = `Shift ${shift} — ${date}`;
+  document.getElementById('ctx-parts').textContent = parts > 0 ? parts.toLocaleString() : '0';
+  document.getElementById('ctx-rej').textContent   = rej.toLocaleString();
+  document.getElementById('ctx-good').textContent  = parts > 0 ? good.toLocaleString() : '0';
+  document.getElementById('ctx-qual').textContent  = qual.toFixed(1) + '%';
+  document.getElementById('ctx-qual').style.color  = qual >= 99 ? 'var(--green)' : qual >= 95 ? '#00cc66' : qual >= 90 ? 'var(--amber)' : '#ff4444';
+  document.getElementById('ctx-oee').textContent   = oee.toFixed(1) + '%';
+  box.style.display = 'block';
+
+  // Auto-fill good parts
+  const gEl = document.getElementById('f-good');
+  if (!gEl._userEdited) gEl.value = Math.max(0, parts - rej);
+}
+
+// ── KPI row ──────────────────────────────────────────────────────
+function updateKPIs() {
+  const shift = document.getElementById('sel-shift').value;
+  const date  = document.getElementById('sel-date').value;
+  const ctx   = _shiftCtx;
+  const live  = _liveParts;
+  const parts = ctx ? Math.max(parseInt(ctx.parts_produced)||0, live) : live;
+  const totalRej  = _allEvents.reduce((s,e) => s + (parseInt(e.rejected_parts)||0), 0);
+  const majorCnt  = _allEvents.filter(e => (e.severity||'').toUpperCase() === 'MAJOR').length;
+  const totalGood = Math.max(0, parts - totalRej);
+  const rate      = parts > 0 ? ((totalRej / parts) * 100).toFixed(1) : '0.0';
+
+  el('kpi-good').textContent      = parts > 0 ? totalGood.toLocaleString() : '0';
+  el('kpi-rejected').textContent  = totalRej.toLocaleString();
+  el('kpi-rate').textContent      = rate + '%';
+  el('kpi-major').textContent     = majorCnt.toString();
+  el('kpi-good-sub').textContent  = parts > 0 ? `of ${parts.toLocaleString()} parts total` : 'Machine data loading…';
+  el('kpi-rate').style.color      = parseFloat(rate) > 5 ? '#ff4444' : parseFloat(rate) > 2 ? 'var(--amber)' : 'var(--green)';
+}
+
+// ── OEE impact preview ────────────────────────────────────────────
+function updateOeeImpact() {
+  const ctx    = _shiftCtx;
+  const rejNew = parseInt(el('f-rejected').value) || 0;
+  if (!ctx || !parseInt(ctx.parts_produced)) { el('oee-impact').style.display='none'; return; }
+  const parts  = parseInt(ctx.parts_produced) || 0;
+  if (parts === 0) { el('oee-impact').style.display='none'; return; }
+  const rejOld  = parseInt(ctx.rejection_count)||0;
+  const qualBef = Math.min(100,(parts-rejOld)/parts*100).toFixed(1);
+  const qualAft = Math.min(100,Math.max(0,(parts-rejOld-rejNew)/parts*100)).toFixed(1);
+  const ratePct = ((rejOld+rejNew)/parts*100).toFixed(1);
+  el('oee-before').textContent      = qualBef + '%';
+  el('oee-after').textContent       = qualAft + '%';
+  el('oee-after').style.color       = parseFloat(qualAft) < 90 ? '#ff4444' : 'var(--green)';
+  el('rej-rate-preview').textContent = ratePct + '%';
+  el('oee-impact').style.display    = 'block';
+}
+
+// ── Severity ──────────────────────────────────────────────────────
+function adjustQty(delta) {
+  const e = el('f-rejected');
+  e.value = Math.max(1,(parseInt(e.value)||1)+delta);
+  updateSeverity(); updateOeeImpact();
+}
+function updateSeverity() {
+  const qty = parseInt(el('f-rejected').value)||1;
+  const sev = qty<=1?'MINOR':qty<=5?'SECOND LEVEL':'🚨 MAJOR';
+  const cls = qty<=1?'sev-minor':qty<=5?'sev-second':'sev-major';
+  el('sev-dur').textContent = qty + (qty===1?' pc rejected':' pcs rejected');
+  el('sev-dur').style.color = qty>5?'#ff4444':qty>1?'var(--amber)':'var(--muted)';
+  el('sev-badge').textContent = sev;
+  el('sev-badge').className = 'sev-badge ' + cls;
+}
+
+// ── Filter ────────────────────────────────────────────────────────
+function setFilter(f) {
+  _sevFilter = f;
+  el('fil-all').classList.toggle('active',   f==='all');
+  el('fil-major').classList.toggle('active', f==='MAJOR');
+  el('fil-sec').classList.toggle('active',   f==='SECOND_LEVEL');
+  renderEvents();
+}
+
+// ── Submit ────────────────────────────────────────────────────────
+async function submitQuality() {
+  const defectType = el('f-defect-type').value;
+  const operator   = el('f-operator').value.trim();
+  const rejected   = parseInt(el('f-rejected').value)||0;
+  if (!defectType||!operator||rejected<=0) { showToast('Fill: Defect Type, Operator Name, and Pieces Rejected','err'); return; }
+
+  const btn = el('submit-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+
+  const machine = el('sel-machine').value || MACHINE_DEFAULT;
+  const date    = el('sel-date').value;
+  const shift   = el('sel-shift').value;
+  const ist     = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+
+  try {
+    const resp = await zFetch('/api/cnc/rejection-log', {
+      method:'POST',
+      headers:{'Content-Type':'application/json',...zAuthHeader()},
+      body: JSON.stringify({
+        machine_id:       machine,
+        shift_date:       date,
+        shift:            shift,
+        log_hour:         ist.getHours(),
+        good_parts:       parseInt(el('f-good').value)||0,
+        rejected_parts:   rejected,
+        rejection_reason: el('f-reason').value.trim(),
+        operator_name:    operator,
+        defect_type:      defectType,
+        action_to_take:   el('f-action').value.trim(),
+        assigned_to:      el('f-assignee').value.trim(),
+        assigned_email:   el('f-email').value.trim()
+      })
+    });
+
+    const sev  = resp?.severity||'MINOR';
+    const msgs = {MINOR:'📝 Minor rejection logged — OEE updating.',SECOND_LEVEL:'⚠️ Second-level rejection logged — OEE updating.',MAJOR:'🚨 MAJOR rejection — email alert sent & OEE updated!'};
+    showToast(msgs[sev]||'✅ Logged.','ok');
+
+    // Reset
+    ['f-reason','f-action','f-assignee','f-email'].forEach(id=>el(id).value='');
+    el('f-rejected').value='1'; el('f-defect-type').value='';
+    el('f-good')._userEdited=false;
+    updateSeverity();
+    setTimeout(()=>loadShiftData(), 1200);
+  } catch(e) { showToast('Error: '+(e.message||'failed'),'err'); }
+  btn.disabled=false; btn.textContent='🔴 Log Rejection Event';
+}
+
+// ── Render events ─────────────────────────────────────────────────
+function renderEvents() {
+  const tbody   = el('events-tbody');
+  const filShift = el('fil-shift').value;
+  let rows = _allEvents;
+  if (filShift) rows = rows.filter(r=>r.shift===filShift);
+  if (_sevFilter!=='all') rows = rows.filter(r=>(r.severity||'').toUpperCase()===_sevFilter);
+
+  if (!rows.length) {
+    tbody.innerHTML='<tr><td colspan="8" class="empty-msg">No rejections for this selection — log using the form</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(ev=>{
+    const qty   = parseInt(ev.rejected_parts)||0;
+    const sev   = (ev.severity||(qty<=1?'MINOR':qty<=5?'SECOND_LEVEL':'MAJOR')).toUpperCase();
+    const durCls= sev==='MAJOR'?'dur-major':sev==='SECOND_LEVEL'?'dur-second':'dur-minor';
+    const icon  = sev==='MAJOR'?'🚨':sev==='SECOND_LEVEL'?'⚠️':'📝';
+    const lbl   = sev==='MAJOR'?'MAJOR':sev==='SECOND_LEVEL'?'2nd Lvl':'Minor';
+    const dtype = (ev.defect_type||ev.rejection_reason||'—').slice(0,22);
+    return `<tr>
+      <td>${String(ev.shift_date||'').slice(0,10)} <span style="color:var(--muted)">Sh.${ev.shift||'?'}</span></td>
+      <td>${ev.log_hour!=null?String(ev.log_hour).padStart(2,'0')+':00':'—'}</td>
+      <td>${ev.operator_name||'—'}</td>
+      <td title="${ev.defect_type||''}">${dtype}</td>
+      <td style="font-weight:700;color:${qty>5?'#ff4444':qty>1?'var(--amber)':'var(--muted)'}">${qty} pcs</td>
+      <td><span class="dur-pill ${durCls}">${icon} ${lbl}</span></td>
+      <td>${ev.assigned_to||'—'}</td>
+      <td><button class="del-btn" onclick="deleteEvent(${ev.id})">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Delete ────────────────────────────────────────────────────────
+async function deleteEvent(id) {
+  if (!confirm('Delete this rejection? OEE will be recalculated.')) return;
+  try {
+    await zFetch('/api/cnc/rejection-log/'+id,{method:'DELETE',headers:zAuthHeader()});
+    showToast('Deleted — OEE recalculating…','ok');
+    setTimeout(()=>loadShiftData(),1200);
+  } catch(e){showToast('Delete failed','err');}
+}
+
+// ── Pareto ────────────────────────────────────────────────────────
+function buildPareto() {
+  const ctx = el('pareto-chart').getContext('2d');
+  const agg = {};
+  _allEvents.forEach(ev=>{
+    const k=ev.defect_type||ev.rejection_reason||'Unknown';
+    agg[k]=(agg[k]||0)+(parseInt(ev.rejected_parts)||0);
+  });
+  const sorted=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (_paretoChart) _paretoChart.destroy();
+  if (!sorted.length){
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    ctx.fillStyle='rgba(255,255,255,.15)'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('No rejections logged yet',ctx.canvas.width/2,55);
+    return;
+  }
+  _paretoChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:sorted.map(([k])=>k.length>22?k.slice(0,22)+'…':k),
+      datasets:[{label:'Rejected Pcs',data:sorted.map(([,v])=>v),
+        backgroundColor:sorted.map((_,i)=>i===0?'rgba(255,68,68,.75)':i<3?'rgba(255,179,0,.65)':'rgba(0,255,136,.5)'),
+        borderRadius:5,borderWidth:0}]
+    },
+    options:{
+      responsive:true,indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} pcs`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:10}}},
+              y:{grid:{display:false},ticks:{color:'#bbb',font:{size:10}}}}
+    }
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function el(id){return document.getElementById(id);}
+function showToast(msg,type){
+  const t=el('toast'); t.textContent=msg; t.className='toast show '+(type||'ok');
+  clearTimeout(t._tid); t._tid=setTimeout(()=>{t.className='toast';},4000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Manager View — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+  /* ── Manager-specific layout ──────────────────────────── */
+  .header-row { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px; }
+  .header-left { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+
+  /* Plant cards row */
+  .plants-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+  .plant-card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:16px; position:relative; overflow:hidden; transition:transform .2s,box-shadow .2s;
+  }
+  .plant-card:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,.4); }
+  .plant-card::after { content:''; position:absolute; top:0;left:0;right:0;height:3px; }
+  .pc1::after{background:linear-gradient(90deg,#00d4ff,#0088cc)}
+  .pc2::after{background:linear-gradient(90deg,#00ff88,#00aa55)}
+  .pc3::after{background:linear-gradient(90deg,#ffb300,#cc8800)}
+  .pc4::after{background:linear-gradient(90deg,#a855f7,#7733cc)}
+  .pc5::after{background:linear-gradient(90deg,#ff4488,#cc1155)}
+  .plant-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:5px; }
+  .pc1 .plant-label{color:#00d4ff} .pc2 .plant-label{color:#00ff88}
+  .pc3 .plant-label{color:#ffb300} .pc4 .plant-label{color:#a855f7}
+  .pc5 .plant-label{color:#ff4488}
+  .plant-name { font-size:.88rem; font-weight:700; color:var(--fg); margin-bottom:12px; }
+  .plant-oee-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .plant-oee-num { font-size:1.7rem; font-weight:800; line-height:1; }
+  .pc1 .plant-oee-num{color:#00d4ff} .pc2 .plant-oee-num{color:#00ff88}
+  .pc3 .plant-oee-num{color:#ffb300} .pc4 .plant-oee-num{color:#a855f7}
+  .pc5 .plant-oee-num{color:#ff4488}
+  .plant-foot { display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); }
+  .plant-no-data { text-align:center; padding:20px 0; color:var(--muted); font-size:.8rem; }
+  .plant-no-data-icon { font-size:1.8rem; margin-bottom:6px; opacity:.3; }
+
+  /* KPI tiles */
+  .kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+
+  /* 2-col charts */
+  .two-col { display:grid; grid-template-columns:1.6fr 1fr; gap:14px; margin-bottom:20px; }
+
+  /* Shift compare table */
+  .cmp-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .cmp-table th { padding:8px 12px; text-align:left; color:var(--muted); font-size:.7rem; text-transform:uppercase; border-bottom:1px solid var(--border); background:rgba(255,255,255,.02); }
+  .cmp-table td { padding:9px 12px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .cmp-table tr:last-child td { border-bottom:none; }
+
+  /* Target gauges */
+  .target-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .target-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; text-align:center; }
+  .target-lbl { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+  .target-actual { font-size:1.6rem; font-weight:800; color:var(--fg); margin-bottom:8px; }
+  .target-bar-wrap { height:7px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; margin-bottom:6px; }
+  .target-bar-fill { height:100%; border-radius:4px; transition:width 1.2s ease; }
+  .target-sub { display:flex; justify-content:space-between; font-size:.7rem; color:var(--muted); }
+  .target-line { position:relative; }
+
+  /* Events */
+  .three-col { display:grid; grid-template-columns:1fr 2fr; gap:14px; margin-bottom:20px; }
+  .stat-box { display:flex; align-items:center; gap:14px; padding:14px; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; }
+  .stat-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0; }
+  .stat-count { font-size:1.5rem; font-weight:800; }
+  .ev-table { width:100%;border-collapse:collapse;font-size:.82rem; }
+  .ev-table th { padding:7px 10px;text-align:left;color:var(--muted);font-size:.7rem;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02); }
+  .ev-table td { padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04); }
+  .ev-table tr:last-child td { border-bottom:none; }
+
+  @media(max-width:1200px){ .plants-strip{grid-template-columns:repeat(3,1fr)}.kpi-strip,.target-strip{grid-template-columns:repeat(2,1fr)}.two-col,.three-col{grid-template-columns:1fr} }
+
+  /* Demo Factory Unit card */
+  .unit-strip { margin-bottom: 12px; }
+  .unit-card { padding: 16px 18px !important; }
+  .unit-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .unit-title-grp {}
+  .unit-meta { display:flex; align-items:center; gap:8px; }
+  .unit-badge { font-size:.63rem; font-weight:700; padding:2px 9px; border-radius:10px; }
+  .unit-badge.live { background:rgba(0,255,136,.12); color:var(--green); border:1px solid rgba(0,255,136,.25); }
+  .unit-badge.off  { background:rgba(107,140,174,.08); color:var(--muted); border:1px solid rgba(107,140,174,.18); }
+  .machines-row { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  @media(max-width:1200px){ .machines-row { grid-template-columns:repeat(3,1fr); } }
+  @media(max-width:800px) { .machines-row { grid-template-columns:1fr 1fr; } }
+  .machine-tile { background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:10px; padding:12px; transition:border-color .2s; position:relative; }
+  .machine-tile.connected { border-color:rgba(0,212,255,.3); background:rgba(0,212,255,.03); }
+  .machine-tile.offline { opacity:.7; }
+  .mt-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .mt-id { font-size:.78rem; font-weight:800; font-family:monospace; color:var(--fg); }
+  .mt-live-dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:mt-pulse 2s infinite; display:inline-block; margin-right:3px; }
+  @keyframes mt-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  .mt-live-txt { font-size:.62rem; font-weight:700; color:var(--green); display:flex; align-items:center; gap:2px; }
+  .mt-off-txt  { font-size:.62rem; font-weight:600; color:var(--muted); }
+  .mt-ctrl { font-size:.68rem; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mt-oee { font-size:1.45rem; font-weight:800; color:#00d4ff; line-height:1; }
+  .mt-state { font-size:.7rem; margin-top:3px; }
+  .mt-parts { font-size:.7rem; color:var(--muted); margin-top:2px; }
+  .mt-link { display:block; margin-top:8px; font-size:.68rem; color:var(--cyan); text-decoration:none; opacity:.8; }
+  .mt-link:hover { opacity:1; text-decoration:underline; }
+  .mt-no-data { text-align:center; padding:14px 0 8px; color:var(--muted); font-size:.73rem; }
+  .mt-plug { font-size:1.3rem; opacity:.25; margin-bottom:4px; }
+  .mt-donut { margin-bottom:4px; }
+</style>
+</head>
+<body>
+<nav id="z-nav"></nav>
+<main class="z-page">
+
+  <!-- Header -->
+  <div class="header-row">
+    <div class="header-left">
+      <h1 class="z-page-title">Management Overview</h1>
+      <span class="z-badge success" id="mgr-shift">Shift A</span>
+      <span class="live-dot">LIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:.82rem;color:var(--muted)" id="mgr-date">--</span>
+      <button class="z-btn ghost sm" onclick="exportCSV()">⤓ Export</button>
+    </div>
+  </div>
+
+  <!-- Demo Factory Unit: shows all 5 machines in this unit -->
+  <div class="unit-strip">
+    <div class="plant-card pc1 unit-card">
+      <div class="unit-header">
+        <div class="unit-title-grp">
+          <div class="plant-label" style="margin-bottom:3px">Demo Factory Unit · B-23</div>
+          <div class="plant-name" style="font-size:.88rem">Demo Machine Hobbing Division</div>
+        </div>
+        <div class="unit-meta">
+          <span class="unit-badge live">1 LIVE</span>
+          <span class="unit-badge off">4 OFFLINE</span>
+          <span style="font-size:.7rem;color:var(--muted)">5 Machines</span>
+        </div>
+      </div>
+      <div class="machines-row">
+        <!-- M-896: LIVE -->
+        <div class="machine-tile connected">
+          <div class="mt-top">
+            <span class="mt-id">M-896</span>
+            <span class="mt-live-txt"><span class="mt-live-dot"></span>LIVE</span>
+          </div>
+          <div class="mt-ctrl">Demo Machine · Industrial CNC 32iB</div>
+          <div class="mt-donut" id="p1-donut"></div>
+          <div class="mt-oee" id="p1-oee">--</div>
+          <div class="mt-state" id="p1-state">--</div>
+          <div class="mt-parts" id="p1-parts">-- pcs</div>
+          <a href="/index.html" class="mt-link">Open Dashboard →</a>
+        </div>
+        <!-- M-899 -->
+        <div class="machine-tile offline">
+          <div class="mt-top">
+            <span class="mt-id">M-899</span>
+            <span class="mt-off-txt">OFFLINE</span>
+          </div>
+          <div class="mt-ctrl">Industrial CNC · Not Connected</div>
+          <div class="mt-no-data"><div class="mt-plug">🔌</div>Not Connected</div>
+        </div>
+        <!-- M-900 -->
+        <div class="machine-tile offline">
+          <div class="mt-top">
+            <span class="mt-id">M-900</span>
+            <span class="mt-off-txt">OFFLINE</span>
+          </div>
+          <div class="mt-ctrl">Mitsubishi · Not Connected</div>
+          <div class="mt-no-data"><div class="mt-plug">🔌</div>Not Connected</div>
+        </div>
+        <!-- M-901 -->
+        <div class="machine-tile offline">
+          <div class="mt-top">
+            <span class="mt-id">M-901</span>
+            <span class="mt-off-txt">OFFLINE</span>
+          </div>
+          <div class="mt-ctrl">Sinumerik · Not Connected</div>
+          <div class="mt-no-data"><div class="mt-plug">🔌</div>Not Connected</div>
+        </div>
+        <!-- M-902 -->
+        <div class="machine-tile offline">
+          <div class="mt-top">
+            <span class="mt-id">M-902</span>
+            <span class="mt-off-txt">OFFLINE</span>
+          </div>
+          <div class="mt-ctrl">Industrial CNC · Not Connected</div>
+          <div class="mt-no-data"><div class="mt-plug">🔌</div>Not Connected</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Strip (from live OEE) -->
+  <div class="kpi-strip">
+    <div class="z-kpi" style="--kpi-accent:var(--cyan)">
+      <div class="z-kpi-label">OEE (Current Shift)</div>
+      <div class="z-kpi-row">
+        <div class="z-kpi-value skeleton" id="kpi-oee" style="--kpi-color:var(--cyan)">--%</div>
+        <div id="kpi-oee-donut"></div>
+      </div>
+      <div class="z-bar"><div class="z-bar-fill" id="kpi-oee-bar" style="width:0%;--fill-color:var(--cyan)"></div></div>
+      <div class="z-kpi-bottom">
+        <span class="z-badge muted" id="kpi-oee-grade">--</span>
+        <span style="font-size:.75rem;color:var(--muted)">Overall</span>
+      </div>
+    </div>
+    <div class="z-kpi" style="--kpi-accent:var(--green)">
+      <div class="z-kpi-label">Parts This Shift</div>
+      <div class="z-kpi-row">
+        <div class="z-kpi-value skeleton" id="kpi-parts" style="--kpi-color:var(--green)">--</div>
+      </div>
+      <div class="z-bar"><div class="z-bar-fill" id="kpi-parts-bar" style="width:0%;--fill-color:var(--green)"></div></div>
+      <div class="z-kpi-bottom">
+        <span style="font-size:.75rem;color:var(--muted)">Target: <span id="kpi-parts-target">900</span></span>
+      </div>
+    </div>
+    <div class="z-kpi" style="--kpi-accent:var(--amber)">
+      <div class="z-kpi-label">Downtime (Shift)</div>
+      <div class="z-kpi-row">
+        <div class="z-kpi-value skeleton" id="kpi-dt" style="--kpi-color:var(--amber)">-- min</div>
+      </div>
+      <div class="z-bar"><div class="z-bar-fill" id="kpi-dt-bar" style="width:0%;--fill-color:var(--amber)"></div></div>
+      <div class="z-kpi-bottom">
+        <span style="font-size:.75rem;color:var(--muted)">Running: <span id="kpi-running">-- min</span></span>
+      </div>
+    </div>
+    <div class="z-kpi" style="--kpi-accent:var(--purple)">
+      <div class="z-kpi-label">Quality Rate</div>
+      <div class="z-kpi-row">
+        <div class="z-kpi-value skeleton" id="kpi-qual" style="--kpi-color:var(--purple)">--%</div>
+        <div id="kpi-qual-donut"></div>
+      </div>
+      <div class="z-bar"><div class="z-bar-fill" id="kpi-qual-bar" style="width:0%;--fill-color:var(--purple)"></div></div>
+      <div class="z-kpi-bottom">
+        <span style="font-size:.75rem;color:var(--muted)">Accepted / Total Parts</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7-day OEE trend + Shift Comparison -->
+  <div class="two-col">
+    <div class="z-card">
+      <div class="z-card-header">
+        <span class="z-card-title">7-Day OEE Trend</span>
+        <span class="z-badge muted" id="trend-machine">MACHINE001</span>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="week-chart"></canvas>
+      </div>
+    </div>
+    <div class="z-card">
+      <div class="z-card-header">
+        <span class="z-card-title">Shift Comparison</span>
+        <span class="z-badge info">Last 14 shifts</span>
+      </div>
+      <table class="cmp-table">
+        <thead><tr><th>Metric</th><th style="color:#00d4ff">Shift A</th><th style="color:#a855f7">Shift B</th><th>Δ</th></tr></thead>
+        <tbody id="shift-cmp-tbody">
+          <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Targets vs Actuals -->
+  <div class="target-strip">
+    <div class="target-card">
+      <div class="target-lbl">OEE vs Target (85%)</div>
+      <div class="target-actual" id="tgt-oee">--%</div>
+      <div class="target-bar-wrap"><div class="target-bar-fill" id="tgt-oee-bar" style="width:0%;background:var(--cyan)"></div></div>
+      <div class="target-sub"><span>0%</span><span style="color:var(--amber)">▲ 85%</span><span>100%</span></div>
+    </div>
+    <div class="target-card">
+      <div class="target-lbl">Availability vs Target (90%)</div>
+      <div class="target-actual" id="tgt-avail">--%</div>
+      <div class="target-bar-wrap"><div class="target-bar-fill" id="tgt-avail-bar" style="width:0%;background:var(--green)"></div></div>
+      <div class="target-sub"><span>0%</span><span style="color:var(--amber)">▲ 90%</span><span>100%</span></div>
+    </div>
+    <div class="target-card">
+      <div class="target-lbl">Performance vs Target (95%)</div>
+      <div class="target-actual" id="tgt-perf">--%</div>
+      <div class="target-bar-wrap"><div class="target-bar-fill" id="tgt-perf-bar" style="width:0%;background:var(--blue)"></div></div>
+      <div class="target-sub"><span>0%</span><span style="color:var(--amber)">▲ 95%</span><span>100%</span></div>
+    </div>
+    <div class="target-card">
+      <div class="target-lbl">Quality vs Target (99%)</div>
+      <div class="target-actual" id="tgt-qual">--%</div>
+      <div class="target-bar-wrap"><div class="target-bar-fill" id="tgt-qual-bar" style="width:0%;background:var(--purple)"></div></div>
+      <div class="target-sub"><span>0%</span><span style="color:var(--amber)">▲ 99%</span><span>100%</span></div>
+    </div>
+  </div>
+
+  <!-- Action Items + Recent Events -->
+  <div class="three-col">
+    <div class="z-card">
+      <div class="z-card-header"><span class="z-card-title">Action Items</span></div>
+      <div class="stat-box" style="border-color:rgba(255,68,68,.2);background:rgba(255,68,68,.03)">
+        <div class="stat-icon" style="background:rgba(255,68,68,.15)">🔴</div>
+        <div><div class="stat-count" style="color:var(--red)" id="cnt-alarm">0</div><div style="font-size:.75rem;color:var(--muted)">Active Alarms</div></div>
+      </div>
+      <div class="stat-box" style="border-color:rgba(255,179,0,.2);background:rgba(255,179,0,.03)">
+        <div class="stat-icon" style="background:rgba(255,179,0,.15)">🟡</div>
+        <div><div class="stat-count" style="color:var(--amber)" id="cnt-warn">0</div><div style="font-size:.75rem;color:var(--muted)">OEE Below Target</div></div>
+      </div>
+      <div class="stat-box" style="border-color:rgba(0,255,136,.2);background:rgba(0,255,136,.03)">
+        <div class="stat-icon" style="background:rgba(0,255,136,.15)">🟢</div>
+        <div><div class="stat-count" style="color:var(--green)" id="cnt-ok">1</div><div style="font-size:.75rem;color:var(--muted)">Plants Running OK</div></div>
+      </div>
+    </div>
+    <div class="z-card">
+      <div class="z-card-header">
+        <span class="z-card-title">Recent Shift History</span>
+        <a href="/reports.html" class="z-btn ghost sm">All Reports</a>
+      </div>
+      <div class="z-table-wrap">
+        <table class="z-table">
+          <thead><tr><th>Date</th><th>Shift</th><th>OEE</th><th>Availability</th><th>Parts</th><th>Downtime</th><th>Grade</th></tr></thead>
+          <tbody id="shifts-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+<div id="z-toasts"></div>
+<script src="/_shared.js"></script>
+<script>
+const MACHINE = 'MACHINE001';
+let weekChart = null;
+
+Chart.defaults.color = '#6b8cae';
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+function cDef() {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend:{ display:false }, tooltip:{ backgroundColor:'#0d1e35', borderColor:'rgba(255,255,255,.1)', borderWidth:1, titleColor:'#e8f4fd', bodyColor:'#6b8cae' } }
+  };
+}
+
+// ── Init ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  // Date & shift label
+  const si = zShiftInfo();
+  document.getElementById('mgr-date').textContent = new Date().toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const sb = document.getElementById('mgr-shift');
+  if (sb) { sb.textContent = 'Shift ' + si.shift; sb.className = 'z-badge ' + (si.shift==='A'?'info':'purple'); }
+
+  // Init week chart
+  weekChart = new Chart(document.getElementById('week-chart'), {
+    type: 'bar',
+    data: { labels:[], datasets:[{ label:'OEE%', data:[], backgroundColor: ctx => { const v=ctx.raw; return v>=85?'rgba(0,255,136,.55)':v>=65?'rgba(255,179,0,.55)':'rgba(255,68,68,.55)'; }, borderColor: ctx => { const v=ctx.raw; return v>=85?'#00ff88':v>=65?'#ffb300':'#ff4444'; }, borderWidth:1, borderRadius:5 }] },
+    options: Object.assign(cDef(), { scales:{ x:{ grid:{ color:'rgba(255,255,255,.04)' } }, y:{ min:0,max:100, grid:{ color:'rgba(255,255,255,.04)' }, ticks:{ callback: v=>v+'%' } } } })
+  });
+
+  fetchAll();
+  setInterval(fetchAll, 30000);
+});
+
+// ── Fetch everything ──────────────────────────────────────
+function fetchAll() {
+  fetchLivePlant1();
+  fetchOEE();
+  fetchWeekTrend();
+  fetchShiftHistory();
+}
+
+// Plant 1 live state
+function fetchLivePlant1() {
+  zFetch('/api/cnc/live?machine=' + MACHINE).then(function(d) {
+    if (!d || !d.ok || !d.machine) return;
+    const m = d.machine;
+    const state = (m.machine_state || 'IDLE').toUpperCase();
+    const sc = state==='RUNNING'?'var(--green)':state==='ALARM'?'var(--red)':'var(--amber)';
+    document.getElementById('p1-state').innerHTML = '<span style="color:'+sc+';font-weight:600">● '+state+'</span>';
+    document.getElementById('p1-parts').textContent = fmtInt(m.part_count || 0) + ' pcs';
+    zSet('cnt-alarm', m.alarm_active ? 1 : 0);
+  }).catch(function(){});
+}
+
+// OEE for current shift
+function fetchOEE() {
+  const shift = zCurrentShift();
+  const date = zOEEDate(shift);
+  zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+date).then(function(d) {
+    if (!d || !d.ok) return;
+    const oee   = d.oee   || 0;
+    const avail = d.availability || 0;
+    const perf  = d.performance  || 0;
+    const qual  = d.quality      || 100;
+    const parts = d.parts_produced || 0;
+    // Recalculate target from actual ideal cycle: 12h × 3600 / idealCycle × 90%
+    const dynIdeal = d.target_cycle_time && d.target_cycle_time > 0 ? d.target_cycle_time : 45;
+    const dynTgt = dynIdeal > 0 ? Math.floor(43200 / dynIdeal) : 900;
+    const target = (d.target_parts && d.target_parts < 500 && dynIdeal > 100) ? d.target_parts : dynTgt;
+    const dtMin = d.downtime_min || 0;
+    const runMin = d.running_min || 0;
+
+    // Plant 1 donut
+    document.getElementById('p1-donut').innerHTML = zDonut(oee, oeeColor(oee), 44, 5);
+    document.getElementById('p1-oee').textContent = fmtNum(oee,1);
+
+    // KPI tiles
+    function setKpi(id, barId, donutId, val, col, max) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = fmtNum(val,1)+'%'; el.style.setProperty('--kpi-color', col); el.classList.remove('skeleton'); }
+      const bar = document.getElementById(barId);
+      if (bar) { bar.style.width = Math.min(100, val)+'%'; bar.style.setProperty('--fill-color', col); }
+      if (donutId) document.getElementById(donutId).innerHTML = zDonut(val, col, 52, 5);
+    }
+    setKpi('kpi-oee',  'kpi-oee-bar',  'kpi-oee-donut', oee,   oeeColor(oee),  100);
+    setKpi('kpi-qual', 'kpi-qual-bar', 'kpi-qual-donut', qual, oeeColor(qual), 100);
+
+    const gradeEl = document.getElementById('kpi-oee-grade');
+    if (gradeEl) { gradeEl.textContent = oeeGrade(oee); gradeEl.className = 'z-badge '+(oee>=85?'success':oee>=65?'warning':'danger'); }
+
+    const partsEl = document.getElementById('kpi-parts');
+    if (partsEl) { partsEl.textContent = fmtInt(parts); partsEl.classList.remove('skeleton'); }
+    const partsBar = document.getElementById('kpi-parts-bar');
+    if (partsBar) partsBar.style.width = Math.min(100, parts/target*100)+'%';
+    zSet('kpi-parts-target', target);
+
+    const dtEl = document.getElementById('kpi-dt');
+    if (dtEl) { dtEl.textContent = Math.round(dtMin)+' min'; dtEl.classList.remove('skeleton'); }
+    const dtBar = document.getElementById('kpi-dt-bar');
+    if (dtBar) dtBar.style.width = Math.min(100, dtMin/720*100)+'%';
+    zSet('kpi-running', Math.round(runMin)+' min');
+
+    // Target bars
+    function setTarget(id, barId, val, target, col) {
+      const el = document.getElementById(id); if (el) el.textContent = fmtNum(val,1)+'%';
+      const bar = document.getElementById(barId);
+      if (bar) { bar.style.width = Math.min(100,val)+'%'; bar.style.background = val>=target?'var(--green)':val>=(target*.9)?'var(--amber)':'var(--red)'; }
+    }
+    setTarget('tgt-oee',   'tgt-oee-bar',   oee,   85, 'var(--cyan)');
+    setTarget('tgt-avail', 'tgt-avail-bar', avail, 90, 'var(--green)');
+    setTarget('tgt-perf',  'tgt-perf-bar',  perf,  95, 'var(--blue)');
+    setTarget('tgt-qual',  'tgt-qual-bar',  qual,  99, 'var(--purple)');
+
+    // Warn count
+    const warns = (oee < 85 ? 1 : 0);
+    zSet('cnt-warn', warns);
+    zSet('cnt-ok', oee >= 65 ? 1 : 0);
+
+    // Previous shift for comparison
+    if (d.prev_shift) buildShiftCompare(d, d.prev_shift);
+  }).catch(function(){});
+}
+
+function buildShiftCompare(cur, prev) {
+  function delta(a, b) {
+    const d = a - b;
+    const col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--muted)';
+    const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
+    return '<span style="color:'+col+';font-weight:700">'+arrow+' '+Math.abs(d).toFixed(1)+'</span>';
+  }
+  const rows = [
+    ['OEE',          fmtNum(cur.oee,1)+'%',           fmtNum(prev.oee,1)+'%',           delta(cur.oee, prev.oee)],
+    ['Availability', fmtNum(cur.availability,1)+'%',  fmtNum(prev.availability,1)+'%',  delta(cur.availability, prev.availability)],
+    ['Performance',  fmtNum(cur.performance,1)+'%',   fmtNum(prev.performance,1)+'%',   delta(cur.performance, prev.performance)],
+    ['Quality',      fmtNum(cur.quality,1)+'%',       fmtNum(prev.quality,1)+'%',       delta(cur.quality, prev.quality)],
+    ['Parts',        String(cur.parts_produced||0),   String(prev.parts_produced||0),   delta(cur.parts_produced||0, prev.parts_produced||0)],
+    ['Downtime',     Math.round(cur.downtime_min||0)+' m', Math.round(prev.downtime_min||0)+' m', ''],
+  ];
+  const tbody = document.getElementById('shift-cmp-tbody');
+  tbody.innerHTML = rows.map(function(r) {
+    return '<tr><td style="color:var(--muted)">'+r[0]+'</td><td style="color:#00d4ff;font-weight:700">'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';
+  }).join('');
+}
+
+// 7-day trend
+function fetchWeekTrend() {
+  zFetch('/api/cnc/production-trend?days=7&machine='+MACHINE).then(function(d) {
+    if (!d || !d.ok || !d.trend || !weekChart) return;
+    weekChart.data.labels = d.trend.map(function(r){ return new Date(r.day||r.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',timeZone:'Asia/Kolkata'}); });
+    weekChart.data.datasets[0].data = d.trend.map(function(r){ return parseFloat(r.oee)||0; });
+    weekChart.update('none');
+  }).catch(function(){});
+}
+
+// Shift history table
+function fetchShiftHistory() {
+  zFetch('/api/cnc/shifts?machine='+MACHINE+'&limit=10').then(function(d) {
+    const shifts = d && (d.shifts || d.rows) || [];
+    const tbody = document.getElementById('shifts-tbody');
+    if (!shifts.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No shift history available</td></tr>';
+      return;
+    }
+    tbody.innerHTML = shifts.map(function(s) {
+      const o = parseFloat(s.oee);
+      return '<tr>' +
+        '<td style="font-size:.78rem;color:var(--muted)">'+(s.shift_date||s.date||'--')+'</td>' +
+        '<td><span class="z-badge '+(s.shift==='A'?'info':'purple')+'">Shift '+(s.shift||'--')+'</span></td>' +
+        '<td style="font-weight:700;color:'+oeeColor(o)+'">'+fmtPct(o)+'</td>' +
+        '<td>'+fmtPct(s.availability)+'</td>' +
+        '<td>'+fmtInt(s.parts_produced)+'</td>' +
+        '<td style="color:var(--muted)">'+Math.round(s.downtime_min||0)+' min</td>' +
+        '<td>'+oeeGradeBadge(o)+'</td>' +
+      '</tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('shifts-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Error loading data</td></tr>';
+  });
+}
+
+function exportCSV() {
+  const shift = zCurrentShift();
+  const date = zOEEDate(shift);
+  zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+date).then(function(d) {
+    if (!d || !d.ok) { zToast('No data to export','warning'); return; }
+    const csv = 'Plant,Machine,Shift,Date,OEE%,Availability%,Performance%,Quality%,Parts,Downtime_min\n' +
+      'Factory-MIOS,MACHINE001,'+shift+','+date+','+fmtNum(d.oee,1)+','+fmtNum(d.availability,1)+','+fmtNum(d.performance,1)+','+fmtNum(d.quality,1)+','+(d.parts_produced||0)+','+(Math.round(d.downtime_min||0));
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'manager-report-' + date + '.csv';
+    a.click();
+    zToast('CSV exported','success');
+  }).catch(function(){ zToast('Export failed','error'); });
+}
+</script>
+</body>
+</html>

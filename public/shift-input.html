@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shift Handover — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+body { display:flex; flex-direction:column; }
+.page { flex:1; max-width:1200px; margin:0 auto; padding:20px 24px 60px; width:100%; position:relative; z-index:1; }
+
+/* ── DATE BAR ── */
+.date-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 20px;
+  display: flex; align-items:center; gap:12px; flex-wrap:wrap;
+  position: sticky; top:106px; z-index:300;
+}
+.date-bar-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+/* ── SHIFT TABS ── */
+.shift-tabs { display:grid; grid-template-columns:1fr 1fr; gap:0; margin-bottom:20px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.shift-tab {
+  padding:16px 20px; text-align:center; cursor:pointer;
+  background:transparent; color:var(--muted);
+  font-size:13px; font-weight:700; transition:all .2s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  border:none; position:relative;
+}
+.shift-tab:first-child { border-right:1px solid var(--border); }
+.shift-tab.active { background:rgba(0,212,255,.1); color:var(--cyan); }
+.shift-tab .tab-indicator {
+  width:8px; height:8px; border-radius:50%; background:var(--muted2); flex-shrink:0;
+}
+.shift-tab.active .tab-indicator { background:var(--cyan); animation:blink 1.5s infinite; }
+
+/* ── SHIFT INFO CARD ── */
+.info-banner {
+  background: linear-gradient(135deg,rgba(0,212,255,.07),rgba(0,255,136,.04));
+  border: 1px solid rgba(0,212,255,.2);
+  border-radius: var(--radius-lg); padding:18px 22px; margin-bottom:16px;
+  position:relative; overflow:hidden;
+}
+.info-banner::after {
+  content:''; position:absolute; top:-40%; right:-8%;
+  width:180px; height:180px; border-radius:50%;
+  background:radial-gradient(circle,rgba(0,212,255,.08),transparent 70%);
+  pointer-events:none;
+}
+.info-banner-title { font-size:11px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.info-rows { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.info-row { display:flex; flex-direction:column; gap:3px; }
+.info-row .ir-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; font-weight:600; }
+.info-row .ir-val { font-size:14px; font-weight:800; }
+
+/* ── FORM CARD ── */
+.form-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  animation: fadeInUp .3s ease forwards;
+  position:relative;
+}
+.form-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+}
+.form-card.acc-cyan::before   { background:linear-gradient(90deg,var(--cyan),transparent); }
+.form-card.acc-green::before  { background:linear-gradient(90deg,var(--green),transparent); }
+.form-card.acc-amber::before  { background:linear-gradient(90deg,var(--amber),transparent); }
+.form-card.acc-blue::before   { background:linear-gradient(90deg,var(--blue),transparent); }
+.form-card.acc-purple::before { background:linear-gradient(90deg,var(--purple),transparent); }
+
+.form-card-title {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:8px;
+}
+
+/* ── FORM GRID ── */
+.fg { display:grid; gap:14px; }
+.fg.g3 { grid-template-columns:1fr 1fr 1fr; }
+.fg.g2 { grid-template-columns:1fr 1fr; }
+.fg.g4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.fg-group { display:flex; flex-direction:column; gap:5px; }
+.fg-group.span2 { grid-column:span 2; }
+.fg-group.span3 { grid-column:span 3; }
+.fg-group.span4 { grid-column:span 4; }
+
+/* ── ACTUAL PARTS INPUT HIGHLIGHT ── */
+.parts-input-wrap { position:relative; }
+.parts-attain-badge {
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;
+  pointer-events:none;
+}
+
+/* ── MACHINE STATUS CHECKLIST ── */
+.machine-checks { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.machine-check-item {
+  background: rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:10px; padding:12px; cursor:pointer; transition:all .2s;
+  display:flex; flex-direction:column; gap:6px;
+  user-select:none;
+}
+.machine-check-item:hover { border-color:var(--border2); }
+.machine-check-item.ok     { border-color:rgba(0,255,136,.3); background:rgba(0,255,136,.06); }
+.machine-check-item.warn   { border-color:rgba(255,179,0,.3); background:rgba(255,179,0,.06); }
+.machine-check-item.err    { border-color:rgba(255,68,68,.3);  background:rgba(255,68,68,.06); }
+.mci-name { font-size:11px; font-weight:700; }
+.mci-status-row { display:flex; gap:4px; }
+.mci-status-btn {
+  flex:1; padding:5px; border-radius:6px; border:1px solid var(--border);
+  background:transparent; color:var(--muted); font-size:9px; font-weight:700;
+  cursor:pointer; transition:all .15s; text-align:center; text-transform:uppercase; letter-spacing:.3px;
+}
+.mci-status-btn.active-ok   { background:rgba(0,255,136,.2); border-color:var(--green); color:var(--green); }
+.mci-status-btn.active-warn { background:rgba(255,179,0,.2); border-color:var(--amber); color:var(--amber); }
+.mci-status-btn.active-err  { background:rgba(255,68,68,.2);  border-color:var(--red);   color:var(--red); }
+
+/* ── DOWNTIME TABLE ── */
+.downtime-entry { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.downtime-entry input { flex:1; }
+.dt-remove { background:none; border:none; color:var(--muted2); cursor:pointer; font-size:16px; line-height:1; padding:0 4px; }
+.dt-remove:hover { color:var(--red); }
+
+/* ── FORM ACTIONS ── */
+.form-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+
+/* ── RECORDS TABLE ── */
+.records-section {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px 24px; margin-bottom:16px;
+}
+
+/* ── READONLY INPUT ── */
+.z-input.readonly { opacity:.55; cursor:not-allowed; }
+
+/* ── ATTAINMENT GAUGE ── */
+.attain-block { text-align:center; padding:8px 0; }
+.attain-pct { font-size:32px; font-weight:900; line-height:1; }
+.attain-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+
+@media(max-width:900px) {
+  .fg.g3, .fg.g4 { grid-template-columns:1fr 1fr; }
+  .fg.g3 .fg-group.span3, .fg.g4 .fg-group.span4 { grid-column:span 2; }
+  .info-rows { grid-template-columns:1fr 1fr; }
+  .machine-checks { grid-template-columns:repeat(2,1fr); }
+}
+@media(max-width:600px) {
+  .fg.g3, .fg.g4, .fg.g2 { grid-template-columns:1fr; }
+  .fg-group.span2, .fg-group.span3, .fg-group.span4 { grid-column:span 1; }
+  .info-rows { grid-template-columns:1fr; }
+  .machine-checks { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="z-header-mount"></div>
+
+<div class="date-bar">
+  <span class="date-bar-label">Date:</span>
+  <input class="z-input" type="date" id="filterDate" style="width:160px;font-size:12px;padding:5px 10px;color-scheme:dark;"/>
+  <button class="z-btn ghost" onclick="loadRecords()" style="font-size:11px;padding:5px 14px;">↻ Load Records</button>
+  <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+    <span id="currentShiftBadge" class="z-badge info" style="font-size:11px;"></span>
+    <span id="dateDisplay" style="font-size:11px;color:var(--muted)"></span>
+  </div>
+</div>
+
+<main class="page">
+
+  <!-- SHIFT INFO BANNER -->
+  <div class="info-banner">
+    <div class="info-banner-title">ℹ️ Shift Information — Industrial CNC 32i-B · MACHINE-001</div>
+    <div class="info-rows">
+      <div class="info-row">
+        <span class="ir-label">Shift A</span>
+        <span class="ir-val" style="color:var(--cyan)">07:00 – 19:00</span>
+        <span style="font-size:10px;color:var(--muted)">12 hrs · 45 min break · 675 net</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">Shift B</span>
+        <span class="ir-val" style="color:var(--purple)">19:00 – 07:00</span>
+        <span style="font-size:10px;color:var(--muted)">12 hrs · 45 min break · 675 net</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">Target Cycle Time</span>
+        <span class="ir-val" style="color:var(--amber)">45 sec / part</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">Target / Shift</span>
+        <span class="ir-val" style="color:var(--green)">900 parts</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">Target / Day</span>
+        <span class="ir-val" style="color:var(--green)">1,800 parts</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">Machine</span>
+        <span class="ir-val">MACHINE-001</span>
+        <span style="font-size:10px;color:var(--muted)">Industrial CNC 32i-B</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHIFT TABS -->
+  <div class="shift-tabs">
+    <button class="shift-tab active" id="tabA" onclick="selectShift('A')">
+      <div class="tab-indicator"></div>
+      Shift A &nbsp;·&nbsp; 07:00 – 19:00
+    </button>
+    <button class="shift-tab" id="tabB" onclick="selectShift('B')">
+      <div class="tab-indicator"></div>
+      Shift B &nbsp;·&nbsp; 19:00 – 07:00
+    </button>
+  </div>
+
+  <!-- SECTION 1: PERSONNEL -->
+  <div class="form-card acc-cyan">
+    <div class="form-card-title"><span>👷</span> Personnel &amp; Schedule — <span id="shiftLabel" style="color:var(--cyan)">Shift A</span></div>
+    <div class="fg g3">
+      <div class="fg-group">
+        <label class="z-label">Date *</label>
+        <input class="z-input" type="date" id="f-date" style="color-scheme:dark;"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Shift</label>
+        <input class="z-input readonly" type="text" id="f-shift" value="A" readonly/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Machine ID</label>
+        <input class="z-input readonly" type="text" value="MACHINE-001" readonly/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Operator Name *</label>
+        <input class="z-input" type="text" id="f-op" placeholder="Enter operator name"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Supervisor</label>
+        <input class="z-input" type="text" id="f-sup" placeholder="Supervisor name"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Program No</label>
+        <select class="z-input" id="f-prog" style="cursor:pointer;">
+          <option value="">-- Select Program --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: PRODUCTION TARGETS -->
+  <div class="form-card acc-green">
+    <div class="form-card-title"><span>🏭</span> Production Targets &amp; Actual</div>
+    <div class="fg g4">
+      <div class="fg-group">
+        <label class="z-label">Target Parts</label>
+        <input class="z-input" type="number" id="f-target" value="900" min="1" onchange="calcAttainment()"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Actual Parts Produced</label>
+        <div class="parts-input-wrap">
+          <input class="z-input" type="number" id="f-actual" placeholder="Enter actual" min="0" oninput="calcAttainment()"/>
+          <span class="parts-attain-badge z-badge" id="attainBadge" style="display:none;"></span>
+        </div>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Rejection Count</label>
+        <input class="z-input" type="number" id="f-reject" placeholder="0" min="0"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Avg Cycle Time (sec)</label>
+        <input class="z-input" type="number" id="f-cycle" placeholder="e.g. 47" step="0.1"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Total Downtime (min)</label>
+        <input class="z-input" type="number" id="f-downtime" placeholder="0" min="0" oninput="calcAttainment()"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Planned Downtime (min)</label>
+        <input class="z-input" type="number" id="f-planned-dt" placeholder="0" min="0"/>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Unplanned Downtime (min)</label>
+        <input class="z-input" type="number" id="f-unplanned-dt" placeholder="0" min="0"/>
+      </div>
+      <div class="fg-group" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div class="attain-block">
+          <div class="attain-pct" id="attainPct" style="color:var(--muted)">—</div>
+          <div class="attain-label">Attainment</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: MACHINE STATUS CHECKLIST -->
+  <div class="form-card acc-amber">
+    <div class="form-card-title"><span>🔧</span> Machine Status Handover Checklist</div>
+    <div class="machine-checks" id="machineChecks">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- SECTION 4: DOWNTIME LOG -->
+  <div class="form-card acc-purple">
+    <div class="form-card-title"><span>⏸</span> Downtime Events</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Log each downtime event with reason and duration in minutes.</div>
+    <div id="dtEntries"></div>
+    <button class="z-btn ghost" onclick="addDtEntry()" style="font-size:11px;margin-top:8px;">+ Add Event</button>
+  </div>
+
+  <!-- SECTION 5: NOTES & HANDOVER -->
+  <div class="form-card acc-blue">
+    <div class="form-card-title"><span>📝</span> Shift Notes &amp; Handover</div>
+    <div class="fg g2">
+      <div class="fg-group span2">
+        <label class="z-label">Shift Notes / Observations</label>
+        <textarea class="z-input" id="f-notes" rows="3" placeholder="Any special observations, issues, or notes for the incoming shift…" style="resize:vertical;min-height:80px;"></textarea>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Handover Message to Next Shift</label>
+        <textarea class="z-input" id="f-handover" rows="3" placeholder="Important things incoming shift should know…" style="resize:vertical;min-height:80px;"></textarea>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Quality Issues</label>
+        <textarea class="z-input" id="f-quality-notes" rows="3" placeholder="Any rejections, tooling issues, dimensional deviations…" style="resize:vertical;min-height:80px;"></textarea>
+      </div>
+    </div>
+    <div class="fg g2" style="margin-top:12px;">
+      <div class="fg-group">
+        <label class="z-label">Tool Change Done?</label>
+        <select class="z-input" id="f-tool-change" style="cursor:pointer;">
+          <option value="">-- Select --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+          <option value="partial">Partial</option>
+        </select>
+      </div>
+      <div class="fg-group">
+        <label class="z-label">Coolant Level</label>
+        <select class="z-input" id="f-coolant" style="cursor:pointer;">
+          <option value="">-- Select --</option>
+          <option value="ok">OK</option>
+          <option value="low">Low</option>
+          <option value="topped">Topped Up</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="z-btn success" onclick="saveShift()" style="font-size:13px;padding:10px 28px;">💾 Save &amp; Submit Shift</button>
+      <button class="z-btn ghost" onclick="clearForm()">↺ Clear Form</button>
+    </div>
+  </div>
+
+  <!-- RECORDS TABLE -->
+  <div class="records-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      <div class="z-section" style="margin:0;flex:1"><span class="dot" style="background:var(--green)"></span>Today's Shift Records</div>
+      <span id="recordCount" style="font-size:10px;color:var(--muted)">0 records</span>
+    </div>
+    <div id="recordsLoading" style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:16px;">
+      <div style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;"></div>
+      Loading…
+    </div>
+    <div style="overflow-x:auto;display:none;" id="recordsTableWrap">
+      <table class="z-table" id="recordsTable">
+        <thead>
+          <tr>
+            <th>Shift</th>
+            <th>Operator</th>
+            <th>Supervisor</th>
+            <th>Program</th>
+            <th>Target</th>
+            <th>Actual</th>
+            <th>Attain%</th>
+            <th>DT (min)</th>
+            <th>Rejections</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="recordsTbody">
+          <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No records</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="/_shared.js"></script>
+<script>
+document.getElementById('z-header-mount').innerHTML = zRenderHeader('SHIFT HANDOVER');
+
+let activeShift = 'A';
+const machineCheckItems = [
+  { id:'lubrication',  name:'Lubrication',       icon:'🔧' },
+  { id:'coolant',      name:'Coolant Level',      icon:'💧' },
+  { id:'air_pressure', name:'Air Pressure',       icon:'💨' },
+  { id:'spindle',      name:'Spindle',            icon:'⚙️' },
+  { id:'chuck',        name:'Chuck / Fixture',    icon:'🗜️' },
+  { id:'tool',         name:'Tool Condition',     icon:'🔩' },
+  { id:'cleanliness',  name:'Machine Clean',      icon:'🧹' },
+  { id:'safety',       name:'Safety Devices',     icon:'🦺' },
+];
+let machineStatus = {}; // id -> 'ok'|'warn'|'err'
+
+// ── SET DATE ─────────────────────────────────────────────────────────
+const istMs = Date.now() + 5.5*3600*1000;
+const todayIST = new Date(istMs).toISOString().slice(0,10);
+document.getElementById('filterDate').value = todayIST;
+document.getElementById('f-date').value = todayIST;
+document.getElementById('currentShiftBadge').textContent = zCurrentShiftLabel();
+document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+
+// ── WS ────────────────────────────────────────────────────────────────
+zWS(msg => {
+  try {
+    const d = JSON.parse(msg.data);
+    if (d.type === 'shift_log_update') loadRecords();
+  } catch {}
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────
+async function init() {
+  renderMachineChecks();
+  renderDtEntries();
+  await Promise.all([loadPrograms(), loadRecords()]);
+}
+
+// ── SHIFT SELECTION ───────────────────────────────────────────────────
+function selectShift(s) {
+  activeShift = s;
+  document.getElementById('tabA').className = 'shift-tab' + (s==='A' ? ' active' : '');
+  document.getElementById('tabB').className = 'shift-tab' + (s==='B' ? ' active' : '');
+  document.getElementById('f-shift').value = s;
+  document.getElementById('shiftLabel').textContent = 'Shift ' + s;
+  document.getElementById('shiftLabel').style.color = s === 'A' ? 'var(--cyan)' : 'var(--purple)';
+}
+
+// ── MACHINE CHECKLIST ─────────────────────────────────────────────────
+function renderMachineChecks() {
+  const wrap = document.getElementById('machineChecks');
+  wrap.innerHTML = machineCheckItems.map(item => {
+    const st = machineStatus[item.id] || 'ok';
+    return `<div class="machine-check-item ${st}" id="mci_${item.id}">
+      <div class="mci-name">${item.icon} ${item.name}</div>
+      <div class="mci-status-row">
+        <button class="mci-status-btn ${st==='ok'?'active-ok':''}" onclick="setMachineStatus('${item.id}','ok')">OK</button>
+        <button class="mci-status-btn ${st==='warn'?'active-warn':''}" onclick="setMachineStatus('${item.id}','warn')">WARN</button>
+        <button class="mci-status-btn ${st==='err'?'active-err':''}" onclick="setMachineStatus('${item.id}','err')">FAULT</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setMachineStatus(id, status) {
+  machineStatus[id] = status;
+  renderMachineChecks();
+}
+
+// ── DOWNTIME ENTRIES ──────────────────────────────────────────────────
+let dtEntries = [{ reason:'', duration:'' }];
+
+function renderDtEntries() {
+  const wrap = document.getElementById('dtEntries');
+  wrap.innerHTML = dtEntries.map((e,i) => `
+    <div class="downtime-entry">
+      <input class="z-input" type="text" placeholder="Reason (e.g. Tool Change, Power Cut…)" value="${e.reason}"
+        oninput="dtEntries[${i}].reason=this.value" style="flex:3;font-size:12px;"/>
+      <input class="z-input" type="number" placeholder="Min" value="${e.duration}" min="0"
+        oninput="dtEntries[${i}].duration=this.value" style="width:80px;flex:none;font-size:12px;"/>
+      <button class="dt-remove" onclick="removeDtEntry(${i})" ${dtEntries.length<=1?'style="opacity:.3;cursor:not-allowed;"':''}>✕</button>
+    </div>`).join('');
+}
+
+function addDtEntry() {
+  dtEntries.push({ reason:'', duration:'' });
+  renderDtEntries();
+}
+
+function removeDtEntry(i) {
+  if (dtEntries.length <= 1) return;
+  dtEntries.splice(i,1);
+  renderDtEntries();
+}
+
+// ── ATTAINMENT CALC ───────────────────────────────────────────────────
+function calcAttainment() {
+  const target = parseInt(document.getElementById('f-target').value) || 900;
+  const actual = parseInt(document.getElementById('f-actual').value);
+  const badge  = document.getElementById('attainBadge');
+  const pctEl  = document.getElementById('attainPct');
+
+  if (isNaN(actual) || actual === 0) {
+    badge.style.display = 'none';
+    pctEl.textContent = '—';
+    pctEl.style.color = 'var(--muted)';
+    return;
+  }
+  const pct = Math.round((actual / target) * 100);
+  const col = pct >= 95 ? 'var(--green)' : pct >= 80 ? 'var(--amber)' : 'var(--red)';
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = col;
+  badge.style.display = 'inline-block';
+  badge.textContent = pct + '%';
+  badge.style.background = pct >= 95 ? 'rgba(0,255,136,.15)' : pct >= 80 ? 'rgba(255,179,0,.15)' : 'rgba(255,68,68,.15)';
+  badge.style.color = col;
+  badge.style.border = `1px solid ${col}44`;
+}
+
+// ── LOAD PROGRAMS ─────────────────────────────────────────────────────
+async function loadPrograms() {
+  try {
+    const data = await zFetch('/api/cnc/programs');
+    const sel  = document.getElementById('f-prog');
+    if (data.ok && data.data) {
+      data.data.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.program_no;
+        o.textContent = '#' + p.program_no + ' — ' + p.part_name;
+        sel.appendChild(o);
+      });
+    }
+  } catch(e) { console.warn('[shift-input/programs]', e.message); }
+}
+
+// ── LOAD RECORDS ──────────────────────────────────────────────────────
+async function loadRecords() {
+  const date = document.getElementById('filterDate').value || todayIST;
+  document.getElementById('recordsLoading').style.display = 'flex';
+  document.getElementById('recordsTableWrap').style.display = 'none';
+
+  let rows = [];
+  try {
+    const data = await zFetch('/api/cnc/shift-log?date=' + date);
+    if (data.ok) rows = data.data || [];
+  } catch(e) { console.warn('[shift-input/records]', e.message); }
+
+  document.getElementById('recordsLoading').style.display = 'none';
+  document.getElementById('recordsTableWrap').style.display = 'block';
+  document.getElementById('recordCount').textContent = rows.length + ' record' + (rows.length!==1?'s':'');
+
+  document.getElementById('recordsTbody').innerHTML = rows.length
+    ? rows.map(r => {
+        const actual = parseInt(r.actual_parts) || 0;
+        const target = parseInt(r.target_parts) || 900;
+        const pct    = actual ? Math.round((actual/target)*100) : null;
+        const col    = pct != null ? (pct>=95?'var(--green)':pct>=80?'var(--amber)':'var(--red)') : 'var(--muted)';
+        return `<tr>
+          <td><span class="z-badge ${r.shift==='A'?'info':'purple'}">Shift ${r.shift||'--'}</span></td>
+          <td><strong>${r.operator_name||'--'}</strong></td>
+          <td>${r.supervisor||'--'}</td>
+          <td>${r.program_no?'#'+r.program_no:'--'}</td>
+          <td style="color:var(--muted)">${fmtInt(target)}</td>
+          <td style="font-weight:700;color:var(--text)">${actual||'--'}</td>
+          <td style="color:${col};font-weight:800">${pct!=null?pct+'%':'--'}</td>
+          <td style="color:var(--amber)">${r.downtime_minutes||'0'}</td>
+          <td style="color:var(--red)">${r.rejection_count||'0'}</td>
+          <td style="font-size:10px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;">${r.notes||'--'}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No shift records for this date</td></tr>';
+}
+
+// ── SAVE SHIFT ────────────────────────────────────────────────────────
+async function saveShift() {
+  const body = {
+    shift_date:        document.getElementById('f-date').value,
+    shift:             document.getElementById('f-shift').value,
+    operator_name:     document.getElementById('f-op').value.trim() || null,
+    supervisor:        document.getElementById('f-sup').value.trim() || null,
+    program_no:        parseInt(document.getElementById('f-prog').value) || null,
+    target_parts:      parseInt(document.getElementById('f-target').value) || 900,
+    actual_parts:      parseInt(document.getElementById('f-actual').value) || null,
+    rejection_count:   parseInt(document.getElementById('f-reject').value) || 0,
+    avg_cycle_time:    parseFloat(document.getElementById('f-cycle').value) || null,
+    downtime_minutes:  parseInt(document.getElementById('f-downtime').value) || 0,
+    planned_downtime:  parseInt(document.getElementById('f-planned-dt').value) || 0,
+    unplanned_downtime:parseInt(document.getElementById('f-unplanned-dt').value) || 0,
+    machine_status:    machineStatus,
+    downtime_events:   dtEntries.filter(e => e.reason || e.duration),
+    notes:             document.getElementById('f-notes').value.trim() || null,
+    handover_message:  document.getElementById('f-handover').value.trim() || null,
+    quality_notes:     document.getElementById('f-quality-notes').value.trim() || null,
+    tool_change:       document.getElementById('f-tool-change').value || null,
+    coolant_level:     document.getElementById('f-coolant').value || null,
+  };
+
+  if (!body.shift_date) { zToast('Date is required', 'warn'); return; }
+  if (!body.operator_name) { zToast('Operator name is required', 'warn'); return; }
+
+  try {
+    const res = await fetch('/api/cnc/shift-log', {
+      method:'POST',
+      headers: { ...zAuthHeader(), 'Content-Type':'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      zToast('Shift submitted successfully!', 'ok');
+      document.getElementById('filterDate').value = body.shift_date;
+      loadRecords();
+    } else {
+      zToast('Error: ' + (data.error||'Save failed'), 'err');
+    }
+  } catch(e) { zToast('Error: ' + e.message, 'err'); }
+}
+
+// ── CLEAR FORM ────────────────────────────────────────────────────────
+function clearForm() {
+  ['f-op','f-sup','f-notes','f-handover','f-quality-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('f-target').value = '900';
+  document.getElementById('f-actual').value = '';
+  document.getElementById('f-reject').value = '';
+  document.getElementById('f-cycle').value = '';
+  document.getElementById('f-downtime').value = '';
+  document.getElementById('f-planned-dt').value = '';
+  document.getElementById('f-unplanned-dt').value = '';
+  document.getElementById('f-prog').value = '';
+  document.getElementById('f-tool-change').value = '';
+  document.getElementById('f-coolant').value = '';
+  machineStatus = {};
+  dtEntries = [{ reason:'', duration:'' }];
+  renderMachineChecks();
+  renderDtEntries();
+  calcAttainment();
+  zToast('Form cleared', 'info');
+}
+
+// ── START ─────────────────────────────────────────────────────────────
+zParticles();
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Operator View · Factory-MIOS</title>
+  <link rel="stylesheet" href="/_shared.css"/>
+  <script src="/js/chart.min.js"></script>
+  <style>
+    .op-state-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:28px; text-align:center; margin-bottom:20px;
+      transition:background .4s,border-color .4s;
+    }
+    .op-state-label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; }
+    .op-state-value { font-size:72px; font-weight:900; line-height:1; letter-spacing:.04em; }
+
+    .op-metrics-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+
+    .op-big-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:24px; text-align:center;
+    }
+    .op-big-label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    .op-big-value { font-size:96px; font-weight:900; line-height:1; color:var(--cyan); }
+    .op-big-sub   { font-size:.85rem; color:var(--muted); margin-top:8px; }
+
+    .op-cycle-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:24px;
+    }
+    .op-cycle-nums { display:flex; justify-content:space-between; margin-bottom:10px; }
+    .op-cycle-num  { text-align:center; }
+    .op-cycle-num-val   { font-size:2.2rem; font-weight:800; font-variant-numeric:tabular-nums; }
+    .op-cycle-num-label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+
+    .op-oee-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:24px; display:flex; flex-direction:column; align-items:center; gap:12px;
+    }
+
+    .op-actions-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+    .op-action-btn {
+      padding:20px; border-radius:var(--radius-lg); font-size:1.1rem; font-weight:700;
+      cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:10px;
+      transition:all .18s; letter-spacing:.03em;
+    }
+    .op-action-btn.downtime-btn {
+      background:rgba(255,179,0,.12); color:var(--amber); border:2px solid rgba(255,179,0,.3);
+    }
+    .op-action-btn.downtime-btn:hover { background:rgba(255,179,0,.22); }
+    .op-action-btn.reject-btn {
+      background:rgba(255,68,68,.1); color:var(--red); border:2px solid rgba(255,68,68,.25);
+    }
+    .op-action-btn.reject-btn:hover { background:rgba(255,68,68,.2); }
+
+    .shift-timer { display:flex; align-items:center; gap:16px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 24px; margin-bottom:20px; }
+    .shift-timer-label { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .shift-timer-val   { font-size:1.3rem; font-weight:800; font-variant-numeric:tabular-nums; }
+    .shift-timer-right { margin-left:auto; font-size:.85rem; color:var(--muted); text-align:right; }
+
+    @media (max-width:700px) {
+      .op-metrics-row { grid-template-columns:1fr; }
+      .op-big-value { font-size:64px; }
+      .op-state-value { font-size:52px; }
+      .op-actions-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="z-nav"></nav>
+  <main class="z-page">
+
+    <!-- Page header -->
+    <div class="header-row" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <h1 class="z-page-title">Operator View</h1>
+        <span class="z-badge info" id="op-shift-badge">Shift A</span>
+        <span class="live-dot">LIVE</span>
+      </div>
+    </div>
+
+    <!-- Shift timer bar -->
+    <div class="shift-timer">
+      <div>
+        <div class="shift-timer-label">Elapsed</div>
+        <div class="shift-timer-val" id="op-elapsed">--</div>
+      </div>
+      <div style="flex:1;margin:0 16px">
+        <div class="z-bar thick"><div class="z-bar-fill" id="op-shift-bar" style="width:0%;--fill-color:var(--cyan)"></div></div>
+      </div>
+      <div>
+        <div class="shift-timer-label">Remaining</div>
+        <div class="shift-timer-val" id="op-remaining">--</div>
+      </div>
+      <div class="shift-timer-right">
+        <div class="shift-timer-label">Shift</div>
+        <div class="shift-timer-val" id="op-shift-name">A</div>
+      </div>
+    </div>
+
+    <!-- Machine state — huge text -->
+    <div class="op-state-card" id="op-state-card">
+      <div class="op-state-label">Machine State</div>
+      <div class="op-state-value" id="op-state-value" style="color:var(--muted)">--</div>
+      <div style="margin-top:10px;font-size:.9rem;color:var(--muted)" id="op-state-sub">Waiting for data...</div>
+    </div>
+
+    <!-- Metrics row: Parts / Cycle / OEE -->
+    <div class="op-metrics-row">
+      <div class="op-big-card">
+        <div class="op-big-label">Parts This Shift</div>
+        <div class="op-big-value" id="op-parts">--</div>
+        <div class="op-big-sub">Target: <span id="op-target">900</span> &nbsp;|&nbsp; <span id="op-parts-pct" style="color:var(--cyan)">--%</span></div>
+        <div class="z-bar thick" style="margin-top:12px">
+          <div class="z-bar-fill" id="op-parts-bar" style="width:0%;--fill-color:var(--green)"></div>
+        </div>
+      </div>
+
+      <div class="op-cycle-card">
+        <div class="op-big-label" style="margin-bottom:14px">Cycle Time</div>
+        <div class="op-cycle-nums">
+          <div class="op-cycle-num">
+            <div class="op-cycle-num-val" id="op-cycle-last" style="color:var(--cyan)">--</div>
+            <div class="op-cycle-num-label">Last (s)</div>
+          </div>
+          <div class="op-cycle-num">
+            <div class="op-cycle-num-val" id="op-cycle-ideal" style="color:var(--amber)">45</div>
+            <div class="op-cycle-num-label">Ideal (s)</div>
+          </div>
+          <div class="op-cycle-num">
+            <div class="op-cycle-num-val" id="op-cycle-avg" style="color:var(--green)">--</div>
+            <div class="op-cycle-num-label">Avg (s)</div>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:4px">
+            <span>Cycle vs Ideal</span>
+            <span id="op-cycle-indicator">--</span>
+          </div>
+          <div class="z-bar thick">
+            <div class="z-bar-fill" id="op-cycle-bar" style="width:50%;--fill-color:var(--cyan)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="op-oee-card">
+        <div class="op-big-label">OEE</div>
+        <div id="op-oee-donut"></div>
+        <div style="font-size:2.4rem;font-weight:800" id="op-oee-val" style="color:var(--cyan)">--%</div>
+        <span class="z-badge muted" id="op-oee-grade">--</span>
+        <div style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:4px">
+          A: <span id="op-avail">--</span>% &nbsp; P: <span id="op-perf">--</span>% &nbsp; Q: <span id="op-qual">--</span>%
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="op-actions-row">
+      <button class="op-action-btn downtime-btn" onclick="openDtModal()">⏸ LOG DOWNTIME</button>
+      <button class="op-action-btn reject-btn" onclick="openRejModal()">✕ LOG REJECTION</button>
+    </div>
+
+  </main>
+
+  <!-- Downtime Modal -->
+  <div class="z-modal-bg" id="dt-modal">
+    <div class="z-modal">
+      <div class="z-modal-header">
+        <div class="z-modal-title">⏸ Log Downtime</div>
+        <button class="z-modal-close" onclick="closeDtModal()">✕</button>
+      </div>
+      <form id="dt-form" onsubmit="submitDT(event)">
+        <div class="z-field">
+          <label class="z-label">Downtime Type</label>
+          <div class="z-toggle-row">
+            <div class="z-toggle-item"><input type="radio" name="dt_type" id="dt-planned" value="Planned"/><label for="dt-planned">Planned</label></div>
+            <div class="z-toggle-item"><input type="radio" name="dt_type" id="dt-unplanned" value="Unplanned" checked/><label for="dt-unplanned">Unplanned</label></div>
+          </div>
+        </div>
+        <div class="z-field">
+          <label class="z-label" for="dt-reason">Reason</label>
+          <select class="z-select" id="dt-reason">
+            <option>Machine Breakdown</option>
+            <option>Electrical Fault</option>
+            <option>Hydraulic Fault</option>
+            <option>Tool Breakage</option>
+            <option>Operator Absent</option>
+            <option>Quality Issue</option>
+            <option>Setup/Changeover</option>
+            <option>Material Shortage</option>
+            <option>Power Cut</option>
+            <option>Scheduled Break</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+        <div class="z-form-row">
+          <div class="z-field">
+            <label class="z-label" for="dt-duration">Duration (min)</label>
+            <input class="z-input" type="number" id="dt-duration" min="1" max="720" placeholder="e.g. 15" required/>
+          </div>
+          <div class="z-field">
+            <label class="z-label" for="dt-operator">Operator</label>
+            <input class="z-input" type="text" id="dt-operator" placeholder="Your name"/>
+          </div>
+        </div>
+        <div class="z-field">
+          <label class="z-label" for="dt-remarks">Remarks (optional)</label>
+          <textarea class="z-input" id="dt-remarks" rows="2" placeholder="Additional details..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button type="button" class="z-btn ghost" onclick="closeDtModal()">Cancel</button>
+          <button type="submit" class="z-btn primary">Submit Downtime</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rejection Modal -->
+  <div class="z-modal-bg" id="rej-modal">
+    <div class="z-modal">
+      <div class="z-modal-header">
+        <div class="z-modal-title">✕ Log Rejection</div>
+        <button class="z-modal-close" onclick="closeRejModal()">✕</button>
+      </div>
+      <form id="rej-form" onsubmit="submitRej(event)">
+        <div class="z-form-row">
+          <div class="z-field">
+            <label class="z-label" for="rej-qty">Rejected Qty</label>
+            <input class="z-input" type="number" id="rej-qty" min="1" placeholder="e.g. 3" required/>
+          </div>
+          <div class="z-field">
+            <label class="z-label" for="rej-good">Good Parts</label>
+            <input class="z-input" type="number" id="rej-good" min="0" placeholder="e.g. 47"/>
+          </div>
+        </div>
+        <div class="z-field">
+          <label class="z-label" for="rej-type">Rejection Type</label>
+          <select class="z-select" id="rej-type">
+            <option>Dimensional</option>
+            <option>Surface Finish</option>
+            <option>Gear Profile Error</option>
+            <option>Burr</option>
+            <option>Heat Treat Defect</option>
+            <option>Tool Mark</option>
+            <option>Material Defect</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="z-form-row">
+          <div class="z-field">
+            <label class="z-label" for="rej-operator">Operator</label>
+            <input class="z-input" type="text" id="rej-operator" placeholder="Your name"/>
+          </div>
+          <div class="z-field">
+            <label class="z-label" for="rej-prog">Program No</label>
+            <input class="z-input" type="number" id="rej-prog" placeholder="e.g. 1001"/>
+          </div>
+        </div>
+        <div class="z-field">
+          <label class="z-label" for="rej-remarks">Remarks</label>
+          <textarea class="z-input" id="rej-remarks" rows="2" placeholder="Defect description..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button type="button" class="z-btn ghost" onclick="closeRejModal()">Cancel</button>
+          <button type="submit" class="z-btn danger">Submit Rejection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="z-toasts"></div>
+  <script src="/_shared.js"></script>
+  <script>
+  const MACHINE = 'MACHINE001';
+  const IDEAL_CYCLE = 45;
+
+  function updateShiftTimer() {
+    const info = zShiftInfo();
+    zSet('op-elapsed',   fmtHM(info.elapsed));
+    zSet('op-remaining', fmtHM(info.remaining));
+    zSet('op-shift-name', info.shift);
+    const sb = document.getElementById('op-shift-badge');
+    if (sb) sb.textContent = 'Shift '+info.shift;
+    const bar = document.getElementById('op-shift-bar');
+    if (bar) bar.style.width = Math.min(100, info.elapsed/(12*60)*100)+'%';
+  }
+
+  function renderLive(m, cycleStats) {
+    if (!m) return;
+    const state = (m.machine_state||'IDLE').toUpperCase();
+    const color = stateColor(state);
+    const card  = document.getElementById('op-state-card');
+    if (card) { card.style.borderColor=color+'44'; card.style.background=color+'0a'; }
+    zSet('op-state-value', state);
+    const sv = document.getElementById('op-state-value');
+    if (sv) sv.style.color = color;
+    const sub = document.getElementById('op-state-sub');
+    if (sub) {
+      const prog = m.program_no?'Program O'+m.program_no:(m.auto_mode==='MDI'?'MDI Mode':'--');
+      sub.textContent = prog+' · Spindle: '+(m.spindle_speed!=null?fmtInt(m.spindle_speed):'--')+' RPM';
+    }
+
+    // Parts
+    const parts = parseInt(m.part_count)||0;
+    const partsEl = document.getElementById('op-parts');
+    if (partsEl) { partsEl.textContent = parts; partsEl.style.color = parts>0?'var(--cyan)':'var(--muted)'; partsEl.classList.remove('skeleton'); }
+    const tgt = 900;
+    zSet('op-target', tgt);
+    const pct = Math.min(100, parts/tgt*100);
+    const pb = document.getElementById('op-parts-bar');
+    if (pb) pb.style.width = pct+'%';
+    zSet('op-parts-pct', fmtPct(pct));
+
+    // Cycle
+    const cyc = parseFloat(m.last_cycle_time_sec)||0;
+    zSet('op-cycle-last', cyc?fmtNum(cyc,1):'--');
+    const cycBar = document.getElementById('op-cycle-bar');
+    if (cycBar && cyc) {
+      const cpct = Math.min(100, cyc/IDEAL_CYCLE*100);
+      cycBar.style.width = Math.min(100,cpct)+'%';
+      cycBar.style.setProperty('--fill-color', cyc<=IDEAL_CYCLE?'var(--green)':cyc<=IDEAL_CYCLE*1.5?'var(--amber)':'var(--red)');
+    }
+    const ci = document.getElementById('op-cycle-indicator');
+    if (ci && cyc) {
+      const diff = cyc - IDEAL_CYCLE;
+      ci.textContent = diff<=0?'▲ '+Math.abs(diff).toFixed(1)+'s faster than ideal':'▼ '+diff.toFixed(1)+'s slower than ideal';
+      ci.style.color = diff<=0?'var(--green)':'var(--amber)';
+    }
+
+    if (cycleStats) {
+      zSet('op-cycle-avg', cycleStats.avg!=null?fmtNum(cycleStats.avg,1):'--');
+    }
+  }
+
+  function renderOEE(d) {
+    if (!d||!d.ok) return;
+    const v = d.oee;
+    const color = oeeColor(v);
+    const oeeEl = document.getElementById('op-oee-val');
+    if (oeeEl) { oeeEl.textContent = fmtPct(v); oeeEl.style.color = color; }
+    const dn = document.getElementById('op-oee-donut');
+    if (dn) dn.innerHTML = zDonut(v, color, 80, 7);
+    const g = document.getElementById('op-oee-grade');
+    if (g) { g.textContent=oeeGrade(v); g.className='z-badge '+(v>=85?'success':v>=65?'warning':'danger'); }
+    zSet('op-avail', fmtNum(d.availability,1));
+    zSet('op-perf',  fmtNum(d.performance,1));
+    zSet('op-qual',  fmtNum(d.quality,1));
+    if (d.parts_produced!=null) {
+      const partsEl = document.getElementById('op-parts');
+      if (partsEl) { partsEl.textContent = fmtInt(d.parts_produced); partsEl.classList.remove('skeleton'); }
+      const tgt = d.target_parts||900;
+      zSet('op-target', tgt);
+      const pct = Math.min(100, d.parts_produced/tgt*100);
+      const pb = document.getElementById('op-parts-bar');
+      if (pb) pb.style.width=pct+'%';
+      zSet('op-parts-pct', fmtPct(pct));
+    }
+  }
+
+  function fetchAll() {
+    const shift = zCurrentShift();
+    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    zFetch('/api/cnc/live?machine='+MACHINE)
+      .then(d=>{ if(d&&d.ok) renderLive(d.machine, d.cycle_stats); }).catch(()=>{});
+    zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+today)
+      .then(d=>{ if(d&&d.ok) renderOEE(d); }).catch(()=>{});
+  }
+
+  // Modals
+  function openDtModal()  { document.getElementById('dt-modal').classList.add('open'); }
+  function closeDtModal() { document.getElementById('dt-modal').classList.remove('open'); }
+  function openRejModal() { document.getElementById('rej-modal').classList.add('open'); }
+  function closeRejModal(){ document.getElementById('rej-modal').classList.remove('open'); }
+
+  function submitDT(e) {
+    e.preventDefault();
+    const now = new Date();
+    const type = document.querySelector('[name="dt_type"]:checked')?.value||'Unplanned';
+    const payload = {
+      machine_id: MACHINE,
+      date: now.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}),
+      shift: zCurrentShift(),
+      downtime_type: type,
+      subtype: document.getElementById('dt-reason').value,
+      duration_min: parseInt(document.getElementById('dt-duration').value)||0,
+      operator_name: document.getElementById('dt-operator').value||'Operator',
+      remarks: document.getElementById('dt-remarks').value||''
+    };
+    zFetch('/api/cnc/downtime-log', { method:'POST', body:JSON.stringify(payload) })
+      .then(d=>{ if(d&&d.ok!==false){ zToast('Downtime logged successfully','success'); closeDtModal(); document.getElementById('dt-form').reset(); } else { zToast('Error saving downtime','error'); } })
+      .catch(()=>zToast('Network error','error'));
+  }
+
+  function submitRej(e) {
+    e.preventDefault();
+    const now = new Date();
+    const rejected = parseInt(document.getElementById('rej-qty').value)||0;
+    const good     = parseInt(document.getElementById('rej-good').value)||0;
+    const payload = {
+      machine_id: MACHINE,
+      date: now.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}),
+      shift: zCurrentShift(),
+      program_no: parseInt(document.getElementById('rej-prog').value)||null,
+      good_parts: good,
+      rejected_parts: rejected,
+      rejection_type: document.getElementById('rej-type').value,
+      rejection_stage: 'In-Process',
+      operator_name: document.getElementById('rej-operator').value||'Operator',
+      remarks: document.getElementById('rej-remarks').value||''
+    };
+    zFetch('/api/cnc/rejection-log', { method:'POST', body:JSON.stringify(payload) })
+      .then(d=>{ if(d&&d.ok!==false){ zToast('Rejection logged','success'); closeRejModal(); document.getElementById('rej-form').reset(); } else { zToast('Error saving rejection','error'); } })
+      .catch(()=>zToast('Network error','error'));
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    zParticles();
+    updateShiftTimer();
+    fetchAll();
+    setInterval(fetchAll, 5000);
+    setInterval(updateShiftTimer, 60000);
+    try {
+      const ws = new WebSocket('ws://'+location.host);
+      ws.onmessage = e=>{ try{ const d=JSON.parse(e.data); const m=d.machine||d; if(m&&m.machine_state) renderLive(m,null); }catch{} };
+      ws.onerror=()=>{};
+    } catch{}
+  });
+  </script>
+</body>
+</html>

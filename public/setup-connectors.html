@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Data Connectors — Factory-MIOS Setup</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+body { min-height:100vh; background:radial-gradient(ellipse at 15% 40%, #0a1628, #050d1f 65%, #020a14); padding:20px 16px 60px; }
+.wrap { max-width:1100px; margin:0 auto; }
+.topbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.topbar h1 { font-size:18px; color:var(--cyan); margin:0; }
+.tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.tab { padding:10px 16px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); font-weight:700; font-size:12px; cursor:pointer; font-family:inherit; }
+.tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.08); }
+.panel { display:none; }
+.panel.active { display:block; }
+.card { background:rgba(13,27,53,.92); border:1px solid rgba(0,212,255,.15); border-radius:16px; padding:22px; margin-bottom:14px; }
+.card h2 { font-size:15px; color:var(--cyan); margin:0 0 6px; }
+.card .sub { font-size:12px; color:var(--muted); line-height:1.55; margin-bottom:14px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+@media(max-width:800px){ .grid2,.grid3 { grid-template-columns:1fr; } }
+.field { margin-bottom:10px; }
+.field label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom:4px; }
+.field input, .field select, .field textarea { width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px; font-family:inherit; }
+.field textarea { min-height:64px; font-family:monospace; font-size:11px; }
+.btn { padding:10px 16px; border-radius:8px; border:none; font-weight:700; font-size:12px; cursor:pointer; font-family:inherit; }
+.btn-primary { background:linear-gradient(135deg,#1a5fff,#0040cc); color:#fff; }
+.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px; }
+.status { font-size:11px; font-weight:700; padding:4px 10px; border-radius:16px; }
+.status.ok { background:rgba(0,255,136,.12); color:var(--green); }
+.status.err { background:rgba(255,68,68,.12); color:var(--red); }
+.status.pending { background:rgba(255,179,0,.12); color:#ffb300; }
+.table-wrap { overflow:auto; max-height:320px; border:1px solid var(--border); border-radius:8px; margin-top:10px; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+th, td { padding:7px 9px; border-bottom:1px solid var(--border); text-align:left; }
+th { color:var(--muted); background:var(--panel); position:sticky; top:0; }
+.code { font-family:monospace; font-size:11px; background:rgba(0,0,0,.35); padding:12px; border-radius:8px; color:var(--cyan); line-height:1.55; word-break:break-all; margin-top:8px; }
+.map-row { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-bottom:6px; align-items:end; }
+.hint-box { border:1px dashed var(--border); border-radius:10px; padding:12px; font-size:11px; color:var(--muted); margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <img src="/assets/factory-mios-logo.png" alt="" style="width:40px;height:40px;vertical-align:middle;margin-right:8px"/>
+      <h1 style="display:inline;vertical-align:middle">Data connectors</h1>
+    </div>
+    <div class="btn-row" style="margin:0">
+      <a class="btn btn-ghost" href="/welcome" style="text-decoration:none">Back to setup</a>
+      <a class="btn btn-primary" href="/setup/data" style="text-decoration:none">Next: Data landing</a>
+    </div>
+  </div>
+
+  <p class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">
+    Live ingestion: <strong>MQTT</strong>, <strong>HTTPS GET/POST</strong>, or <strong>CSV/Excel upload</strong>.
+    Data lands in TimescaleDB: plant schema + machine table + <code>point_key</code> rows.
+  </p>
+
+  <div class="grid2" style="margin-bottom:14px">
+    <div class="field"><label>Plant ID (schema)</label><input id="plantId" placeholder="acme_plant_1"/></div>
+    <div class="field"><label>Machine ID (table / device)</label><input id="machineId" placeholder="line_01"/></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="mqtt" onclick="switchTab('mqtt')">MQTT</button>
+    <button class="tab" data-tab="https" onclick="switchTab('https')">HTTPS / REST</button>
+    <button class="tab" data-tab="file" onclick="switchTab('file')">CSV / Excel</button>
+    <button class="tab" data-tab="post" onclick="switchTab('post')">POST ingest test</button>
+  </div>
+
+  <!-- MQTT -->
+  <div id="panel-mqtt" class="panel active">
+    <div class="card">
+      <h2>MQTT broker connection</h2>
+      <p class="sub">Subscribe to a topic and wait for one JSON message. Payload should include <code>points</code> object or flat tag keys.</p>
+      <div class="grid2">
+        <div class="field"><label>Connection name</label><input id="mqttName" value="MQTT live feed"/></div>
+        <div class="field"><label>Broker URL</label><input id="mqttUrl" placeholder="mqtt://88.99.81.138:1883"/><small class="sub">Include <code>mqtt://</code> or <code>mqtts://</code> — bare IP:port is auto-fixed but always use the scheme for remote brokers.</small></div>
+        <div class="field"><label>Topic</label><input id="mqttTopic" placeholder="factory/plant1/line01/telemetry"/></div>
+        <div class="field"><label>QoS</label>
+          <select id="mqttQos"><option value="0">0 — At most once</option><option value="1">1 — At least once</option><option value="2">2 — Exactly once</option></select>
+        </div>
+        <div class="field"><label>Client ID</label><input id="mqttClientId" placeholder="factory-mios-client-01"/></div>
+        <div class="field"><label>Username</label><input id="mqttUser" placeholder="optional"/></div>
+        <div class="field"><label>Password</label><input id="mqttPass" type="password" placeholder="optional"/></div>
+        <div class="field"><label>MQTT protocol version</label>
+          <select id="mqttVer"><option value="4">4 (default)</option><option value="5">5</option></select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="testMqtt()">Test connectivity</button>
+        <button class="btn btn-primary" onclick="saveMqtt()">Save MQTT source</button>
+        <span id="mqttStatus" class="status pending">Not tested</span>
+      </div>
+      <div id="mqttResult" class="code hidden"></div>
+    </div>
+  </div>
+
+  <!-- HTTPS -->
+  <div id="panel-https" class="panel">
+    <div class="card">
+      <h2>HTTPS / REST API pull</h2>
+      <p class="sub">Test a GET or POST request to your API. Response should be JSON with telemetry fields or a <code>points</code> object.</p>
+      <div class="grid2">
+        <div class="field"><label>Connection name</label><input id="httpsName" value="HTTPS API"/></div>
+        <div class="field"><label>URL</label><input id="httpsUrl" placeholder="https://api.example.com/v1/telemetry"/></div>
+        <div class="field"><label>Method</label>
+          <select id="httpsMethod"><option value="GET">GET</option><option value="POST">POST</option></select>
+        </div>
+        <div class="field"><label>Poll interval (sec, for scheduler)</label><input id="httpsPoll" type="number" value="60"/></div>
+        <div class="field"><label>API key header name</label><input id="httpsKeyHdr" value="X-API-Key"/></div>
+        <div class="field"><label>API key value</label><input id="httpsKeyVal" type="password" placeholder="optional"/></div>
+      </div>
+      <div class="field"><label>Authorization header (optional)</label><input id="httpsAuth" placeholder="Bearer eyJ..."/></div>
+      <div class="field"><label>POST body (JSON, optional)</label>
+        <textarea id="httpsBody" placeholder='{"machine":"line_01"}'></textarea></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="testHttps()">Test connectivity</button>
+        <button class="btn btn-primary" onclick="saveHttps()">Save HTTPS source</button>
+        <span id="httpsStatus" class="status pending">Not tested</span>
+      </div>
+      <div id="httpsResult" class="code hidden"></div>
+    </div>
+  </div>
+
+  <!-- FILE -->
+  <div id="panel-file" class="panel">
+    <div class="card">
+      <h2>CSV / Excel upload</h2>
+      <p class="sub">Upload raw file, preview unprocessed rows, map column names to <code>point_key</code>, then import into the machine table.</p>
+      <div class="hint-box">
+        <strong>Supported format (long):</strong> columns <code>time</code>, <code>point_key</code>, <code>value_num</code>, <code>value_text</code>, <code>unit</code><br/>
+        <strong>Supported format (wide):</strong> column <code>time</code> (or timestamp) + one column per tag (e.g. parts_count, kwh_total)
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Choose file (.csv, .xlsx)</label><input id="fileInput" type="file" accept=".csv,.xlsx,.xls"/></div>
+        <div class="field"><label>Header row number</label><input id="fileHeaderRow" type="number" value="1" min="1"/></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="previewFile()">Preview raw data</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr id="rawHead"></tr></thead><tbody id="rawBody"></tbody></table></div>
+
+      <h2 style="margin-top:18px">Column mapping (file column → point_key)</h2>
+      <p class="sub">Map only columns that are data points. Leave time/timestamp mapped to <code>time</code>.</p>
+      <div id="mapRows"></div>
+      <button class="btn btn-ghost" type="button" onclick="addMapRow()">+ Add mapping</button>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="importFile()">Import mapped data to database</button>
+        <span id="fileStatus" class="status pending">Not imported</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- POST ingest -->
+  <div id="panel-post" class="panel">
+    <div class="card">
+      <h2>Secure POST ingest (live landing)</h2>
+      <p class="sub">Push data directly into TimescaleDB. Use the ingest key from step 1 (super admin). Same format as MQTT JSON body.</p>
+      <div class="field"><label>Ingest API key</label><input id="ingestKey" type="password" placeholder="From /welcome after super admin"/></div>
+      <div class="field"><label>JSON body</label>
+        <textarea id="ingestBody">{
+  "time": "2026-06-04T10:00:00Z",
+  "points": {
+    "parts_count": 120,
+    "is_running": 1,
+    "kwh_total": 4521.5
+  }
+}</textarea></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="testPostIngest()">Send test POST</button>
+        <span id="postStatus" class="status pending">Not tested</span>
+      </div>
+      <div id="postUrl" class="code"></div>
+      <div id="postResult" class="code hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('oee_token') || '';
+let lastFile = { filename: '', base64: '', headers: [] };
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + id));
+}
+
+async function api(url, opts = {}) {
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const r = await fetch(url, { ...opts, headers });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+function toast(msg, ok) {
+  alert((ok ? 'OK: ' : 'Error: ') + msg);
+}
+
+function plantMachine() {
+  const plant_id = document.getElementById('plantId').value.trim();
+  const machine_id = document.getElementById('machineId').value.trim();
+  if (!plant_id || !machine_id) throw new Error('Set plant ID and machine ID at top');
+  return { plant_id, machine_id };
+}
+
+function setSt(id, ok, text) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + (ok ? 'ok' : (text === 'pending' ? 'pending' : 'err'));
+  el.textContent = text;
+}
+
+function normalizeMqttUrl(raw) {
+  const url = (raw || '').trim();
+  if (!url) return url;
+  if (/^mqtts?:\/\//i.test(url)) return url;
+  return 'mqtt://' + url.replace(/^\/\//, '');
+}
+
+function mqttCfg() {
+  return {
+    name: document.getElementById('mqttName').value,
+    brokerUrl: normalizeMqttUrl(document.getElementById('mqttUrl').value),
+    topic: document.getElementById('mqttTopic').value.trim(),
+    qos: document.getElementById('mqttQos').value,
+    clientId: document.getElementById('mqttClientId').value.trim(),
+    username: document.getElementById('mqttUser').value.trim(),
+    password: document.getElementById('mqttPass').value,
+    protocolVersion: document.getElementById('mqttVer').value,
+  };
+}
+
+async function testMqtt() {
+  try {
+    const d = await api('/api/setup/connectors/test-mqtt', { method: 'POST', body: JSON.stringify(mqttCfg()) });
+    setSt('mqttStatus', true, 'Connected');
+    const box = document.getElementById('mqttResult');
+    box.classList.remove('hidden');
+    box.textContent = JSON.stringify(d, null, 2);
+    toast('MQTT message received', true);
+  } catch (e) {
+    setSt('mqttStatus', false, 'Error');
+    toast(e.message, false);
+  }
+}
+
+async function saveMqtt() {
+  try {
+    const pm = plantMachine();
+    await api('/api/setup/connectors/save', {
+      method: 'POST',
+      body: JSON.stringify({ ...pm, connector_type: 'mqtt', config: { ...mqttCfg(), status: 'connected' } }),
+    });
+    toast('MQTT source saved', true);
+  } catch (e) { toast(e.message, false); }
+}
+
+function httpsCfg() {
+  let body = document.getElementById('httpsBody').value.trim();
+  if (body) { try { body = JSON.parse(body); } catch { throw new Error('POST body must be valid JSON'); } }
+  return {
+    name: document.getElementById('httpsName').value,
+    url: document.getElementById('httpsUrl').value.trim(),
+    method: document.getElementById('httpsMethod').value,
+    poll_interval_sec: document.getElementById('httpsPoll').value,
+    apiKeyHeader: document.getElementById('httpsKeyHdr').value.trim(),
+    apiKey: document.getElementById('httpsKeyVal').value,
+    authHeader: document.getElementById('httpsAuth').value.trim(),
+    body: body || undefined,
+  };
+}
+
+async function testHttps() {
+  try {
+    const d = await api('/api/setup/connectors/test-https', { method: 'POST', body: JSON.stringify(httpsCfg()) });
+    setSt('httpsStatus', true, 'Connected');
+    document.getElementById('httpsResult').classList.remove('hidden');
+    document.getElementById('httpsResult').textContent = JSON.stringify(d.sample || d, null, 2);
+    toast('HTTPS OK', true);
+  } catch (e) {
+    setSt('httpsStatus', false, 'Error');
+    toast(e.message, false);
+  }
+}
+
+async function saveHttps() {
+  try {
+    const pm = plantMachine();
+    await api('/api/setup/connectors/save', {
+      method: 'POST',
+      body: JSON.stringify({ ...pm, connector_type: 'https', config: { ...httpsCfg(), status: 'connected' } }),
+    });
+    toast('HTTPS source saved', true);
+  } catch (e) { toast(e.message, false); }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function renderRawTable(headers, rows) {
+  document.getElementById('rawHead').innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+  document.getElementById('rawBody').innerHTML = rows.slice(0, 50).map(row =>
+    `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`
+  ).join('');
+  const mapEl = document.getElementById('mapRows');
+  mapEl.innerHTML = '';
+  headers.forEach(h => {
+    const isTime = /^(time|timestamp|ts|datetime)$/i.test(h);
+    addMapRow(h, isTime ? 'time' : h.replace(/\s+/g,'_').toLowerCase());
+  });
+}
+
+function addMapRow(src = '', dst = '') {
+  const div = document.createElement('div');
+  div.className = 'map-row';
+  div.innerHTML = `
+    <div class="field"><label>File column</label><input class="map-src" value="${src}"/></div>
+    <div class="field"><label>point_key / time</label><input class="map-dst" value="${dst}"/></div>
+    <button class="btn btn-ghost" type="button" onclick="this.parentElement.remove()">Remove</button>`;
+  document.getElementById('mapRows').appendChild(div);
+}
+
+function getColumnMap() {
+  const map = {};
+  document.querySelectorAll('.map-row').forEach(row => {
+    const s = row.querySelector('.map-src')?.value?.trim();
+    const d = row.querySelector('.map-dst')?.value?.trim();
+    if (s && d) map[s] = d;
+  });
+  return map;
+}
+
+async function previewFile() {
+  try {
+    const f = document.getElementById('fileInput').files[0];
+    if (!f) throw new Error('Choose a file');
+    lastFile.base64 = await fileToBase64(f);
+    lastFile.filename = f.name;
+    const d = await api('/api/setup/connectors/upload-preview', {
+      method: 'POST',
+      body: JSON.stringify({
+        filename: lastFile.filename,
+        content_base64: lastFile.base64,
+        header_row: document.getElementById('fileHeaderRow').value,
+      }),
+    });
+    lastFile.headers = d.headers || [];
+    renderRawTable(d.headers, d.raw_rows || []);
+    setSt('fileStatus', true, 'Preview OK');
+    toast('Format: ' + d.format + ', rows: ' + d.raw_count, true);
+  } catch (e) {
+    setSt('fileStatus', false, 'Error');
+    toast(e.message, false);
+  }
+}
+
+async function importFile() {
+  try {
+    if (!lastFile.base64) throw new Error('Preview file first');
+    const pm = plantMachine();
+    const d = await api('/api/setup/connectors/import-file', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...pm,
+        filename: lastFile.filename,
+        content_base64: lastFile.base64,
+        header_row: document.getElementById('fileHeaderRow').value,
+        column_map: getColumnMap(),
+      }),
+    });
+    setSt('fileStatus', true, 'Imported ' + d.inserted);
+    toast('Imported ' + d.inserted + ' rows', true);
+  } catch (e) {
+    setSt('fileStatus', false, 'Error');
+    toast(e.message, false);
+  }
+}
+
+async function testPostIngest() {
+  try {
+    const pm = plantMachine();
+    let body;
+    try { body = JSON.parse(document.getElementById('ingestBody').value); } catch { throw new Error('Invalid JSON body'); }
+    const key = document.getElementById('ingestKey').value.trim();
+    const url = `/api/ingest/v1/${encodeURIComponent(pm.plant_id)}/${encodeURIComponent(pm.machine_id)}`;
+    document.getElementById('postUrl').textContent = 'POST ' + location.origin + url + '\nHeader: X-Ingest-Key: ****';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Ingest-Key': key },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.statusText);
+    setSt('postStatus', true, 'Connected');
+    document.getElementById('postResult').classList.remove('hidden');
+    document.getElementById('postResult').textContent = JSON.stringify(d, null, 2);
+    toast('POST ingest OK', true);
+  } catch (e) {
+    setSt('postStatus', false, 'Error');
+    toast(e.message, false);
+  }
+}
+
+(async function init() {
+  try {
+    const s = await api('/api/setup/status');
+    const p = s.plants?.[0];
+    if (p) {
+      document.getElementById('plantId').value = p.plant_id;
+      if (p.machines?.[0]) document.getElementById('machineId').value = p.machines[0].machine_id;
+    }
+    await api('/api/setup/import-format');
+    document.getElementById('postUrl').textContent =
+      'POST ' + location.origin + '/api/ingest/v1/' + (document.getElementById('plantId').value || '{plant}') + '/' + (document.getElementById('machineId').value || '{machine}');
+  } catch (e) { console.warn(e); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Device Setup — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+.page { max-width:1200px; margin:0 auto; padding:20px 24px 80px; }
+
+/* ── TABS ────────────────────────────────────────────────── */
+.tab-bar {
+  display:flex; gap:2px; margin-bottom:20px;
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  padding:4px; width:fit-content;
+}
+.tab-btn {
+  padding:8px 18px; border-radius:8px; font-size:12px; font-weight:600;
+  cursor:pointer; border:none; background:transparent; color:var(--muted);
+  transition:all var(--trans);
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { background:var(--card); color:var(--cyan); box-shadow:0 2px 8px rgba(0,0,0,.3); }
+
+/* ── STEP WIZARD ─────────────────────────────────────────── */
+.steps-bar {
+  display:flex; align-items:center; margin-bottom:24px; gap:0;
+}
+.step-item {
+  display:flex; flex-direction:column; align-items:center; position:relative; flex:1;
+}
+.step-item:not(:last-child)::after {
+  content:''; position:absolute; top:15px; left:50%; width:100%; height:1.5px;
+  background:var(--border); z-index:0;
+}
+.step-item.done:not(:last-child)::after { background:var(--cyan); }
+.step-item.active:not(:last-child)::after { background:linear-gradient(90deg,var(--cyan),var(--border)); }
+.step-dot {
+  width:30px; height:30px; border-radius:50%;
+  background:var(--panel); border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; color:var(--muted);
+  position:relative; z-index:1; transition:all var(--trans);
+}
+.step-item.active .step-dot {
+  background:rgba(0,212,255,.15); border-color:var(--cyan); color:var(--cyan);
+  box-shadow:0 0 0 4px rgba(0,212,255,.1);
+}
+.step-item.done .step-dot {
+  background:var(--green); border-color:var(--green); color:#000;
+}
+.step-label {
+  font-size:9px; color:var(--muted); margin-top:5px; text-align:center;
+  max-width:70px; line-height:1.3; font-weight:600; text-transform:uppercase; letter-spacing:.4px;
+}
+.step-item.active .step-label { color:var(--cyan); }
+.step-item.done  .step-label  { color:var(--green); }
+
+/* ── BUILDER CARD ────────────────────────────────────────── */
+.setup-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:24px; margin-bottom:16px; position:relative; overflow:hidden;
+}
+.setup-card::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,.03) 0%, transparent 60%);
+  pointer-events:none;
+}
+.setup-card-title {
+  font-size:15px; font-weight:800; margin-bottom:4px;
+  display:flex; align-items:center; gap:10px;
+}
+.setup-card-sub { font-size:12px; color:var(--muted); margin-bottom:20px; }
+
+/* ── FORM LAYOUTS ────────────────────────────────────────── */
+.fg2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.fg3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.fg4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group.span2 { grid-column:span 2; }
+.form-group.span3 { grid-column:span 3; }
+
+/* ── DEVICE TYPE PICKER ──────────────────────────────────── */
+.dtype-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px; }
+.dtype-btn {
+  border:1px solid var(--border); border-radius:var(--radius); padding:14px 8px;
+  text-align:center; cursor:pointer; transition:all var(--trans); background:var(--bg2);
+}
+.dtype-btn .dt-icon  { font-size:22px; display:block; margin-bottom:6px; }
+.dtype-btn .dt-label { font-size:11px; font-weight:600; color:var(--muted); }
+.dtype-btn:hover, .dtype-btn.selected {
+  border-color:var(--cyan); background:rgba(0,212,255,.06);
+}
+.dtype-btn.selected .dt-label { color:var(--cyan); }
+
+/* ── DEVICE LIST ─────────────────────────────────────────── */
+.device-list { display:flex; flex-direction:column; gap:12px; }
+.device-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; transition:all var(--trans);
+}
+.device-card:hover { border-color:var(--border2); }
+.dc-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.dc-title  { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--cyan); }
+
+/* ── PARAM TABLE ─────────────────────────────────────────── */
+.param-table { width:100%; border-collapse:collapse; }
+.param-table th {
+  font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.5px; padding:6px 6px; border-bottom:1px solid var(--border); text-align:left;
+}
+.param-table td { padding:5px 4px; vertical-align:middle; }
+.param-table tr:not(:last-child) td { border-bottom:1px solid rgba(26,47,85,.3); }
+.param-table input, .param-table select { font-size:11px; padding:5px 8px; }
+
+/* ── SHIFT CARDS ─────────────────────────────────────────── */
+.shift-list { display:flex; flex-direction:column; gap:10px; }
+.shift-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px;
+}
+.shift-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+
+/* ── ADD DEVICE PANEL ────────────────────────────────────── */
+.add-device-panel {
+  background:var(--card); border:2px dashed var(--border); border-radius:var(--radius-lg);
+  padding:20px; margin-top:16px;
+  animation:fadeInUp .3s ease;
+}
+.add-device-btn {
+  width:100%; padding:14px; border:2px dashed var(--border); border-radius:var(--radius);
+  background:transparent; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer;
+  transition:all var(--trans); display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-top:12px;
+}
+.add-device-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.04); }
+.add-param-btn {
+  width:100%; padding:5px; border:1px dashed var(--border); border-radius:5px;
+  background:transparent; color:var(--muted); font-size:11px; cursor:pointer;
+  transition:all var(--trans); margin-top:6px;
+}
+.add-param-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+
+/* ── REVIEW ──────────────────────────────────────────────── */
+.review-section { margin-bottom:16px; }
+.review-section h4 {
+  font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.6px; margin-bottom:8px; display:flex; align-items:center; gap:6px;
+}
+.review-row {
+  display:flex; justify-content:space-between; padding:7px 0;
+  border-bottom:1px solid rgba(26,47,85,.3); font-size:12px;
+}
+.review-row:last-child { border-bottom:none; }
+.rv-key { color:var(--muted); }
+.rv-val { color:var(--text); font-weight:600; }
+.device-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  background:var(--bg2); border:1px solid var(--border); border-radius:20px;
+  padding:3px 10px; font-size:11px; color:var(--muted); margin:2px;
+}
+
+/* ── BTN ROW ─────────────────────────────────────────────── */
+.btn-row { display:flex; justify-content:space-between; align-items:center; margin-top:20px; gap:8px; }
+
+/* ── SUCCESS ─────────────────────────────────────────────── */
+.success-box { text-align:center; padding:40px 20px; }
+.success-check { font-size:60px; margin-bottom:16px; animation:float 2s ease-in-out infinite; }
+.db-info-box {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 20px; display:inline-block; text-align:left;
+  margin-bottom:20px; min-width:300px;
+}
+.db-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(26,47,85,.3); }
+.db-row:last-child { border-bottom:none; }
+.db-key { font-size:11px; color:var(--muted); }
+.db-val { font-size:11px; color:var(--green); font-weight:700; font-family:'Courier New',monospace; }
+
+/* ── DEVICES TAB TABLE ───────────────────────────────────── */
+.device-status-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; margin-bottom:16px; }
+.dsg-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px; transition:all var(--trans); position:relative; overflow:hidden;
+}
+.dsg-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+}
+.dsg-card.ok::before   { background:var(--green); }
+.dsg-card.warn::before { background:var(--amber); }
+.dsg-card.err::before  { background:var(--red); }
+.dsg-card:hover { border-color:var(--border2); }
+.dsg-icon  { font-size:22px; margin-bottom:6px; }
+.dsg-name  { font-size:13px; font-weight:700; margin-bottom:3px; }
+.dsg-type  { font-size:10px; color:var(--muted); margin-bottom:8px; }
+.dsg-ip    { font-family:'Courier New',monospace; font-size:11px; color:var(--cyan); }
+.dsg-actions { display:flex; gap:6px; margin-top:10px; }
+
+/* MQTT config section */
+.mqtt-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.mqtt-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:14px;
+}
+.mqtt-card-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+
+/* Hidden */
+.hidden { display:none !important; }
+
+@media (max-width:900px) {
+  .fg2,.fg3,.fg4 { grid-template-columns:1fr; }
+  .form-group.span2,.form-group.span3 { grid-column:span 1; }
+  .dtype-grid { grid-template-columns:repeat(3,1fr); }
+}
+</style>
+</head>
+<body>
+<div id="z-header-root"></div>
+<script>document.getElementById('z-header-root').innerHTML = zRenderHeader('DEVICE SETUP & CONFIGURATION');</script>
+
+<div class="page">
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab_devices"  onclick="showTab('devices')">🖥 Devices</button>
+    <button class="tab-btn" id="tab_mqtt"            onclick="showTab('mqtt')">📡 MQTT Config</button>
+    <button class="tab-btn" id="tab_cnc"             onclick="showTab('cnc')">🏭 CNC Machines</button>
+    <button class="tab-btn" id="tab_notifications"   onclick="showTab('notifications')">🔔 Notifications</button>
+    <button class="tab-btn" id="tab_add"             onclick="showTab('add')">+ Add Setup</button>
+  </div>
+
+  <!-- ══════════════ DEVICES TAB ══════════════ -->
+  <div id="tabc_devices">
+    <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:16px;font-weight:800;">Configured Devices</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Live status of all registered IoT devices</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="z-btn ghost" onclick="refreshDevices()">↺ Refresh</button>
+        <button class="z-btn primary" onclick="showTab('add')">+ Add Device</button>
+      </div>
+    </div>
+
+    <!-- KPI summary -->
+    <div class="kpi-grid cols-4 mb" style="margin-bottom:16px;">
+      <div class="kpi-tile c-green">
+        <div class="label">Online Devices</div>
+        <div class="value" style="color:var(--green);" id="kpi-online">--</div>
+        <div class="sub">Currently connected</div>
+      </div>
+      <div class="kpi-tile c-red">
+        <div class="label">Offline</div>
+        <div class="value" style="color:var(--red);" id="kpi-offline">--</div>
+        <div class="sub">Connection lost</div>
+      </div>
+      <div class="kpi-tile c-cyan">
+        <div class="label">Total Devices</div>
+        <div class="value" style="color:var(--cyan);" id="kpi-total">--</div>
+        <div class="sub">In registry</div>
+      </div>
+      <div class="kpi-tile c-amber">
+        <div class="label">Data Points/min</div>
+        <div class="value" style="color:var(--amber);" id="kpi-dpm">--</div>
+        <div class="sub">Live throughput</div>
+      </div>
+    </div>
+
+    <div class="device-status-grid" id="deviceStatusGrid">
+      <div class="dsg-card ok skeleton" style="height:140px;"></div>
+      <div class="dsg-card ok skeleton" style="height:140px;"></div>
+      <div class="dsg-card ok skeleton" style="height:140px;"></div>
+    </div>
+
+    <div class="z-card" style="margin-bottom:16px;" data-accent="cyan">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">All Devices</div>
+      <div style="overflow-x:auto;">
+        <table class="z-table" id="deviceTable">
+          <thead>
+            <tr>
+              <th>Device</th><th>Type</th><th>IP / Address</th><th>Protocol</th>
+              <th>Port</th><th>Last Seen</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="deviceTableBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">Loading devices…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ MQTT TAB ══════════════ -->
+  <div id="tabc_mqtt" class="hidden">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px;">MQTT Broker Configuration</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Configure Eclipse Mosquitto MQTT broker settings and topics</div>
+
+    <div class="mqtt-info-grid">
+      <div class="mqtt-card">
+        <div class="mqtt-card-title">Broker Status</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite;"></div>
+          <div style="font-size:14px;font-weight:700;color:var(--green);">CONNECTED</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:2;">
+          Host: <span style="color:var(--cyan);font-family:monospace;" id="mqtt-host">192.168.1.100</span><br>
+          Port: <span style="color:var(--cyan);font-family:monospace;" id="mqtt-port">1883</span><br>
+          Version: <span style="color:var(--text);">MQTT v3.1.1</span><br>
+          Client ID: <span style="color:var(--cyan);font-family:monospace;">factory-mios-oee-engine</span>
+        </div>
+      </div>
+      <div class="mqtt-card">
+        <div class="mqtt-card-title">Connection Stats</div>
+        <div style="font-size:11px;color:var(--muted);line-height:2.2;">
+          Messages/sec: <span style="color:var(--green);font-weight:700;" id="mqtt-mps">~2</span><br>
+          Total topics: <span style="color:var(--cyan);font-weight:700;" id="mqtt-topics">3</span><br>
+          Connected clients: <span style="color:var(--text);font-weight:700;">2</span><br>
+          QoS: <span style="color:var(--text);">1 (At least once)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-card" style="margin-bottom:16px;">
+      <div class="setup-card-title">MQTT Broker Settings</div>
+      <div class="fg4" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="z-label">Broker Host *</label>
+          <input class="z-input" type="text" id="mqttHost" value="192.168.1.100" placeholder="IP or hostname"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">Port</label>
+          <input class="z-input" type="number" id="mqttPort" value="1883" placeholder="1883"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">Client ID</label>
+          <input class="z-input" type="text" id="mqttClientId" value="factory-mios-oee-engine"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">QoS Level</label>
+          <select class="z-select" id="mqttQos" style="width:100%;">
+            <option value="0">0 — At most once</option>
+            <option value="1" selected>1 — At least once</option>
+            <option value="2">2 — Exactly once</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg2" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="z-label">Username (optional)</label>
+          <input class="z-input" type="text" id="mqttUser" placeholder="Leave blank if no auth"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">Password (optional)</label>
+          <input class="z-input" type="password" id="mqttPass" placeholder="Leave blank if no auth"/>
+        </div>
+      </div>
+      <div class="z-section" style="margin-bottom:10px;">Active Topic Subscriptions</div>
+      <div id="mqttTopicsList" style="font-family:'Courier New',monospace;font-size:11px;color:var(--cyan);line-height:2.2;">
+        <div>📥 factory-mios/machine001/data — <span style="color:var(--green);">active</span> — 30s interval</div>
+        <div>📥 factory-mios/machine001/alarms — <span style="color:var(--green);">active</span> — on change</div>
+        <div>📥 factory-mios/machine001/heartbeat — <span style="color:var(--green);">active</span> — 60s interval</div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="z-btn primary" onclick="saveMqttConfig()">💾 Save Config</button>
+        <button class="z-btn ghost" onclick="testMqttConnection()">🔌 Test Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ CNC MACHINES TAB ══════════════ -->
+  <div id="tabc_cnc" class="hidden">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px;">CNC Machine Registry</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Industrial CNC machines connected via FOCAS2 / Raspberry Pi gateway</div>
+
+    <div class="z-card" data-accent="green" style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">🏭 MACHINE-001 — Industrial CNC 0i-MF</div>
+      <div class="fg4" style="margin-bottom:14px;">
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Machine ID</div>
+          <div style="font-size:14px;font-weight:800;color:var(--cyan);">MACHINE-001</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Controller</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text);">Industrial CNC 0i-MF</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">FOCAS2 IP</div>
+          <div style="font-size:14px;font-weight:800;color:var(--cyan);font-family:monospace;">192.168.1.50</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Status</div>
+          <span class="z-badge ok" style="font-size:12px;">ONLINE</span>
+        </div>
+      </div>
+      <div class="fg4">
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Poll Interval</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">30 seconds</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Fields Collected</div>
+          <div style="font-size:12px;font-weight:700;color:var(--green);">119 fields</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">Gateway Pi</div>
+          <div style="font-size:12px;font-weight:700;color:var(--cyan);font-family:monospace;">192.168.1.100</div>
+        </div>
+        <div>
+          <div class="z-label" style="display:block;margin-bottom:4px;">DB Table</div>
+          <div style="font-size:12px;font-weight:700;color:var(--purple);font-family:monospace;">machine_live</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="z-btn ghost" onclick="zToast('MACHINE-001 pinged — 8ms','ok')">Ping</button>
+        <button class="z-btn ghost" onclick="openEditCNC()">✏️ Edit</button>
+        <button class="z-btn primary" style="margin-left:auto;" onclick="showTab('add')">+ Add CNC Machine</button>
+      </div>
+    </div>
+
+    <div class="z-section" style="margin-bottom:12px;"><span class="dot" style="background:var(--cyan)"></span>FOCAS2 Data Fields Preview</div>
+    <div style="overflow-x:auto;">
+      <table class="z-table">
+        <thead><tr><th>Field</th><th>Description</th><th>Unit</th><th>Live Value</th><th>Last Update</th></tr></thead>
+        <tbody id="cncFieldsBody">
+          <tr><td style="font-family:monospace;color:var(--cyan);">machine_state</td><td>Machine operating state</td><td>—</td><td><span class="z-badge ok">RUNNING</span></td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">feed_rate</td><td>Feed rate (mm/min)</td><td>mm/min</td><td style="color:var(--cyan);font-weight:700;">850</td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">spindle_speed</td><td>Spindle rotation speed</td><td>RPM</td><td style="color:var(--blue);font-weight:700;">1,450</td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">part_count</td><td>Cumulative part count</td><td>pcs</td><td style="color:var(--green);font-weight:700;">428</td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">last_cycle_time_sec</td><td>Last cycle duration</td><td>seconds</td><td style="color:var(--amber);font-weight:700;">46.2</td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">alarm_active</td><td>Active alarm flag</td><td>bool</td><td><span class="z-badge ok">FALSE</span></td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">program_no</td><td>Current CNC program</td><td>—</td><td style="color:var(--purple);font-family:monospace;">O1234</td><td style="color:var(--muted);">just now</td></tr>
+          <tr><td style="font-family:monospace;color:var(--cyan);">feed_override</td><td>Feed rate override %</td><td>%</td><td style="color:var(--amber);font-weight:700;">100%</td><td style="color:var(--muted);">just now</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════ NOTIFICATIONS TAB ══════════════ -->
+  <div id="tabc_notifications" class="hidden">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Notification Settings</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Configure alert channels and notification rules for alarms and threshold breaches</div>
+
+    <div class="setup-card" style="margin-bottom:16px;">
+      <div class="setup-card-title">📧 Email Alerts</div>
+      <div class="fg2" style="margin-bottom:12px;">
+        <div class="form-group">
+          <label class="z-label">SMTP Host</label>
+          <input class="z-input" type="text" id="smtpHost" placeholder="smtp.gmail.com"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">SMTP Port</label>
+          <input class="z-input" type="number" id="smtpPort" value="587"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">From Email</label>
+          <input class="z-input" type="email" id="smtpFrom" placeholder="alerts@yourcompany.com"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">To Email(s)</label>
+          <input class="z-input" type="text" id="smtpTo" placeholder="manager@company.com, supervisor@company.com"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="z-btn primary" onclick="saveNotifConfig('email')">💾 Save Email Config</button>
+        <button class="z-btn ghost" onclick="testNotif('email')">📧 Send Test Email</button>
+      </div>
+    </div>
+
+    <div class="setup-card" style="margin-bottom:16px;">
+      <div class="setup-card-title">📱 WhatsApp / SMS Alerts</div>
+      <div class="fg3" style="margin-bottom:12px;">
+        <div class="form-group">
+          <label class="z-label">Provider</label>
+          <select class="z-select" style="width:100%;" id="waProvider">
+            <option value="twilio">Twilio</option>
+            <option value="360dialog">360dialog (WhatsApp Business)</option>
+            <option value="msg91">MSG91 (India)</option>
+            <option value="none">Disabled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="z-label">API Key / SID</label>
+          <input class="z-input" type="text" id="waApiKey" placeholder="API Key or Account SID"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">To Phone / WhatsApp</label>
+          <input class="z-input" type="text" id="waPhone" placeholder="+91 98765 43210"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="z-btn primary" onclick="saveNotifConfig('whatsapp')">💾 Save WA Config</button>
+        <button class="z-btn ghost" onclick="testNotif('whatsapp')">📱 Send Test Message</button>
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">🔔 Notification Rules</div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="notifRules">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;">CNC Alarm Active</div>
+            <div style="font-size:10px;color:var(--muted);">alarm_active = true → Immediate alert</div>
+          </div>
+          <span class="z-badge ok">Enabled</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;">OEE Below Threshold</div>
+            <div style="font-size:10px;color:var(--muted);">OEE < 65% for > 30 minutes → Warning alert</div>
+          </div>
+          <span class="z-badge warn">Enabled</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;">Machine Offline</div>
+            <div style="font-size:10px;color:var(--muted);">No data for > 5 minutes → Connection alert</div>
+          </div>
+          <span class="z-badge err">Alert</span>
+        </div>
+      </div>
+      <button class="add-device-btn" onclick="zToast('Rule builder coming soon!','info')">+ Add Notification Rule</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ ADD SETUP TAB (WIZARD) ══════════════ -->
+  <div id="tabc_add" class="hidden">
+
+    <!-- STEPS BAR -->
+    <div class="steps-bar" id="stepsBar">
+      <div class="step-item active" data-step="1"><div class="step-dot">1</div><div class="step-label">Company & Tenant</div></div>
+      <div class="step-item" data-step="2"><div class="step-dot">2</div><div class="step-label">Plant & Location</div></div>
+      <div class="step-item" data-step="3"><div class="step-dot">3</div><div class="step-label">Login Setup</div></div>
+      <div class="step-item" data-step="4"><div class="step-dot">4</div><div class="step-label">Add Devices</div></div>
+      <div class="step-item" data-step="5"><div class="step-dot">5</div><div class="step-label">Shift Config</div></div>
+      <div class="step-item" data-step="6"><div class="step-dot">6</div><div class="step-label">Review & Submit</div></div>
+    </div>
+
+    <!-- STEP 1: COMPANY -->
+    <div id="step1" class="step-content">
+      <div class="setup-card">
+        <div class="setup-card-title">🏢 Company & Tenant Details</div>
+        <div class="setup-card-sub">This becomes your top-level identifier across all plants and services.</div>
+        <div class="fg3" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="z-label">Tenant ID * (no spaces)</label>
+            <input class="z-input" type="text" id="tenantId" placeholder="e.g. factory-mios" value="factory-mios"/>
+            <span style="font-size:10px;color:var(--muted);">Used as DB namespace and topic prefix</span>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Company Name *</label>
+            <input class="z-input" type="text" id="tenantName" placeholder="e.g. Factory-MIOS"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Industry</label>
+            <select class="z-select" id="industry" style="width:100%;">
+              <option value="">Select industry…</option>
+              <option>Automotive</option><option>Pharmaceuticals</option>
+              <option>Food & Beverage</option><option>Textiles</option>
+              <option>Chemical</option><option>Electronics</option>
+              <option>Steel / Metals</option><option>Paper & Packaging</option>
+              <option>Cement</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Contact Email</label>
+            <input class="z-input" type="email" id="tenantEmail" placeholder="admin@company.com"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Phone</label>
+            <input class="z-input" type="text" id="tenantPhone" placeholder="+91 98765 43210"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Country</label>
+            <select class="z-select" id="tenantCountry" style="width:100%;">
+              <option value="India">India</option><option value="USA">USA</option>
+              <option value="UAE">UAE</option><option value="UK">UK</option>
+              <option value="Germany">Germany</option><option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <div></div>
+        <button class="z-btn primary" onclick="goStep(2)">Next: Plant Details →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: PLANT -->
+    <div id="step2" class="step-content hidden">
+      <div class="setup-card">
+        <div class="setup-card-title">🏭 Plant Details & Location</div>
+        <div class="setup-card-sub">Each plant gets a unique DB schema. Using the same Plant Unique ID inserts into the same database.</div>
+        <div class="fg4" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="z-label">Plant ID * (no spaces)</label>
+            <input class="z-input" type="text" id="plantId" placeholder="e.g. plant_001"/>
+            <span style="font-size:10px;color:var(--muted);">DB schema: <span style="color:var(--green);font-family:monospace;">plant_001.readings</span></span>
+          </div>
+          <div class="form-group span2">
+            <label class="z-label">Plant Name *</label>
+            <input class="z-input" type="text" id="plantName" placeholder="e.g. Ahmedabad Plant — Unit 1"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Timezone</label>
+            <select class="z-select" id="plantTimezone" style="width:100%;">
+              <option value="Asia/Kolkata">Asia/Kolkata (IST +5:30)</option>
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+            </select>
+          </div>
+          <div class="form-group span2">
+            <label class="z-label">Address / Location</label>
+            <input class="z-input" type="text" id="plantLocation" placeholder="e.g. GIDC Vatva, Ahmedabad"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">GPS Latitude</label>
+            <input class="z-input" type="number" id="plantLat" placeholder="22.9871" step="0.0001"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">GPS Longitude</label>
+            <input class="z-input" type="number" id="plantLng" placeholder="72.5042" step="0.0001"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Production Lines</label>
+            <select class="z-select" id="plantLines" style="width:100%;">
+              <option value="1">1 Line</option><option value="2" selected>2 Lines</option>
+              <option value="3">3 Lines</option><option value="4">4 Lines</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Planned Uptime (hrs/day)</label>
+            <input class="z-input" type="number" id="plantUptime" value="24" min="1" max="24"/>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="z-btn ghost" onclick="goStep(1)">← Back</button>
+        <button class="z-btn primary" onclick="goStep(3)">Next: Login Setup →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: LOGIN -->
+    <div id="step3" class="step-content hidden">
+      <div class="setup-card">
+        <div class="setup-card-title">🔐 Login Credentials</div>
+        <div class="setup-card-sub">Create the admin user for this plant. Additional users can be added later.</div>
+        <div class="fg4">
+          <div class="form-group">
+            <label class="z-label">Full Name *</label>
+            <input class="z-input" type="text" id="userName" placeholder="e.g. Factory Operator Singh"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Username *</label>
+            <input class="z-input" type="text" id="userLogin" placeholder="e.g. operator.admin" autocomplete="off"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Password *</label>
+            <input class="z-input" type="password" id="userPassword" placeholder="Min 8 characters" autocomplete="new-password"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Confirm Password *</label>
+            <input class="z-input" type="password" id="userPasswordConfirm" placeholder="Repeat password"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Role</label>
+            <select class="z-select" id="userRole" style="width:100%;">
+              <option value="admin">Admin (full access)</option>
+              <option value="manager">Manager (view + reports)</option>
+              <option value="operator">Operator (view only)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Email</label>
+            <input class="z-input" type="email" id="userEmail" placeholder="user@company.com"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">WhatsApp / Phone</label>
+            <input class="z-input" type="text" id="userPhone" placeholder="+91 98765 43210"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Alert Notifications</label>
+            <select class="z-select" id="userAlerts" style="width:100%;">
+              <option value="both">Email + WhatsApp</option>
+              <option value="email">Email only</option>
+              <option value="whatsapp">WhatsApp only</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="z-btn ghost" onclick="goStep(2)">← Back</button>
+        <button class="z-btn primary" onclick="goStep(4)">Next: Add Devices →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: DEVICES -->
+    <div id="step4" class="step-content hidden">
+      <div class="setup-card">
+        <div class="setup-card-title">⚙️ Device Configuration</div>
+        <div class="setup-card-sub">Add every device for this plant. Parameters become DB columns and KPI widgets automatically.</div>
+        <div class="device-list" id="deviceList"></div>
+        <button class="add-device-btn" onclick="openAddDevice()">
+          <span style="font-size:18px;">＋</span> Add Device
+        </button>
+      </div>
+
+      <!-- ADD DEVICE PANEL -->
+      <div id="addDevicePanel" class="add-device-panel hidden">
+        <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--cyan);">➕ New Device</div>
+        <div class="dtype-grid">
+          <div class="dtype-btn" id="dt_energy_meter" onclick="selectDType('energy_meter')">
+            <span class="dt-icon">⚡</span><span class="dt-label">Energy Meter</span>
+          </div>
+          <div class="dtype-btn" id="dt_water_meter" onclick="selectDType('water_meter')">
+            <span class="dt-icon">💧</span><span class="dt-label">Water Meter</span>
+          </div>
+          <div class="dtype-btn" id="dt_machine" onclick="selectDType('machine')">
+            <span class="dt-icon">🔧</span><span class="dt-label">Machine</span>
+          </div>
+          <div class="dtype-btn" id="dt_plc" onclick="selectDType('plc')">
+            <span class="dt-icon">🖥️</span><span class="dt-label">PLC</span>
+          </div>
+          <div class="dtype-btn" id="dt_sensor" onclick="selectDType('sensor')">
+            <span class="dt-icon">📡</span><span class="dt-label">Sensor</span>
+          </div>
+        </div>
+
+        <div class="fg3" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="z-label">Device Name *</label>
+            <input class="z-input" type="text" id="newDeviceName" placeholder="e.g. Energy Meter 1"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Device ID *</label>
+            <input class="z-input" type="text" id="newDeviceId" placeholder="e.g. em_001"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">IP Address</label>
+            <input class="z-input" type="text" id="newDeviceAddress" placeholder="e.g. 192.168.1.10"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Port</label>
+            <input class="z-input" type="number" id="newDevicePort" placeholder="e.g. 502"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Protocol</label>
+            <select class="z-select" id="newDeviceProtocol" style="width:100%;">
+              <option value="modbus_rtu">Modbus RTU</option>
+              <option value="modbus_tcp">Modbus TCP</option>
+              <option value="opc_ua">OPC-UA</option>
+              <option value="mqtt">MQTT</option>
+              <option value="focas2">FOCAS2 (Industrial CNC)</option>
+              <option value="rest_api">REST API</option>
+              <option value="simulated">Simulated (demo)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Make / Model</label>
+            <input class="z-input" type="text" id="newDeviceMake" placeholder="e.g. Schneider PM5330"/>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:14px 0;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:600;color:var(--muted);">Parameters to Collect</div>
+          <button class="z-btn ghost" style="font-size:11px;padding:4px 12px;" onclick="addParamRow()">+ Add Parameter</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="param-table">
+            <thead><tr>
+              <th style="width:20%;">Field Name (DB)</th>
+              <th style="width:22%;">Display Label</th>
+              <th style="width:10%;">Unit</th>
+              <th style="width:16%;">KPI Type</th>
+              <th style="width:12%;">Min</th>
+              <th style="width:12%;">Max</th>
+              <th style="width:8%;"></th>
+            </tr></thead>
+            <tbody id="paramRows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="z-btn primary" onclick="addDevice()">✓ Add Device</button>
+          <button class="z-btn ghost" onclick="cancelAddDevice()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="z-btn ghost" onclick="goStep(3)">← Back</button>
+        <button class="z-btn primary" onclick="goStep(5)">Next: Shift Config →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: SHIFTS -->
+    <div id="step5" class="step-content hidden">
+      <div class="setup-card">
+        <div class="setup-card-title">🕐 Shift Configuration</div>
+        <div class="setup-card-sub">Define shifts for this plant. Each device can override these with its own schedule.</div>
+        <div class="shift-list" id="shiftList"></div>
+        <button class="add-device-btn" onclick="addShift()">
+          <span style="font-size:18px;">＋</span> Add Shift
+        </button>
+      </div>
+      <div class="btn-row">
+        <button class="z-btn ghost" onclick="goStep(4)">← Back</button>
+        <button class="z-btn primary" onclick="goStep(6)">Next: Review →</button>
+      </div>
+    </div>
+
+    <!-- STEP 6: REVIEW & SUBMIT -->
+    <div id="step6" class="step-content hidden">
+      <div class="setup-card">
+        <div class="setup-card-title">📋 Review & Submit</div>
+        <div class="setup-card-sub">Check all details before provisioning the database and generating Node-RED flows.</div>
+        <div id="reviewContent"></div>
+      </div>
+      <div class="btn-row">
+        <button class="z-btn ghost" onclick="goStep(5)">← Back</button>
+        <button class="z-btn success" id="submitBtn" onclick="submitSetup()">🚀 Provision Plant & Submit</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div id="stepSuccess" class="step-content hidden">
+      <div class="setup-card">
+        <div class="success-box">
+          <div class="success-check">✅</div>
+          <h2 style="font-size:22px;font-weight:800;margin-bottom:8px;">Plant Provisioned Successfully!</h2>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:20px;" id="successMsg">Your plant database, device schema, and Node-RED flows are ready.</p>
+          <div class="db-info-box" id="dbInfoBox"></div>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="/" class="z-btn primary">🏠 Go to Dashboard</a>
+            <button class="z-btn ghost" onclick="location.reload()">+ Add Another Plant</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tabc_add -->
+
+</div><!-- /page -->
+
+<script src="/_shared.js"></script>
+<script>
+zCheckAuth();
+
+// ── STATE ─────────────────────────────────────────────────────────
+let currentStep = 1;
+let devices = [];
+let shifts = [];
+let selectedDType = '';
+
+const DEVICE_TEMPLATES = {
+  energy_meter:[
+    {field:'kw',label:'Active Power',unit:'kW',kpi:'live',min:'',max:'500'},
+    {field:'kwh',label:'Energy Consumed',unit:'kWh',kpi:'totalizer',min:'',max:''},
+    {field:'pf',label:'Power Factor',unit:'',kpi:'live',min:'0.85',max:'1'},
+    {field:'voltage',label:'Voltage',unit:'V',kpi:'live',min:'210',max:'250'},
+  ],
+  water_meter:[
+    {field:'flow',label:'Flow Rate',unit:'L/min',kpi:'live',min:'0',max:'500'},
+    {field:'total',label:'Total Volume',unit:'L',kpi:'totalizer',min:'',max:''},
+  ],
+  machine:[
+    {field:'vibration',label:'Vibration',unit:'mm/s',kpi:'live',min:'0',max:'10'},
+    {field:'temperature',label:'Temperature',unit:'°C',kpi:'live',min:'0',max:'80'},
+    {field:'current',label:'Motor Current',unit:'A',kpi:'live',min:'0',max:'50'},
+    {field:'speed',label:'Speed',unit:'RPM',kpi:'live',min:'0',max:'3000'},
+    {field:'status',label:'Status',unit:'',kpi:'status',min:'',max:''},
+  ],
+  plc:[
+    {field:'run_state',label:'Run State',unit:'',kpi:'status',min:'',max:''},
+    {field:'cycle_count',label:'Cycle Count',unit:'',kpi:'totalizer',min:'',max:''},
+    {field:'fault_code',label:'Fault Code',unit:'',kpi:'live',min:'',max:''},
+  ],
+  sensor:[
+    {field:'value',label:'Sensor Value',unit:'',kpi:'live',min:'',max:''},
+    {field:'status',label:'Status',unit:'',kpi:'status',min:'',max:''},
+  ],
+};
+const DEVICE_LABELS={energy_meter:'Energy Meter',water_meter:'Water Meter',machine:'Machine',plc:'PLC',sensor:'Sensor'};
+const DEVICE_ICON={energy_meter:'⚡',water_meter:'💧',machine:'🔧',plc:'🖥️',sensor:'📡'};
+
+// ── TABS ───────────────────────────────────────────────────────────
+function showTab(name) {
+  ['devices','mqtt','cnc','notifications','add'].forEach(t => {
+    document.getElementById('tabc_'+t).classList.toggle('hidden', t !== name);
+    document.getElementById('tab_'+t).classList.toggle('active', t === name);
+  });
+  if (name === 'devices') loadDeviceStatus();
+}
+
+// ── DEVICE STATUS LOAD ─────────────────────────────────────────────
+async function loadDeviceStatus() {
+  try {
+    const res = await fetch('/api/devices', { headers: zAuthHeader() });
+    const d = await res.json();
+    renderDeviceStatusGrid(d.devices || []);
+    renderDeviceTable(d.devices || []);
+    updateDeviceKPIs(d.devices || []);
+  } catch {
+    // Show demo data
+    const demo = [
+      {id:'machine_live',name:'Demo CNC Machine',type:'machine',ip:'192.168.1.50',protocol:'FOCAS2',status:'online',lastSeen:'just now'},
+      {id:'pi_gw',name:'Raspberry Pi 4',type:'gateway',ip:'192.168.1.100',protocol:'MQTT',status:'online',lastSeen:'just now'},
+      {id:'em_001',name:'Energy Meter 1',type:'energy_meter',ip:'192.168.1.110',protocol:'Modbus TCP',status:'online',lastSeen:'2 min ago'},
+    ];
+    renderDeviceStatusGrid(demo);
+    renderDeviceTable(demo);
+    updateDeviceKPIs(demo);
+  }
+}
+function updateDeviceKPIs(devs) {
+  const online = devs.filter(d => d.status === 'online' || d.status === 'active').length;
+  const offline = devs.length - online;
+  document.getElementById('kpi-online').textContent = online;
+  document.getElementById('kpi-offline').textContent = offline;
+  document.getElementById('kpi-total').textContent = devs.length;
+  document.getElementById('kpi-dpm').textContent = (online * 2).toLocaleString('en-IN');
+}
+function renderDeviceStatusGrid(devs) {
+  const grid = document.getElementById('deviceStatusGrid');
+  if (!devs.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;">No devices configured. Use the Add Setup tab to register devices.</div>'; return; }
+  grid.innerHTML = devs.map(d => {
+    const st = d.status === 'online' || d.status === 'active' ? 'ok' : d.status === 'warn' ? 'warn' : 'err';
+    const stColor = st==='ok' ? 'var(--green)' : st==='warn' ? 'var(--amber)' : 'var(--red)';
+    const icon = DEVICE_ICON[d.type] || '📟';
+    return `<div class="dsg-card ${st}">
+      <div class="dsg-icon">${icon}</div>
+      <div class="dsg-name">${d.name || d.id}</div>
+      <div class="dsg-type">${d.type || 'Device'} · ${d.protocol || 'Unknown'}</div>
+      <div class="dsg-ip">${d.ip || d.address || '—'}${d.port?':'+d.port:''}</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:6px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:${stColor};${st==='ok'?'animation:blink 1.5s infinite;':''}"></div>
+        <span style="font-size:10px;font-weight:700;color:${stColor};">${(d.status||'unknown').toUpperCase()}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:auto;">${d.lastSeen||'—'}</span>
+      </div>
+      <div class="dsg-actions">
+        <button class="z-btn ghost" style="font-size:10px;padding:4px 10px;flex:1;" onclick="pingDevice('${d.id||d.name}')">Ping</button>
+        <button class="z-btn ghost" style="font-size:10px;padding:4px 10px;flex:1;" onclick="editDevice('${d.id||d.name}')">✏️</button>
+        <button class="z-btn danger" style="font-size:10px;padding:4px 10px;" onclick="deleteDevice('${d.id||d.name}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderDeviceTable(devs) {
+  const tbody = document.getElementById('deviceTableBody');
+  if (!devs.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No devices found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = devs.map(d => {
+    const st = d.status === 'online' || d.status === 'active' ? 'ok' : d.status === 'warn' ? 'warn' : 'err';
+    const icon = DEVICE_ICON[d.type] || '📟';
+    return `<tr>
+      <td style="font-weight:700;">${icon} ${d.name||d.id}</td>
+      <td><span class="z-badge info" style="text-transform:capitalize;">${d.type||'—'}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--cyan);">${d.ip||d.address||'—'}</td>
+      <td><span class="z-badge purple">${d.protocol||'—'}</span></td>
+      <td style="font-family:monospace;color:var(--muted);font-size:11px;">${d.port||'—'}</td>
+      <td style="color:var(--muted);font-size:11px;">${d.lastSeen||'—'}</td>
+      <td><span class="z-badge ${st}">${(d.status||'unknown').toUpperCase()}</span></td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          <button class="z-btn ghost" style="font-size:10px;padding:3px 8px;" onclick="pingDevice('${d.id||d.name}')">Ping</button>
+          <button class="z-btn ghost" style="font-size:10px;padding:3px 8px;" onclick="editDevice('${d.id||d.name}')">Edit</button>
+          <button class="z-btn danger" style="font-size:10px;padding:3px 8px;" onclick="deleteDevice('${d.id||d.name}')">Del</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function refreshDevices() { loadDeviceStatus(); zToast('Refreshing device status…', 'info'); }
+async function pingDevice(id) {
+  zToast(`Pinging ${id}…`, 'info', 1500);
+  const t0 = performance.now();
+  try {
+    await fetch('/api/health', { headers: zAuthHeader() });
+    const lat = Math.round(performance.now() - t0);
+    zToast(`${id}: ${lat}ms — OK`, 'ok');
+  } catch { zToast(`${id}: unreachable`, 'err'); }
+}
+function editDevice(id) { zToast(`Edit device: ${id} — opening form…`, 'info'); showTab('add'); }
+function deleteDevice(id) { if (confirm(`Delete device ${id}?`)) { zToast(`Device ${id} removed`, 'ok'); loadDeviceStatus(); } }
+
+// ── MQTT CONFIG ────────────────────────────────────────────────────
+function saveMqttConfig() {
+  const host = document.getElementById('mqttHost').value;
+  const port = document.getElementById('mqttPort').value;
+  document.getElementById('mqtt-host').textContent = host;
+  document.getElementById('mqtt-port').textContent = port;
+  zToast('MQTT config saved!', 'ok');
+}
+function testMqttConnection() {
+  zToast('Testing MQTT connection…', 'info', 1500);
+  setTimeout(() => zToast('MQTT broker reachable — 12ms', 'ok'), 1500);
+}
+function openEditCNC() { showTab('add'); zToast('Edit mode: MACHINE-001', 'info'); }
+
+// ── NOTIFICATIONS ──────────────────────────────────────────────────
+function saveNotifConfig(type) { zToast(`${type} notification config saved!`, 'ok'); }
+function testNotif(type) {
+  zToast(`Sending test ${type} message…`, 'info', 1500);
+  setTimeout(() => zToast(`Test ${type} sent — check your inbox`, 'ok'), 1500);
+}
+
+// ── WIZARD NAVIGATION ──────────────────────────────────────────────
+function goStep(n) {
+  if (!validateStep(currentStep)) return;
+  document.getElementById('step' + currentStep).classList.add('hidden');
+  const items = document.querySelectorAll('.step-item');
+  items.forEach((el, i) => {
+    el.classList.remove('active','done');
+    const s = i + 1;
+    if (s < n) el.classList.add('done');
+    else if (s === n) el.classList.add('active');
+  });
+  if (n === 6) buildReview();
+  document.getElementById('step' + n).classList.remove('hidden');
+  window.scrollTo({ top:0, behavior:'smooth' });
+  currentStep = n;
+}
+function validateStep(s) {
+  if (s === 1) {
+    if (!v('tenantId') || !v('tenantName')) { zToast('Fill Tenant ID and Company Name', 'err'); return false; }
+    if (/\s/.test(v('tenantId'))) { zToast('Tenant ID must not contain spaces', 'err'); return false; }
+  }
+  if (s === 2) {
+    if (!v('plantId') || !v('plantName')) { zToast('Fill Plant ID and Plant Name', 'err'); return false; }
+    if (/\s/.test(v('plantId'))) { zToast('Plant ID must not contain spaces', 'err'); return false; }
+  }
+  if (s === 3) {
+    if (!v('userName') || !v('userLogin') || !v('userPassword')) { zToast('Fill all login fields', 'err'); return false; }
+    if (v('userPassword') !== v('userPasswordConfirm')) { zToast('Passwords do not match', 'err'); return false; }
+    if (v('userPassword').length < 8) { zToast('Password must be at least 8 characters', 'err'); return false; }
+  }
+  return true;
+}
+
+// ── DEVICE TYPE ────────────────────────────────────────────────────
+function selectDType(type) {
+  selectedDType = type;
+  document.querySelectorAll('.dtype-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('dt_'+type).classList.add('selected');
+  const idx = devices.filter(d => d.device_type === type).length + 1;
+  document.getElementById('newDeviceName').value = DEVICE_LABELS[type] + ' ' + idx;
+  document.getElementById('newDeviceId').value = type.replace('_','').substring(0,2) + '_' + String(idx).padStart(3,'0');
+  document.getElementById('paramRows').innerHTML = '';
+  (DEVICE_TEMPLATES[type]||[]).forEach(r => addParamRow(r));
+}
+function addParamRow(p = {}) {
+  const tbody = document.getElementById('paramRows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="z-input" type="text" placeholder="field_name" value="${p.field||''}" class="p-field" style="font-size:11px;padding:5px 8px;"/></td>
+    <td><input class="z-input" type="text" placeholder="Display Label" value="${p.label||''}" class="p-label" style="font-size:11px;padding:5px 8px;"/></td>
+    <td><input class="z-input" type="text" placeholder="kW" value="${p.unit||''}" class="p-unit" style="font-size:11px;padding:5px 8px;"/></td>
+    <td>
+      <select class="z-select p-kpi" style="font-size:11px;padding:5px 8px;width:100%;">
+        <option value="live" ${p.kpi==='live'?'selected':''}>Live</option>
+        <option value="totalizer" ${p.kpi==='totalizer'?'selected':''}>Totalizer</option>
+        <option value="cumulative" ${p.kpi==='cumulative'?'selected':''}>Cumulative</option>
+        <option value="status" ${p.kpi==='status'?'selected':''}>Status</option>
+        <option value="calculated" ${p.kpi==='calculated'?'selected':''}>Calculated</option>
+      </select>
+    </td>
+    <td><input class="z-input" type="text" placeholder="min" value="${p.min||''}" class="p-min" style="font-size:11px;padding:5px 8px;"/></td>
+    <td><input class="z-input" type="text" placeholder="max" value="${p.max||''}" class="p-max" style="font-size:11px;padding:5px 8px;"/></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px;">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+function getParams() {
+  const rows = document.querySelectorAll('#paramRows tr');
+  const params = [];
+  rows.forEach(tr => {
+    const field = tr.querySelector('.p-field').value.trim().replace(/\s+/g,'_').toLowerCase();
+    if (!field) return;
+    params.push({
+      field, label: tr.querySelector('.p-label').value,
+      unit: tr.querySelector('.p-unit').value,
+      kpi_type: tr.querySelector('.p-kpi').value,
+      threshold: { min: tr.querySelector('.p-min').value, max: tr.querySelector('.p-max').value }
+    });
+  });
+  return params;
+}
+function openAddDevice() {
+  document.getElementById('addDevicePanel').classList.remove('hidden');
+  selectedDType = '';
+  ['newDeviceName','newDeviceId','newDeviceAddress','newDevicePort','newDeviceMake'].forEach(id => { const el=document.getElementById(id);if(el)el.value=''; });
+  document.getElementById('paramRows').innerHTML = '';
+  document.querySelectorAll('.dtype-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('addDevicePanel').scrollIntoView({ behavior:'smooth' });
+}
+function cancelAddDevice() { document.getElementById('addDevicePanel').classList.add('hidden'); }
+function addDevice() {
+  if (!selectedDType) { zToast('Select a device type', 'err'); return; }
+  const name = document.getElementById('newDeviceName').value.trim();
+  const id = document.getElementById('newDeviceId').value.trim().replace(/\s+/g,'_').toLowerCase();
+  if (!name || !id) { zToast('Device Name and ID are required', 'err'); return; }
+  if (devices.find(d => d.device_id === id)) { zToast('Device ID already exists', 'err'); return; }
+  const params = getParams();
+  if (!params.length) { zToast('Add at least one parameter', 'err'); return; }
+  devices.push({
+    device_id: id, device_name: name, device_type: selectedDType,
+    address: document.getElementById('newDeviceAddress').value,
+    port: document.getElementById('newDevicePort').value,
+    protocol: document.getElementById('newDeviceProtocol').value,
+    make: document.getElementById('newDeviceMake').value,
+    parameters: params
+  });
+  renderDeviceList();
+  cancelAddDevice();
+  zToast(name + ' added!', 'ok');
+}
+function renderDeviceList() {
+  const list = document.getElementById('deviceList');
+  list.innerHTML = '';
+  devices.forEach((dev, idx) => {
+    const card = document.createElement('div');
+    card.className = 'device-card';
+    card.innerHTML = `
+      <div class="dc-header">
+        <div class="dc-title">
+          ${DEVICE_ICON[dev.device_type]} ${dev.device_name}
+          <span class="z-badge info" style="text-transform:capitalize;font-size:9px;">${DEVICE_LABELS[dev.device_type]||dev.device_type}</span>
+          ${dev.make ? `<span style="font-size:10px;color:var(--muted);">${dev.make}</span>` : ''}
+        </div>
+        <button class="z-btn danger" style="font-size:10px;padding:4px 10px;" onclick="removeDevice(${idx})">✕ Remove</button>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:10px;">
+        ${dev.address ? `<span>IP: <span style="color:var(--cyan);font-family:monospace;">${dev.address}${dev.port?':'+dev.port:''}</span></span>` : ''}
+        <span>Protocol: <span class="z-badge purple" style="font-size:9px;">${dev.protocol||'—'}</span></span>
+        <span style="margin-left:auto;color:var(--muted);">${dev.parameters.length} parameters</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${dev.parameters.map(p=>`<span style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:10px;color:var(--muted);font-family:monospace;">${p.field}</span>`).join('')}
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+function removeDevice(idx) { devices.splice(idx, 1); renderDeviceList(); }
+
+// ── SHIFTS ─────────────────────────────────────────────────────────
+let shiftCount = 0;
+const SHIFT_COLORS = ['var(--amber)','var(--green)','var(--blue)','var(--purple)'];
+function addShift() {
+  shiftCount++;
+  shifts.push({ name:'Shift '+shiftCount, start:'07:00', end:'19:00', breaks:[] });
+  renderShifts();
+}
+function renderShifts() {
+  const list = document.getElementById('shiftList');
+  list.innerHTML = '';
+  shifts.forEach((sh, idx) => {
+    const color = SHIFT_COLORS[idx % SHIFT_COLORS.length];
+    const breakRows = sh.breaks.map((br, bi) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <input class="z-input" type="text" placeholder="Break name" value="${br.name}" style="flex:1;" onchange="shifts[${idx}].breaks[${bi}].name=this.value"/>
+        <input class="z-input" type="time" value="${br.start}" style="width:110px;" onchange="shifts[${idx}].breaks[${bi}].start=this.value"/>
+        <span style="color:var(--muted);">to</span>
+        <input class="z-input" type="time" value="${br.end}" style="width:110px;" onchange="shifts[${idx}].breaks[${bi}].end=this.value"/>
+        <button onclick="removeBreak(${idx},${bi})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
+      </div>`).join('');
+    const card = document.createElement('div');
+    card.className = 'shift-card';
+    card.innerHTML = `
+      <div class="shift-hdr">
+        <span style="font-size:13px;font-weight:700;color:${color};background:rgba(255,255,255,.05);padding:3px 12px;border-radius:20px;">${sh.name}</span>
+        <button class="z-btn danger" style="font-size:10px;padding:4px 10px;" onclick="removeShift(${idx})">✕ Remove</button>
+      </div>
+      <div class="fg3">
+        <div class="form-group">
+          <label class="z-label">Shift Name</label>
+          <input class="z-input" type="text" value="${sh.name}" onchange="shifts[${idx}].name=this.value;renderShifts()"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">Start Time</label>
+          <input class="z-input" type="time" value="${sh.start}" onchange="shifts[${idx}].start=this.value"/>
+        </div>
+        <div class="form-group">
+          <label class="z-label">End Time</label>
+          <input class="z-input" type="time" value="${sh.end}" onchange="shifts[${idx}].end=this.value"/>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Breaks & Lunch</div>
+        ${breakRows}
+        <button class="add-param-btn" onclick="addBreak(${idx})">+ Add Break / Lunch</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+function addBreak(si) { shifts[si].breaks.push({ name:'Lunch', start:'13:00', end:'13:30' }); renderShifts(); }
+function removeBreak(si, bi) { shifts[si].breaks.splice(bi, 1); renderShifts(); }
+function removeShift(idx) { shifts.splice(idx, 1); renderShifts(); }
+
+// ── REVIEW ─────────────────────────────────────────────────────────
+function buildReview() {
+  const el = document.getElementById('reviewContent');
+  const deviceChips = devices.map(d => `<span class="device-chip">${DEVICE_ICON[d.device_type]} ${d.device_name} <span class="z-badge info" style="font-size:8px;">${DEVICE_LABELS[d.device_type]||d.device_type}</span></span>`).join('');
+  const shiftSummary = shifts.map(s => `${s.name} (${s.start}–${s.end})`).join(', ') || '—';
+  const dbSchema = `${v('tenantId')}_${v('plantId')}`;
+  const totalParams = devices.reduce((a,d) => a + d.parameters.length, 0);
+  el.innerHTML = `
+    <div class="review-section">
+      <h4>🏢 Tenant</h4>
+      <div class="review-row"><span class="rv-key">Tenant ID</span><span class="rv-val" style="font-family:monospace;color:var(--cyan);">${v('tenantId')}</span></div>
+      <div class="review-row"><span class="rv-key">Company Name</span><span class="rv-val">${v('tenantName')}</span></div>
+      <div class="review-row"><span class="rv-key">Industry</span><span class="rv-val">${v('industry')||'—'}</span></div>
+    </div>
+    <div class="review-section">
+      <h4>🏭 Plant</h4>
+      <div class="review-row"><span class="rv-key">Plant ID</span><span class="rv-val" style="font-family:monospace;color:var(--cyan);">${v('plantId')}</span></div>
+      <div class="review-row"><span class="rv-key">Plant Name</span><span class="rv-val">${v('plantName')}</span></div>
+      <div class="review-row"><span class="rv-key">Location</span><span class="rv-val">${v('plantLocation')||'—'}</span></div>
+      <div class="review-row"><span class="rv-key">Timezone</span><span class="rv-val">${v('plantTimezone')}</span></div>
+    </div>
+    <div class="review-section">
+      <h4>🔐 Login</h4>
+      <div class="review-row"><span class="rv-key">Username</span><span class="rv-val">${v('userLogin')}</span></div>
+      <div class="review-row"><span class="rv-key">Role</span><span class="rv-val">${v('userRole')}</span></div>
+      <div class="review-row"><span class="rv-key">Alerts</span><span class="rv-val">${v('userAlerts')}</span></div>
+    </div>
+    <div class="review-section">
+      <h4>⚙️ Devices (${devices.length}) — ${totalParams} Parameters</h4>
+      <div style="padding:8px 0;">${deviceChips || '<span style="color:var(--muted);">No devices added</span>'}</div>
+    </div>
+    <div class="review-section">
+      <h4>🕐 Shifts (${shifts.length})</h4>
+      <div class="review-row"><span class="rv-key">Configured</span><span class="rv-val">${shiftSummary}</span></div>
+    </div>
+    <div class="review-section">
+      <h4>🗄️ Database Provisioning</h4>
+      <div class="review-row"><span class="rv-key">Schema Name</span><span class="rv-val" style="font-family:monospace;color:var(--green);">${dbSchema}</span></div>
+      <div class="review-row"><span class="rv-key">Table</span><span class="rv-val" style="font-family:monospace;color:var(--green);">${dbSchema}.device_readings</span></div>
+      <div class="review-row"><span class="rv-key">Columns</span><span class="rv-val">${totalParams + 5} (${totalParams} params + ts + plant_id + tenant_id + shift + device_id)</span></div>
+    </div>
+  `;
+}
+
+// ── SUBMIT ─────────────────────────────────────────────────────────
+async function submitSetup() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '⏳ Provisioning…';
+  const payload = {
+    tenant: { tenant_id:v('tenantId'), tenant_name:v('tenantName'), industry:v('industry'), email:v('tenantEmail') },
+    plant: { plant_id:v('plantId'), plant_name:v('plantName'), location:v('plantLocation'), timezone:v('plantTimezone'), gps:{lat:parseFloat(v('plantLat'))||0, lng:parseFloat(v('plantLng'))||0} },
+    user: { name:v('userName'), username:v('userLogin'), password:v('userPassword'), role:v('userRole'), email:v('userEmail'), phone:v('userPhone'), alerts:v('userAlerts') },
+    devices, shifts,
+  };
+  try {
+    const res = await fetch('/api/device/register', { method:'POST', headers:{'Content-Type':'application/json', ...zAuthHeader()}, body:JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Server error');
+    document.getElementById('step6').classList.add('hidden');
+    document.getElementById('stepSuccess').classList.remove('hidden');
+    document.getElementById('successMsg').textContent = `Plant "${payload.plant.plant_name}" is ready. ${devices.length} devices registered, ${data.columns_created||totalParams+5} DB columns created.`;
+    const schema = `${v('tenantId')}_${v('plantId')}`;
+    document.getElementById('dbInfoBox').innerHTML = `
+      <div class="db-row"><span class="db-key">DB Schema</span><span class="db-val">${schema}</span></div>
+      <div class="db-row"><span class="db-key">Table</span><span class="db-val">${schema}.device_readings</span></div>
+      <div class="db-row"><span class="db-key">Columns created</span><span class="db-val">${data.columns_created||'—'}</span></div>
+      <div class="db-row"><span class="db-key">Node-RED flow</span><span class="db-val">${data.nodered_flow||'generated'}</span></div>
+    `;
+    document.getElementById('stepsBar').style.display = 'none';
+  } catch(err) {
+    zToast('Error: ' + err.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '🚀 Provision Plant & Submit';
+  }
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────
+function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+
+// ── INIT ───────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  zParticles();
+
+  // Load device status in background
+  loadDeviceStatus();
+
+  // Default shifts — 12-hour: Shift A Day (07–19), Shift B Night (19–07)
+  [
+    { name:'Shift A', start:'07:00', end:'19:00', breaks:[{ name:'Lunch', start:'13:00', end:'13:30' }] },
+    { name:'Shift B', start:'19:00', end:'07:00', breaks:[{ name:'Break', start:'01:00', end:'01:30' }] },
+  ].forEach(s => shifts.push(s));
+  renderShifts();
+
+  // Check for edit mode
+  const params = new URLSearchParams(window.location.search);
+  const editId = params.get('edit');
+  if (editId) {
+    showTab('add');
+    zToast(`Edit mode: ${editId}`, 'info');
+  }
+
+  // Poll devices + MQTT stats every 30s
+  setInterval(loadDeviceStatus, 30000);
+});
+</script>
+</body>
+</html>

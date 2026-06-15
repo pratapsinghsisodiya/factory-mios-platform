@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Downtime Analysis · Factory-MIOS</title>
+  <link rel="stylesheet" href="/_shared.css"/>
+  <style>
+    .filter-bar {
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius-lg); padding:14px 20px; margin-bottom:20px;
+    }
+    .filter-bar label { font-size:.75rem; color:var(--muted); font-weight:600; margin-right:4px; }
+    .filter-bar input[type=date], .filter-bar select {
+      background:var(--bg); border:1px solid var(--border); color:var(--fg);
+      border-radius:6px; padding:6px 10px; font-size:.85rem;
+    }
+    .filter-btn-grp { display:flex; gap:6px; }
+    .filter-btn {
+      padding:6px 18px; border-radius:6px; border:1px solid var(--border);
+      background:transparent; color:var(--muted); cursor:pointer; font-size:.82rem; font-weight:600;
+    }
+    .filter-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    .summary-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+    .scard {
+      border-radius:var(--radius-lg); padding:18px 22px;
+      border:1px solid var(--border); background:var(--card);
+    }
+    .scard-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    .scard-row   { display:flex; align-items:baseline; gap:10px; margin-top:8px; }
+    .scard-count { font-size:2.4rem; font-weight:900; line-height:1; font-variant-numeric:tabular-nums; }
+    .scard-unit  { font-size:.78rem; color:var(--muted); }
+    .scard-sub   { font-size:.8rem; color:var(--muted); margin-top:6px; }
+    .scard.minor { border-top:3px solid #6b8cae; }
+    .scard.medium{ border-top:3px solid var(--amber); }
+    .scard.major { border-top:3px solid var(--red); }
+
+    .timeline-wrap {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:16px 20px; margin-bottom:20px;
+    }
+    .timeline-bar   { position:relative; height:32px; background:rgba(0,255,136,.06); border-radius:6px; overflow:visible; margin-bottom:6px; }
+    .timeline-track { position:absolute; inset:0; border-radius:6px; overflow:hidden; }
+    .timeline-block {
+      position:absolute; top:3px; bottom:3px; border-radius:4px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.6rem; font-weight:700; overflow:hidden; transition:opacity .2s;
+    }
+    .timeline-block:hover { opacity:.8; z-index:10; }
+    .timeline-block.MINOR  { background:rgba(107,140,174,.55); }
+    .timeline-block.MEDIUM { background:rgba(255,169,64,.75); }
+    .timeline-block.MAJOR  { background:rgba(255,77,79,.88); }
+    .timeline-block.MANUAL { background:rgba(167,139,250,.6); }
+    .timeline-ticks { display:flex; justify-content:space-between; font-size:.65rem; color:var(--muted); }
+
+    /* Events table */
+    .events-section { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:20px; }
+    .etable { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .etable th {
+      text-align:left; padding:9px 12px; font-size:.68rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+      border-bottom:1px solid var(--border); white-space:nowrap;
+    }
+    .etable td { padding:11px 12px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+    .etable tbody tr.clickable { cursor:pointer; }
+    .etable tbody tr.clickable:hover td { background:rgba(0,212,255,.05); }
+    .etable tbody tr.manual-row td { background:rgba(167,139,250,.04); }
+    .sev-chip {
+      display:inline-block; padding:3px 10px; border-radius:12px; font-size:.68rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:.05em;
+    }
+    .sev-chip.MINOR  { background:rgba(107,140,174,.2); color:#8eb4d4; }
+    .sev-chip.MEDIUM { background:rgba(255,169,64,.2);  color:var(--amber); }
+    .sev-chip.MAJOR  { background:rgba(255,77,79,.2);   color:var(--red); }
+    .state-chip2 { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.68rem; font-weight:700; }
+    .state-chip2.ALARM     { background:rgba(255,77,79,.2);   color:var(--red); }
+    .state-chip2.EMERGENCY { background:rgba(255,77,79,.3);   color:#ff9999; }
+    .state-chip2.IDLE      { background:rgba(107,140,174,.15);color:#8eb4d4; }
+    .state-chip2.PLANNED   { background:rgba(167,139,250,.2); color:#c4b5fd; }
+    .state-chip2.MANUAL    { background:rgba(167,139,250,.2); color:#c4b5fd; }
+    .rca-chip {
+      display:inline-flex; align-items:center; gap:4px; padding:2px 10px;
+      border-radius:12px; font-size:.68rem; font-weight:700;
+    }
+    .rca-chip.OPEN        { background:rgba(255,77,79,.15);  color:var(--red); }
+    .rca-chip.IN_PROGRESS { background:rgba(255,169,64,.15); color:var(--amber); }
+    .rca-chip.CLOSED      { background:rgba(0,255,136,.15);  color:var(--green); }
+    .rca-chip.none        { background:rgba(255,255,255,.05);color:var(--muted); }
+    .act-btn {
+      padding:4px 12px; border-radius:6px; font-size:.73rem; font-weight:600; cursor:pointer;
+      border:1px solid var(--border); background:transparent; color:var(--cyan);
+    }
+    .act-btn:hover { background:rgba(0,212,255,.1); }
+    .act-btn.del { color:var(--red); }
+    .act-btn.del:hover { background:rgba(255,77,79,.1); }
+
+    /* No-data message */
+    .no-data-box {
+      text-align:center; padding:40px 20px; color:var(--muted);
+    }
+    .no-data-box .no-data-icon { font-size:2.5rem; margin-bottom:10px; }
+    .no-data-box .no-data-msg  { font-size:.9rem; margin-bottom:6px; color:var(--fg); }
+    .no-data-box .no-data-sub  { font-size:.8rem; }
+
+    /* ── Manual Entry Modal ── */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:300;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity .2s;
+    }
+    .modal-overlay.open { opacity:1; pointer-events:all; }
+    .modal-box {
+      background:var(--card); border:1px solid var(--border); border-radius:14px;
+      padding:28px 30px; width:540px; max-width:96vw; max-height:92vh; overflow-y:auto;
+      transform:translateY(20px); transition:transform .2s;
+    }
+    .modal-overlay.open .modal-box { transform:translateY(0); }
+    .modal-title { font-size:1.1rem; font-weight:800; margin-bottom:4px; }
+    .modal-sub   { font-size:.8rem; color:var(--muted); margin-bottom:20px; }
+    .form-row    { margin-bottom:14px; }
+    .form-label  { display:block; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+    .form-ctrl   {
+      width:100%; background:var(--bg); border:1px solid var(--border); color:var(--fg);
+      border-radius:6px; padding:9px 11px; font-size:.85rem; box-sizing:border-box;
+    }
+    .form-ctrl:focus { outline:none; border-color:var(--primary); }
+    .form-2col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .btn-primary { background:var(--primary); color:#fff; border:none; border-radius:8px; padding:9px 22px; font-weight:700; cursor:pointer; font-size:.85rem; }
+    .btn-ghost   { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:9px 18px; cursor:pointer; font-size:.85rem; }
+
+    /* ── RCA Slide Panel ── */
+    .rca-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+      opacity:0; pointer-events:none; transition:opacity .25s;
+    }
+    .rca-overlay.open { opacity:1; pointer-events:all; }
+    .rca-panel {
+      position:fixed; top:0; right:-540px; bottom:0; width:540px; max-width:96vw;
+      background:var(--card); border-left:1px solid var(--border);
+      z-index:201; overflow-y:auto; transition:right .28s cubic-bezier(.4,0,.2,1);
+    }
+    .rca-panel.open { right:0; }
+    .rca-header {
+      position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--border);
+      padding:16px 22px; display:flex; align-items:center; justify-content:space-between; z-index:1;
+    }
+    .rca-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.4rem; line-height:1; }
+    .rca-body  { padding:20px 22px; }
+    .event-strip {
+      background:rgba(255,255,255,.03); border-radius:8px; padding:12px 16px;
+      margin-bottom:18px; display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:.82rem;
+    }
+    .es-item { color:var(--muted); } .es-item span { color:var(--fg); font-weight:600; }
+    .why-chain { margin-bottom:16px; }
+    .why-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; }
+    .why-num {
+      width:26px; height:26px; border-radius:50%; background:var(--primary); flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:800; margin-top:5px;
+    }
+    textarea.form-ctrl { resize:vertical; min-height:38px; }
+    .action-block { background:rgba(255,255,255,.03); border-radius:8px; padding:12px 14px; margin-bottom:10px; border-left:3px solid var(--primary); }
+    .action-block.amber { border-left-color:var(--amber); }
+    .action-block.green { border-left-color:var(--green); }
+    .action-block-title { font-size:.68rem; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+    .section-sep { border:none; border-top:1px solid var(--border); margin:16px 0; }
+    .rca-footer {
+      position:sticky; bottom:0; background:var(--card); border-top:1px solid var(--border);
+      padding:12px 22px; display:flex; gap:10px; justify-content:flex-end;
+    }
+
+    .history-section { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; }
+    .htable { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .htable th { padding:8px 10px; font-size:.68rem; color:var(--muted); text-transform:uppercase; border-bottom:1px solid var(--border); text-align:center; }
+    .htable td { padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.04); text-align:center; }
+
+    @media (max-width:700px) {
+      .summary-row { grid-template-columns:1fr; }
+      .form-2col { grid-template-columns:1fr; }
+      .rca-panel { width:100vw; }
+    }
+  </style>
+</head>
+<body>
+<nav id="z-nav"></nav>
+<main class="z-page">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div>
+      <h1 style="font-size:1.3rem;font-weight:800;margin:0">Downtime Analysis</h1>
+      <p style="font-size:.8rem;color:var(--muted);margin:4px 0 0">Auto-detected from machine state · Manual entry · RCA chain · Shift &amp; date filter</p>
+    </div>
+    <span id="last-load" style="font-size:.75rem;color:var(--muted)">Not loaded</span>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div><label>Date</label><input type="date" id="filter-date"/></div>
+    <div>
+      <label>Shift</label>
+      <div class="filter-btn-grp">
+        <button class="filter-btn active" data-shift="A" onclick="setShift(this)">Shift A &nbsp;07–19</button>
+        <button class="filter-btn" data-shift="B" onclick="setShift(this)">Shift B &nbsp;19–07</button>
+      </div>
+    </div>
+    <button onclick="loadData()" style="background:var(--primary);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:.82rem">⟳ Load</button>
+    <button onclick="openManualModal()" style="background:transparent;color:var(--amber);border:1px solid var(--amber);border-radius:8px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:.82rem;margin-left:auto">+ Define Downtime</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="summary-row">
+    <div class="scard minor">
+      <div class="scard-title" style="color:#6b8cae">⬤ Minor &nbsp;<span style="font-weight:400;font-size:.7rem">&lt;1 min — micro-stop</span></div>
+      <div class="scard-row">
+        <div class="scard-count" id="s-minor-count" style="color:#8eb4d4">--</div>
+        <div class="scard-unit">events</div>
+      </div>
+      <div class="scard-sub" id="s-minor-time">Total: --</div>
+    </div>
+    <div class="scard medium">
+      <div class="scard-title" style="color:var(--amber)">⬤ Medium &nbsp;<span style="font-weight:400;font-size:.7rem">1–10 min — needs RCA</span></div>
+      <div class="scard-row">
+        <div class="scard-count" id="s-medium-count" style="color:var(--amber)">--</div>
+        <div class="scard-unit">events</div>
+      </div>
+      <div class="scard-sub" id="s-medium-time">Total: --</div>
+    </div>
+    <div class="scard major">
+      <div class="scard-title" style="color:var(--red)">⬤ Major &nbsp;<span style="font-weight:400;font-size:.7rem">&gt;10 min — full RCA required</span></div>
+      <div class="scard-row">
+        <div class="scard-count" id="s-major-count" style="color:var(--red)">--</div>
+        <div class="scard-unit">events</div>
+      </div>
+      <div class="scard-sub" id="s-major-time">Total: --</div>
+    </div>
+  </div>
+
+  <!-- Shift timeline -->
+  <div class="timeline-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:.72rem;color:var(--muted);font-weight:600">Shift Timeline — downtime blocks</span>
+      <span style="font-size:.68rem;color:var(--muted)">
+        <span style="color:#8eb4d4">■</span> Minor &nbsp;
+        <span style="color:var(--amber)">■</span> Medium &nbsp;
+        <span style="color:var(--red)">■</span> Major &nbsp;
+        <span style="color:#c4b5fd">■</span> Manual
+      </span>
+    </div>
+    <div class="timeline-bar">
+      <div class="timeline-track" id="timeline-track"></div>
+      <div id="timeline-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--muted)">Load a shift to see timeline</div>
+    </div>
+    <div class="timeline-ticks" id="timeline-ticks"></div>
+  </div>
+
+  <!-- Events table -->
+  <div class="events-section">
+    <div class="z-card-header" style="margin-bottom:14px">
+      <span class="z-card-title">Downtime Events</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="ev-count" class="z-badge muted">-- events</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="etable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Start (IST)</th>
+            <th>End (IST)</th>
+            <th>Duration</th>
+            <th>State</th>
+            <th>Alarm</th>
+            <th>Downtime Reason</th>
+            <th>Category</th>
+            <th>RCA</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody">
+          <tr><td colspan="10"><div class="no-data-box">
+            <div class="no-data-icon">📋</div>
+            <div class="no-data-msg">Select a date &amp; shift, then click Load</div>
+            <div class="no-data-sub">Events are auto-detected from machine state changes</div>
+          </div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section">
+    <div class="z-card-header" style="margin-bottom:14px">
+      <span class="z-card-title">Downtime Summary — last 14 days</span>
+      <span class="z-badge muted">From saved RCA records</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="htable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Shift</th>
+            <th style="color:#8eb4d4">Minor</th><th style="color:#8eb4d4">Total</th>
+            <th style="color:var(--amber)">Medium</th><th style="color:var(--amber)">Total</th>
+            <th style="color:var(--red)">Major</th><th style="color:var(--red)">Total</th>
+            <th>Open RCA</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody">
+          <tr><td colspan="9" style="color:var(--muted);padding:20px;text-align:center">Loads after first RCA is saved</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Manual Downtime Modal ── -->
+<div class="modal-overlay" id="manual-overlay" onclick="closeManualModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Define Downtime Period</div>
+    <div class="modal-sub">Manually log a downtime event for this shift — select start/end time and reason</div>
+
+    <div class="form-2col">
+      <div class="form-row">
+        <label class="form-label">Start Time</label>
+        <input type="datetime-local" class="form-ctrl" id="m-start"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">End Time</label>
+        <input type="datetime-local" class="form-ctrl" id="m-end"/>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Downtime Type</label>
+      <select class="form-ctrl" id="m-type">
+        <option value="UNPLANNED">Unplanned</option>
+        <option value="PLANNED">Planned</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Reason / Category *</label>
+      <select class="form-ctrl" id="m-reason">
+        <option value="">— Select reason —</option>
+        <optgroup label="Machine">
+          <option>Mechanical Breakdown</option>
+          <option>Electrical Failure</option>
+          <option>Tool Break / Tool Change</option>
+          <option>Alarm — Industrial CNC</option>
+          <option>Spindle Issue</option>
+          <option>Coolant System</option>
+          <option>Hydraulic / Pneumatic</option>
+        </optgroup>
+        <optgroup label="Process">
+          <option>Program Change / Setup</option>
+          <option>Fixture / Jig Issue</option>
+          <option>Material Not Available</option>
+          <option>First-off Inspection</option>
+          <option>Rejection Re-work Setup</option>
+        </optgroup>
+        <optgroup label="Planned">
+          <option>Scheduled Maintenance</option>
+          <option>Shift Changeover</option>
+          <option>Planned Cleaning / 5S</option>
+        </optgroup>
+        <optgroup label="External">
+          <option>Power Cut</option>
+          <option>Operator Absent</option>
+          <option>Waiting for Instruction</option>
+          <option>Other</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Details (optional)</label>
+      <textarea class="form-ctrl" id="m-detail" rows="2" placeholder="Additional notes about this downtime..."></textarea>
+    </div>
+
+    <div class="form-2col">
+      <div class="form-row">
+        <label class="form-label">Operator Name</label>
+        <input type="text" class="form-ctrl" id="m-operator" placeholder="Your name"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Alarm No (if any)</label>
+        <input type="text" class="form-ctrl" id="m-alarm" placeholder="e.g. 401"/>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeManualModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveManual()">💾 Save Downtime</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RCA Panel ── -->
+<div class="rca-overlay" id="rca-overlay" onclick="closeRCA()"></div>
+<div class="rca-panel" id="rca-panel">
+  <div class="rca-header">
+    <div>
+      <div style="font-size:1rem;font-weight:700" id="rca-title">RCA</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:2px" id="rca-sub">--</div>
+    </div>
+    <button class="rca-close" onclick="closeRCA()">✕</button>
+  </div>
+  <div class="rca-body">
+    <div class="event-strip" id="rca-event-strip"></div>
+
+    <div class="form-row">
+      <label class="form-label">Downtime Category *</label>
+      <select class="form-ctrl" id="rca-category">
+        <option value="">— Select reason —</option>
+        <optgroup label="Machine">
+          <option>Mechanical Breakdown</option>
+          <option>Electrical Failure</option>
+          <option>Tool Break / Tool Change</option>
+          <option>Alarm — Industrial CNC</option>
+          <option>Spindle Issue</option>
+          <option>Coolant System</option>
+          <option>Hydraulic / Pneumatic</option>
+        </optgroup>
+        <optgroup label="Process">
+          <option>Program Change / Setup</option>
+          <option>Fixture / Jig Issue</option>
+          <option>Material Not Available</option>
+          <option>First-off Inspection</option>
+          <option>Rejection Re-work Setup</option>
+        </optgroup>
+        <optgroup label="Planned">
+          <option>Scheduled Maintenance</option>
+          <option>Shift Changeover</option>
+          <option>Planned Cleaning / 5S</option>
+        </optgroup>
+        <optgroup label="External">
+          <option>Power Cut</option>
+          <option>Operator Absent</option>
+          <option>Waiting for Instruction</option>
+          <option>Other</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="why-chain">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">🔍 5-Why Root Cause Analysis</div>
+      <div class="why-row"><div class="why-num">1</div><textarea class="form-ctrl" id="why1" rows="2" placeholder="Why did the machine stop? (direct cause)"></textarea></div>
+      <div class="why-row"><div class="why-num" style="background:#1e4a8a">2</div><textarea class="form-ctrl" id="why2" rows="2" placeholder="Why did that happen?"></textarea></div>
+      <div class="why-row"><div class="why-num" style="background:#163a70">3</div><textarea class="form-ctrl" id="why3" rows="2" placeholder="Why? (deeper cause)"></textarea></div>
+      <div class="why-row"><div class="why-num" style="background:#0f2a50">4</div><textarea class="form-ctrl" id="why4" rows="1" placeholder="Why? (optional)"></textarea></div>
+      <div class="why-row"><div class="why-num" style="background:#09192e">5</div><textarea class="form-ctrl" id="why5" rows="1" placeholder="Root cause (optional)"></textarea></div>
+    </div>
+
+    <hr class="section-sep"/>
+
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚡ Action Chain</div>
+    <div class="action-block">
+      <div class="action-block-title">1 · Immediate Action — what was done to restart</div>
+      <textarea class="form-ctrl" id="act-immediate" rows="2" placeholder="e.g. Reset alarm, replaced cutter, called maintenance..."></textarea>
+    </div>
+    <div class="action-block amber">
+      <div class="action-block-title">2 · Corrective Action — fix the root cause</div>
+      <textarea class="form-ctrl" id="act-corrective" rows="2" placeholder="e.g. Replace worn bearing, update feed rate, retrain operator..."></textarea>
+    </div>
+    <div class="action-block green">
+      <div class="action-block-title">3 · Preventive Action — stop it recurring</div>
+      <textarea class="form-ctrl" id="act-preventive" rows="2" placeholder="e.g. Add to PM schedule, create check sheet, set alarm threshold..."></textarea>
+    </div>
+
+    <hr class="section-sep"/>
+
+    <div class="form-2col">
+      <div class="form-row"><label class="form-label">Responsible Person</label><input type="text" class="form-ctrl" id="rca-person" placeholder="Name / role"/></div>
+      <div class="form-row"><label class="form-label">Target Date</label><input type="date" class="form-ctrl" id="rca-target"/></div>
+    </div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label class="form-label">Status</label>
+        <select class="form-ctrl" id="rca-status">
+          <option value="OPEN">Open</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+      </div>
+      <div class="form-row"><label class="form-label">Closure Date</label><input type="date" class="form-ctrl" id="rca-closure"/></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-ctrl" id="rca-notes" rows="2"></textarea></div>
+    <div style="height:68px"></div>
+  </div>
+  <div class="rca-footer">
+    <button class="btn-ghost" onclick="closeRCA()">Cancel</button>
+    <button class="btn-primary" onclick="saveRCA()">💾 Save RCA</button>
+  </div>
+</div>
+
+<div id="z-toasts"></div>
+<script src="/_shared.js"></script>
+<script>
+const MACHINE = 'MACHINE001';
+let currentShift = 'A';
+let currentDate  = '';
+let eventsData   = [];
+let currentEvent = null;
+
+// ── Init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  currentShift = zCurrentShift();
+  currentDate  = zOEEDate(currentShift);
+  document.getElementById('filter-date').value = currentDate;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.shift === currentShift);
+  });
+  loadData();
+  loadHistory();
+});
+
+function setShift(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentShift = btn.dataset.shift;
+}
+
+// ── Load events ──────────────────────────────────────────────────────
+async function loadData() {
+  currentDate = document.getElementById('filter-date').value || currentDate;
+  document.getElementById('last-load').textContent = 'Loading...';
+  document.getElementById('events-tbody').innerHTML =
+    '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">Detecting downtime events...</td></tr>';
+
+  try {
+    const d = await zFetch(`/api/cnc/downtime-events?machine=${MACHINE}&date=${currentDate}&shift=${currentShift}`);
+    if (!d || !d.ok) throw new Error(d?.error || 'Server returned error');
+
+    eventsData = d.events || [];
+    renderSummary(d.summary || {});
+    renderTimeline(eventsData, currentShift);
+    renderTable(eventsData, d.diag_nonrunning_rows || 0);
+    document.getElementById('last-load').textContent = 'Shift ' + currentShift + ' · ' + currentDate + ' · ' + new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false});
+  } catch(e) {
+    console.error('loadData error:', e);
+    document.getElementById('last-load').textContent = 'Load failed';
+    document.getElementById('events-tbody').innerHTML = `
+      <tr><td colspan="10"><div class="no-data-box">
+        <div class="no-data-icon">⚠️</div>
+        <div class="no-data-msg">Could not load: ${e.message}</div>
+        <div class="no-data-sub">Make sure pm2 was restarted after last code update</div>
+      </div></td></tr>`;
+  }
+}
+
+// ── Summary ──────────────────────────────────────────────────────────
+function renderSummary(s) {
+  ['minor','medium','major'].forEach(sev => {
+    const d = s[sev] || { count:0, total_sec:0 };
+    document.getElementById('s-'+sev+'-count').textContent = d.count;
+    document.getElementById('s-'+sev+'-time').textContent  = 'Total: ' + fmtDur(d.total_sec);
+  });
+}
+
+// ── Timeline ─────────────────────────────────────────────────────────
+function renderTimeline(events, shift) {
+  const track = document.getElementById('timeline-track');
+  const empty = document.getElementById('timeline-empty');
+  const ticks = document.getElementById('timeline-ticks');
+  track.innerHTML = '';
+
+  const shiftStartH = shift === 'A' ? 7 : 19;
+
+  if (!events.length) { empty.style.display='flex'; ticks.innerHTML=''; return; }
+  empty.style.display = 'none';
+
+  const tickLabels = [];
+  for (let i=0; i<=6; i++) tickLabels.push(String((shiftStartH + i*2)%24).padStart(2,'0')+':00');
+  ticks.innerHTML = tickLabels.map(t=>`<span>${t}</span>`).join('');
+
+  events.forEach((ev, idx) => {
+    try {
+      const s = new Date(ev.start_ist || ev.start_utc);
+      const e = new Date(ev.end_ist   || ev.end_utc);
+      const sm = (s.getHours()*60 + s.getMinutes() - shiftStartH*60 + 720) % 720;
+      const em = Math.min(720, (e.getHours()*60 + e.getMinutes() - shiftStartH*60 + 720) % 720 || 720);
+      const lp = (sm/720*100).toFixed(2);
+      const wp = Math.max(0.25, ((em-sm)/720*100)).toFixed(2);
+
+      const blk = document.createElement('div');
+      blk.className = 'timeline-block ' + (ev.is_manual ? 'MANUAL' : ev.severity);
+      blk.style.left  = lp + '%';
+      blk.style.width = wp + '%';
+      blk.title = `${ev.severity||'MANUAL'} | ${fmtTime(ev.start_ist||ev.start_utc)} – ${fmtTime(ev.end_ist||ev.end_utc)} | ${fmtDur(ev.duration_sec)}`;
+      if (parseFloat(wp) > 2) blk.textContent = fmtDur(ev.duration_sec);
+      if (ev.severity !== 'MINOR') blk.addEventListener('click', () => openRCA(ev));
+      track.appendChild(blk);
+    } catch(e2) {}
+  });
+}
+
+// ── Events table ─────────────────────────────────────────────────────
+function renderTable(events, diagNonRunning) {
+  document.getElementById('ev-count').textContent = events.length + ' events';
+  const tbody = document.getElementById('events-tbody');
+
+  if (!events.length) {
+    const diagMsg = diagNonRunning > 0
+      ? `<br><span style="color:var(--amber)">ℹ ${diagNonRunning} non-running DB rows found but no distinct events formed — possible NULL machine_state or very brief gaps.</span>`
+      : `<br>No non-RUNNING rows in DB for this shift — machine_state may not be written by Node-RED, or machine was fully running.`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="no-data-box">
+      <div class="no-data-icon">✅</div>
+      <div class="no-data-msg">No downtime detected for Shift ${currentShift} · ${currentDate}</div>
+      <div class="no-data-sub">Machine ran without recorded stoppages, or no state-transition data in DB for this shift.${diagMsg}<br><br>
+      Use <strong>+ Define Downtime</strong> to manually record any downtime not captured automatically.</div>
+    </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = events.map((ev, i) => {
+    const isMinor  = ev.severity === 'MINOR';
+    const isManual = ev.is_manual;
+    const rca      = ev.rca;
+    const rcaStatus = rca ? rca.rca_status : null;
+    const cat  = rca?.downtime_category || (isManual ? ev.downtime_category : null);
+
+    const sevHtml   = `<span class="sev-chip ${ev.severity||'MINOR'}">${ev.severity||'MINOR'}</span>`;
+    const stateHtml = `<span class="state-chip2 ${ev.state||'IDLE'}">${ev.state||'--'}</span>${isManual?'<span style="font-size:.65rem;color:#c4b5fd;margin-left:4px">manual</span>':''}`;
+    const alarmHtml = ev.alarm_no ? `<code style="font-size:.75rem;color:var(--red)">${ev.alarm_no}</code>` : (ev.had_alarm?'<span style="color:var(--amber);font-size:.75rem">Yes</span>':'<span style="color:var(--muted)">—</span>');
+    const catHtml   = cat ? `<span style="font-size:.75rem;color:var(--fg)">${cat}</span>` : (isMinor ? '<span style="color:var(--muted)">—</span>' : '<span style="font-size:.72rem;color:var(--amber)">⚠ Needs entry</span>');
+    const rcaHtml   = isMinor ? '<span style="color:var(--muted)">—</span>' : (rcaStatus ? `<span class="rca-chip ${rcaStatus}">${rcaStatus.replace('_',' ')}</span>` : '<span class="rca-chip none">Not filed</span>');
+    const actHtml   = isMinor
+      ? '<span style="color:var(--muted);font-size:.75rem">—</span>'
+      : `<button class="act-btn" onclick="event.stopPropagation();openRCA(eventsData[${i}])">${rca ? '✏ Edit' : '+ RCA'}</button>`;
+
+    return `<tr class="${isMinor?'':'clickable'}${isManual?' manual-row':''}" ${isMinor?'':` onclick="openRCA(eventsData[${i}])"`}>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-family:monospace;font-size:.78rem">${fmtTime(ev.start_ist||ev.start_utc)}</td>
+      <td style="font-family:monospace;font-size:.78rem">${fmtTime(ev.end_ist||ev.end_utc)}</td>
+      <td style="font-weight:700;font-family:monospace">${fmtDur(ev.duration_sec)}</td>
+      <td>${stateHtml}</td>
+      <td>${alarmHtml}</td>
+      <td>${catHtml}</td>
+      <td>${sevHtml}</td>
+      <td>${rcaHtml}</td>
+      <td onclick="event.stopPropagation()">${actHtml}${isManual?` <button class="act-btn del" onclick="event.stopPropagation();deleteManual(${ev.manual_id})">✕</button>`:''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Manual entry modal ────────────────────────────────────────────────
+function openManualModal() {
+  // Pre-fill with shift start time
+  const shiftStartH = currentShift === 'A' ? 7 : 19;
+  const dt = new Date();
+  const ist = new Date(dt.toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  // Set default to 1 hour ago, rounded to minute
+  ist.setMinutes(ist.getMinutes() - 60, 0, 0);
+  const toLocal = d => {
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off*60000);
+    return local.toISOString().slice(0,16);
+  };
+  const start = new Date(ist);
+  const end   = new Date(ist); end.setMinutes(end.getMinutes() + 30);
+  document.getElementById('m-start').value = `${currentDate}T${String(shiftStartH).padStart(2,'0')}:00`;
+  document.getElementById('m-end').value   = `${currentDate}T${String(shiftStartH).padStart(2,'0')}:30`;
+  document.getElementById('m-reason').value   = '';
+  document.getElementById('m-detail').value   = '';
+  document.getElementById('m-operator').value = '';
+  document.getElementById('m-alarm').value    = '';
+  document.getElementById('manual-overlay').classList.add('open');
+}
+function closeManualModal(e) {
+  if (e && e.target !== document.getElementById('manual-overlay')) return;
+  document.getElementById('manual-overlay').classList.remove('open');
+}
+
+async function saveManual() {
+  const startRaw = document.getElementById('m-start').value;
+  const endRaw   = document.getElementById('m-end').value;
+  const reason   = document.getElementById('m-reason').value;
+  if (!startRaw || !endRaw) { zToast('Start and end time required', 'warning'); return; }
+  if (!reason)  { zToast('Please select a reason', 'warning'); return; }
+
+  // Convert local datetime-local to IST timestamptz string
+  const toIST = v => v ? v + ':00+05:30' : null;
+  const startIST = toIST(startRaw);
+  const endIST   = toIST(endRaw);
+  const durMin   = startRaw && endRaw ? Math.max(0, (new Date(endRaw) - new Date(startRaw)) / 60000) : null;
+
+  const payload = {
+    machine_id:   MACHINE,
+    shift_date:   currentDate,
+    shift:        currentShift,
+    start_time:   startIST,
+    end_time:     endIST,
+    duration_min: durMin ? parseFloat(durMin.toFixed(2)) : null,
+    type:         document.getElementById('m-type').value,
+    reason_code:  reason,
+    reason_detail:document.getElementById('m-detail').value,
+    operator_name:document.getElementById('m-operator').value,
+    severity:     durMin < 1 ? 'MINOR' : durMin < 10 ? 'MEDIUM' : 'MAJOR',
+  };
+
+  const r = await zFetch('/api/cnc/downtime', {
+    method:'POST', headers:{'Content-Type':'application/json',...zAuthHeader()},
+    body: JSON.stringify(payload)
+  }).catch(() => null);
+
+  if (r && r.ok) {
+    zToast('Downtime saved ✓', 'success');
+    document.getElementById('manual-overlay').classList.remove('open');
+    loadData();
+  } else {
+    zToast('Save failed — ' + (r?.error || 'check console'), 'error');
+  }
+}
+
+async function deleteManual(id) {
+  if (!confirm('Delete this manual downtime entry?')) return;
+  const r = await zFetch('/api/cnc/downtime/' + id, { method:'DELETE', headers:zAuthHeader() }).catch(()=>null);
+  if (r && r.ok) { zToast('Deleted', 'success'); loadData(); }
+  else zToast('Delete failed', 'error');
+}
+
+// ── RCA Panel ────────────────────────────────────────────────────────
+function openRCA(ev) {
+  if (!ev || ev.severity === 'MINOR') return;
+  currentEvent = ev;
+  document.getElementById('rca-title').textContent = ev.severity + ' Downtime — RCA';
+  document.getElementById('rca-sub').textContent   = fmtTime(ev.start_ist||ev.start_utc) + ' → ' + fmtTime(ev.end_ist||ev.end_utc) + '  ·  ' + fmtDur(ev.duration_sec);
+  document.getElementById('rca-event-strip').innerHTML = `
+    <div class="es-item">Start: <span>${fmtTime(ev.start_ist||ev.start_utc)}</span></div>
+    <div class="es-item">End: <span>${fmtTime(ev.end_ist||ev.end_utc)}</span></div>
+    <div class="es-item">Duration: <span>${fmtDur(ev.duration_sec)}</span></div>
+    <div class="es-item">State: <span>${ev.state||'--'}</span></div>
+    <div class="es-item">Alarm: <span>${ev.alarm_no||'—'}</span></div>
+    <div class="es-item">Category: <span class="sev-chip ${ev.severity}">${ev.severity}</span></div>
+  `;
+  const r = ev.rca || {};
+  document.getElementById('rca-category').value = r.downtime_category || ev.downtime_category || '';
+  document.getElementById('why1').value = r.why1||'';
+  document.getElementById('why2').value = r.why2||'';
+  document.getElementById('why3').value = r.why3||'';
+  document.getElementById('why4').value = r.why4||'';
+  document.getElementById('why5').value = r.why5||'';
+  document.getElementById('act-immediate').value  = r.immediate_action||'';
+  document.getElementById('act-corrective').value = r.corrective_action||'';
+  document.getElementById('act-preventive').value = r.preventive_action||'';
+  document.getElementById('rca-person').value  = r.responsible_person||'';
+  document.getElementById('rca-target').value  = r.target_date ? r.target_date.slice(0,10) : '';
+  document.getElementById('rca-closure').value = r.closure_date ? r.closure_date.slice(0,10) : '';
+  document.getElementById('rca-status').value  = r.rca_status||'OPEN';
+  document.getElementById('rca-notes').value   = r.rca_notes||'';
+  document.getElementById('rca-overlay').classList.add('open');
+  document.getElementById('rca-panel').classList.add('open');
+}
+
+function closeRCA() {
+  document.getElementById('rca-overlay').classList.remove('open');
+  document.getElementById('rca-panel').classList.remove('open');
+  currentEvent = null;
+}
+
+async function saveRCA() {
+  if (!currentEvent) return;
+  const cat = document.getElementById('rca-category').value;
+  if (!cat) { zToast('Select a downtime category', 'warning'); return; }
+  const ev = currentEvent;
+  const payload = {
+    machine_id: MACHINE, shift_date: currentDate, shift: currentShift,
+    start_time: ev.start_utc, end_time: ev.end_utc,
+    duration_sec: ev.duration_sec, duration_min: ev.duration_min,
+    severity: ev.severity, state: ev.state, alarm_no: ev.alarm_no,
+    downtime_category:  cat,
+    why1: document.getElementById('why1').value,
+    why2: document.getElementById('why2').value,
+    why3: document.getElementById('why3').value,
+    why4: document.getElementById('why4').value,
+    why5: document.getElementById('why5').value,
+    immediate_action:   document.getElementById('act-immediate').value,
+    corrective_action:  document.getElementById('act-corrective').value,
+    preventive_action:  document.getElementById('act-preventive').value,
+    responsible_person: document.getElementById('rca-person').value,
+    target_date:    document.getElementById('rca-target').value||null,
+    closure_date:   document.getElementById('rca-closure').value||null,
+    rca_status:     document.getElementById('rca-status').value,
+    rca_notes:      document.getElementById('rca-notes').value,
+    updated_by: 'Operator',
+  };
+  const r = await zFetch('/api/cnc/downtime-rca', {
+    method:'POST', headers:{'Content-Type':'application/json',...zAuthHeader()},
+    body: JSON.stringify(payload)
+  }).catch(()=>null);
+  if (r && r.ok) {
+    zToast('RCA saved ✓', 'success'); closeRCA(); loadData(); loadHistory();
+  } else {
+    zToast('Save failed — ' + (r?.error||'server error'), 'error');
+  }
+}
+
+// ── History ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  const d = await zFetch(`/api/cnc/downtime-summary?machine=${MACHINE}&days=14`).catch(()=>null);
+  if (!d || !d.ok || !d.data || !d.data.length) return;
+  const grouped = {};
+  d.data.forEach(r => {
+    const k = r.date+'|'+r.shift;
+    if (!grouped[k]) grouped[k] = { date:r.date, shift:r.shift, minor:{}, medium:{}, major:{} };
+    grouped[k][r.severity.toLowerCase()] = r;
+  });
+  const rows = Object.values(grouped).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('history-tbody').innerHTML = rows.map(r => {
+    const mi=r.minor, me=r.medium, ma=r.major;
+    const open = (parseInt(mi.open_count||0)+parseInt(me.open_count||0)+parseInt(ma.open_count||0));
+    return `<tr>
+      <td style="font-weight:600">${r.date}</td>
+      <td><span class="z-badge ${r.shift==='A'?'success':'info'}">Sh.${r.shift}</span></td>
+      <td style="color:#8eb4d4">${mi.event_count||0}</td>
+      <td style="color:#8eb4d4">${mi.total_min||'0'} min</td>
+      <td style="color:var(--amber)">${me.event_count||0}</td>
+      <td style="color:var(--amber)">${me.total_min||'0'} min</td>
+      <td style="color:var(--red)">${ma.event_count||0}</td>
+      <td style="color:var(--red)">${ma.total_min||'0'} min</td>
+      <td>${open>0?`<span class="z-badge danger">${open} Open</span>`:'<span class="z-badge success">All closed</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function fmtTime(iso) {
+  if (!iso) return '--';
+  try { return new Date(iso).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }
+  catch { return '--'; }
+}
+function fmtDur(sec) {
+  if (sec==null||isNaN(sec)) return '--';
+  sec = Math.round(Number(sec));
+  if (sec < 60)   return sec + 's';
+  if (sec < 3600) return Math.floor(sec/60) + 'm ' + (sec%60) + 's';
+  return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
+}
+</script>
+</body>
+</html>

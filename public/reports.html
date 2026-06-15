@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Report Builder · Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+/* ── Layout ── */
+.rb-wrap{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px 60px;align-items:start;}
+@media(max-width:900px){.rb-wrap{grid-template-columns:1fr;}}
+
+/* ── Left panel ── */
+.rb-panel{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:sticky;top:calc(var(--nav-h) + 12px);}
+.rb-panel-hdr{padding:14px 16px;background:rgba(0,212,255,.06);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.rb-panel-hdr-icon{font-size:18px;}
+.rb-panel-title{font-size:13px;font-weight:800;color:var(--text);}
+.rb-section{border-bottom:1px solid var(--border);}
+.rb-section:last-child{border-bottom:none;}
+.rb-section-hdr{padding:10px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;transition:background .15s;}
+.rb-section-hdr:hover{background:rgba(255,255,255,.03);}
+.rb-section-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan);}
+.rb-section-arrow{font-size:10px;color:var(--muted);transition:transform .2s;}
+.rb-section-arrow.open{transform:rotate(180deg);}
+.rb-section-body{padding:0 16px 14px;display:none;}
+.rb-section-body.open{display:block;}
+
+/* ── Type tabs ── */
+.rb-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px;}
+.rb-type-btn{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;text-align:center;transition:all .15s;}
+.rb-type-btn:hover{border-color:rgba(0,212,255,.3);color:var(--text);}
+.rb-type-btn.active{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.4);color:var(--cyan);}
+.rb-type-icon{font-size:16px;display:block;margin-bottom:3px;}
+
+/* ── Column checkboxes ── */
+.rb-col-group{margin-bottom:10px;}
+.rb-col-group-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,.05);}
+.rb-check-row{display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;color:var(--text);}
+.rb-check-row:hover{color:var(--cyan);}
+.rb-check-row input{accent-color:var(--cyan);width:13px;height:13px;cursor:pointer;}
+.rb-check-row.oee-col{color:var(--cyan);}
+.rb-check-all{font-size:10px;color:var(--cyan);cursor:pointer;margin-bottom:6px;display:inline-block;}
+.rb-check-all:hover{text-decoration:underline;}
+
+/* ── Run button ── */
+.rb-run-btn{width:100%;padding:12px;background:linear-gradient(135deg,#1a5fff,#0040cc);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.4px;transition:all .2s;margin-top:4px;}
+.rb-run-btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.rb-run-btn:disabled{background:var(--panel);color:var(--muted);cursor:not-allowed;transform:none;}
+.rb-run-spinner{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top:2px solid #fff;border-radius:50%;animation:sp .6s linear infinite;margin:0 auto;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Right panel ── */
+.rb-preview{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.rb-preview-hdr{padding:14px 20px;background:rgba(0,212,255,.04);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.rb-preview-title{font-size:13px;font-weight:800;color:var(--text);}
+.rb-preview-meta{font-size:11px;color:var(--muted);}
+.rb-export-bar{display:flex;gap:6px;flex-wrap:wrap;}
+.rb-export-btn{padding:6px 12px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s;}
+.rb-export-btn.csv {background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.25);color:var(--cyan);}
+.rb-export-btn.xlsx{background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.25);color:var(--green);}
+.rb-export-btn.print{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--muted);}
+.rb-export-btn:hover{filter:brightness(1.2);}
+
+/* ── Report header preview ── */
+.rb-rpt-header{padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
+.rb-rpt-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.rb-rpt-company{font-size:15px;font-weight:800;color:var(--text);}
+.rb-rpt-date{font-size:11px;color:var(--muted);}
+.rb-rpt-subtitle{font-size:12px;color:var(--cyan);font-weight:600;}
+.rb-rpt-meta-row{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;}
+.rb-rpt-meta-item{font-size:11px;color:var(--muted);}
+.rb-rpt-meta-item strong{color:var(--text);}
+
+/* ── Table ── */
+.rb-table-wrap{overflow-x:auto;}
+.rb-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.rb-table th{padding:8px 12px;background:rgba(0,212,255,.06);color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.06em;white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;}
+.rb-table th:first-child{text-align:left;}
+.rb-table td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;white-space:nowrap;color:var(--text);}
+.rb-table td:first-child{text-align:left;font-size:11px;color:var(--muted);}
+.rb-table tr:hover td{background:rgba(255,255,255,.02);}
+.rb-table .sum-row td{background:rgba(0,212,255,.05);font-weight:700;color:var(--text);border-top:1px solid rgba(0,212,255,.2);}
+.rb-table .avg-row td{background:rgba(0,255,136,.04);font-weight:600;color:var(--green);}
+.rb-table .min-row td{background:rgba(255,179,0,.04);font-weight:600;color:var(--amber);}
+.rb-table .max-row td{background:rgba(68,136,255,.04);font-weight:600;color:var(--blue);}
+
+/* ── Footer ── */
+.rb-rpt-footer{padding:10px 20px;border-top:1px solid var(--border);background:rgba(0,0,0,.2);display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--muted);}
+
+/* ── Empty / loading states ── */
+.rb-empty{padding:60px 20px;text-align:center;color:var(--muted);}
+.rb-empty-icon{font-size:48px;opacity:.3;margin-bottom:12px;}
+.rb-loading{padding:40px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* ── Inline form helpers ── */
+.rb-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.rb-row .z-field{flex:1;min-width:120px;}
+.rb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px;display:block;}
+
+/* ── Program Sections (below main table) ── */
+.prog-section{margin-top:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.prog-section-hdr{padding:9px 16px;background:rgba(0,212,255,.06);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--cyan);letter-spacing:.05em;}
+.prog-section-hdr span{font-size:14px;}
+.prog-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.prog-tbl th{padding:6px 10px;background:rgba(255,255,255,.03);color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.06em;white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;}
+.prog-tbl th:first-child,.prog-tbl th:nth-child(2),.prog-tbl th:nth-child(3){text-align:left;}
+.prog-tbl td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.03);text-align:right;white-space:nowrap;color:var(--text);}
+.prog-tbl td:first-child,.prog-tbl td:nth-child(2),.prog-tbl td:nth-child(3){text-align:left;}
+.prog-tbl tr:hover td{background:rgba(255,255,255,.02);}
+.prog-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;background:rgba(0,212,255,.12);color:var(--cyan);letter-spacing:.04em;}
+.prog-log-from{color:var(--amber);font-weight:700;}
+.prog-log-to{color:var(--cyan);font-weight:700;}
+
+/* ── Print styles ── */
+@media print{
+  .z-nav,.rb-panel,.rb-export-bar{display:none!important;}
+  .rb-wrap{display:block;padding:0;}
+  .rb-preview{border:none;}
+  body{background:#fff;color:#000;}
+  .rb-table th,.rb-table td{color:#000;border-color:#ccc;}
+  .rb-rpt-header,.rb-rpt-footer{background:#f5f5f5;}
+}
+</style>
+</head>
+<body>
+<nav id="z-nav"></nav>
+<main class="z-page" style="padding-top:0">
+
+  <div class="z-page-header" style="padding:16px 20px 8px">
+    <div>
+      <h1 class="z-page-title">📊 Report Builder</h1>
+      <div class="z-page-sub">Build custom reports from live DB — shift, daily, hourly, weekly, monthly</div>
+    </div>
+  </div>
+
+  <div class="rb-wrap">
+
+    <!-- ══════════ LEFT PANEL ══════════ -->
+    <div class="rb-panel">
+      <div class="rb-panel-hdr">
+        <span class="rb-panel-hdr-icon">⚙</span>
+        <span class="rb-panel-title">Configure Report</span>
+      </div>
+
+      <!-- 1. Report Type -->
+      <div class="rb-section">
+        <div class="rb-section-hdr" onclick="toggleSection(this)">
+          <span class="rb-section-label">① Report Type</span>
+          <span class="rb-section-arrow open">▼</span>
+        </div>
+        <div class="rb-section-body open">
+          <div class="rb-type-grid">
+            <div class="rb-type-btn active" data-type="shift"   onclick="setType('shift',this)">  <span class="rb-type-icon">↔</span>Shift</div>
+            <div class="rb-type-btn"        data-type="daily"   onclick="setType('daily',this)">  <span class="rb-type-icon">📅</span>Daily</div>
+            <div class="rb-type-btn"        data-type="weekly"  onclick="setType('weekly',this)"> <span class="rb-type-icon">📆</span>Weekly</div>
+            <div class="rb-type-btn"        data-type="monthly" onclick="setType('monthly',this)"><span class="rb-type-icon">🗓</span>Monthly</div>
+            <div class="rb-type-btn"        data-type="hourly"  onclick="setType('hourly',this)"> <span class="rb-type-icon">⏱</span>Hourly</div>
+            <div class="rb-type-btn"        data-type="raw"     onclick="setType('raw',this)">    <span class="rb-type-icon">🔢</span>Raw Data</div>
+          </div>
+          <div id="raw-hint" style="display:none;margin-top:8px;padding:7px 10px;background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.2);border-radius:7px;font-size:10.5px;color:var(--amber);line-height:1.5;">
+            ⚠ Raw mode queries individual CNC readings. Use short date ranges to avoid large result sets. Paginated in batches of 500.
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Filters -->
+      <div class="rb-section">
+        <div class="rb-section-hdr" onclick="toggleSection(this)">
+          <span class="rb-section-label">② Filters</span>
+          <span class="rb-section-arrow open">▼</span>
+        </div>
+        <div class="rb-section-body open">
+          <div class="rb-row">
+            <div class="z-field" style="flex:1">
+              <label class="rb-label">Machine</label>
+              <select class="z-select" id="f-machine" style="font-size:12px;padding:6px 8px">
+                <option value="MACHINE001">MACHINE001</option>
+              </select>
+            </div>
+            <div class="z-field" style="flex:1">
+              <label class="rb-label">Program</label>
+              <select class="z-select" id="f-program" style="font-size:12px;padding:6px 8px">
+                <option value="">All Programs</option>
+              </select>
+            </div>
+          </div>
+          <div class="rb-row">
+            <div class="z-field" style="flex:1">
+              <label class="rb-label">From Date</label>
+              <input class="z-input" type="date" id="f-from" style="font-size:12px;padding:6px 8px"/>
+            </div>
+            <div class="z-field" style="flex:1">
+              <label class="rb-label">To Date</label>
+              <input class="z-input" type="date" id="f-to" style="font-size:12px;padding:6px 8px"/>
+            </div>
+          </div>
+          <!-- Time range row -->
+          <div class="rb-row" style="margin-top:4px">
+            <div class="z-field" style="flex:1">
+              <label class="rb-label" style="display:flex;align-items:center;gap:5px">
+                From Time
+                <span style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none">(IST, 24h)</span>
+              </label>
+              <input class="z-input" type="time" id="f-time-from" placeholder="HH:MM"
+                style="font-size:12px;padding:6px 8px;font-variant-numeric:tabular-nums"/>
+            </div>
+            <div class="z-field" style="flex:1">
+              <label class="rb-label" style="display:flex;align-items:center;gap:5px">
+                To Time
+                <span style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none">(IST, 24h)</span>
+              </label>
+              <input class="z-input" type="time" id="f-time-to" placeholder="HH:MM"
+                style="font-size:12px;padding:6px 8px;font-variant-numeric:tabular-nums"/>
+            </div>
+          </div>
+          <div id="time-hint" style="display:none;margin-top:5px;padding:5px 9px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.15);border-radius:6px;font-size:10px;color:var(--muted);line-height:1.5;">
+            ⏱ Time filter applies to <strong style="color:var(--cyan)">Hourly</strong> and <strong style="color:var(--cyan)">Raw</strong> reports only.
+            Shift / Daily / Weekly use pre-computed summaries (no sub-shift time range).
+          </div>
+          <!-- Quick time presets -->
+          <div id="time-presets" style="display:none;margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
+            <button class="rb-export-btn csv" onclick="setTimeRange('07:00','19:00')" style="font-size:10px;padding:3px 8px">Shift A (07–19)</button>
+            <button class="rb-export-btn csv" onclick="setTimeRange('19:00','23:59')" style="font-size:10px;padding:3px 8px">Sh.B Evening</button>
+            <button class="rb-export-btn csv" onclick="setTimeRange('00:00','07:00')" style="font-size:10px;padding:3px 8px">Sh.B Night</button>
+            <button class="rb-export-btn csv" onclick="setTimeRange('08:00','12:00')" style="font-size:10px;padding:3px 8px">Morning</button>
+            <button class="rb-export-btn csv" onclick="setTimeRange('12:00','16:00')" style="font-size:10px;padding:3px 8px">Afternoon</button>
+            <button class="rb-export-btn csv" onclick="clearTimeRange()"              style="font-size:10px;padding:3px 8px;color:var(--muted)">✕ Clear</button>
+          </div>
+          <div style="margin-top:8px">
+            <label class="rb-label">Shift</label>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;color:var(--text)"><input type="radio" name="f-shift" value="both" checked style="accent-color:var(--cyan)"> Both</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;color:var(--text)"><input type="radio" name="f-shift" value="A" style="accent-color:var(--cyan)"> Shift A (07–19)</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;color:var(--text)"><input type="radio" name="f-shift" value="B" style="accent-color:var(--cyan)"> Shift B (19–07)</label>
+            </div>
+          </div>
+          <!-- Quick range presets -->
+          <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">
+            <button class="rb-export-btn csv" onclick="setRange(1)"  style="font-size:10px;padding:3px 8px">Today</button>
+            <button class="rb-export-btn csv" onclick="setRange(7)"  style="font-size:10px;padding:3px 8px">7 Days</button>
+            <button class="rb-export-btn csv" onclick="setRange(30)" style="font-size:10px;padding:3px 8px">30 Days</button>
+            <button class="rb-export-btn csv" onclick="setRange(90)" style="font-size:10px;padding:3px 8px">90 Days</button>
+            <button class="rb-export-btn csv" onclick="setThisMonth()" style="font-size:10px;padding:3px 8px">This Month</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Columns -->
+      <div class="rb-section">
+        <div class="rb-section-hdr" onclick="toggleSection(this)">
+          <span class="rb-section-label">③ Columns</span>
+          <span class="rb-section-arrow open">▼</span>
+        </div>
+        <div class="rb-section-body open" id="col-body">
+          <!-- populated by updateColumnList() -->
+        </div>
+      </div>
+
+      <!-- 4. Header / Footer -->
+      <div class="rb-section">
+        <div class="rb-section-hdr" onclick="toggleSection(this)">
+          <span class="rb-section-label">④ Header / Footer</span>
+          <span class="rb-section-arrow">▼</span>
+        </div>
+        <div class="rb-section-body">
+          <div style="margin-top:2px">
+            <label class="rb-label">Company / Plant Name</label>
+            <input class="z-input" id="hdr-company" value="Factory-MIOS" style="font-size:12px;padding:6px 8px;margin-bottom:6px"/>
+            <label class="rb-label">Report Title</label>
+            <input class="z-input" id="hdr-title"   value="OEE Shift Report" style="font-size:12px;padding:6px 8px;margin-bottom:6px"/>
+            <label class="rb-label">Prepared By</label>
+            <input class="z-input" id="hdr-prepby"  value="" placeholder="Your name / dept" style="font-size:12px;padding:6px 8px;margin-bottom:6px"/>
+            <label class="rb-label">Footer Notes</label>
+            <input class="z-input" id="hdr-notes"   value="" placeholder="Confidential — Internal Use Only" style="font-size:12px;padding:6px 8px"/>
+          </div>
+          <!-- Show/hide summary rows -->
+          <div style="margin-top:10px">
+            <label class="rb-label">Summary Rows</label>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+              <label class="rb-check-row"><input type="checkbox" id="opt-avg" checked> Show Average row</label>
+              <label class="rb-check-row"><input type="checkbox" id="opt-min" checked> Show Min row</label>
+              <label class="rb-check-row"><input type="checkbox" id="opt-max" checked> Show Max row</label>
+              <label class="rb-check-row"><input type="checkbox" id="opt-sum"> Show Sum row</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run -->
+      <div style="padding:12px 16px">
+        <button class="rb-run-btn" id="run-btn" onclick="runReport()">▶ Run Report</button>
+        <div class="rb-run-spinner" id="run-spinner"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ RIGHT PANEL ══════════ -->
+    <div class="rb-preview" id="preview-panel">
+
+      <!-- Export toolbar (hidden until report runs) -->
+      <div class="rb-preview-hdr" id="preview-hdr" style="display:none">
+        <div>
+          <div class="rb-preview-title" id="preview-title">Report</div>
+          <div class="rb-preview-meta" id="preview-meta"></div>
+        </div>
+        <div class="rb-export-bar">
+          <button class="rb-export-btn csv"   onclick="exportCSV()">⬇ CSV</button>
+          <button class="rb-export-btn xlsx"  onclick="exportXLSX()">⬇ Excel</button>
+          <button class="rb-export-btn print" onclick="window.print()">🖨 Print</button>
+        </div>
+      </div>
+
+      <!-- Report header (shown in report + print) -->
+      <div class="rb-rpt-header" id="rpt-header" style="display:none">
+        <div class="rb-rpt-header-top">
+          <div class="rb-rpt-company" id="rpt-company">—</div>
+          <div class="rb-rpt-date"    id="rpt-date">—</div>
+        </div>
+        <div class="rb-rpt-subtitle" id="rpt-subtitle">—</div>
+        <div class="rb-rpt-meta-row" id="rpt-meta-row"></div>
+      </div>
+
+      <!-- Table area -->
+      <div class="rb-table-wrap" id="table-wrap">
+        <div class="rb-empty" id="rb-empty-state">
+          <div class="rb-empty-icon">📊</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">Configure & run your report</div>
+          <div style="font-size:12px">Select report type, filters, and columns on the left, then click <strong>Run Report</strong></div>
+        </div>
+      </div>
+
+      <!-- Footer (shown after run) -->
+      <div class="rb-rpt-footer" id="rpt-footer" style="display:none">
+        <span id="rpt-footer-left">—</span>
+        <span id="rpt-footer-right">—</span>
+      </div>
+
+      <!-- Program breakdown + change log (populated by renderProgramSections) -->
+      <div id="prog-sections" style="padding:0 16px 16px"></div>
+
+    </div>
+
+  </div><!-- /rb-wrap -->
+
+</main>
+<div id="z-toasts"></div>
+<script src="/_shared.js"></script>
+<script>
+/* ─────────────────────────────────────────────────
+   Report Builder State & Config
+───────────────────────────────────────────────── */
+var currentType  = 'shift';
+var lastResult   = null;  // { rows, summary, cols }
+
+// Column definitions per report type
+var COLS_OEE = [
+  { key:'oee',          label:'OEE %',           fmt:'pct', group:'OEE' },
+  { key:'availability', label:'Availability %',  fmt:'pct', group:'OEE' },
+  { key:'performance',  label:'Performance %',   fmt:'pct', group:'OEE' },
+  { key:'quality',      label:'Quality %',       fmt:'pct', group:'OEE' },
+];
+var COLS_PROD = [
+  { key:'parts_produced',  label:'Parts Produced', fmt:'int',  group:'Production' },
+  { key:'target_parts',    label:'Target Parts',   fmt:'int',  group:'Production' },
+  { key:'good_parts',      label:'Good Parts',     fmt:'int',  group:'Production' },
+  { key:'rejection_count', label:'Rejections',     fmt:'int',  group:'Production' },
+  { key:'attainment_pct',  label:'Attainment %',   fmt:'pct',  group:'Production' },
+  { key:'scrap_rate',      label:'Scrap Rate %',   fmt:'num2', group:'Production' },
+];
+var COLS_CYCLE = [
+  { key:'avg_cycle_sec',    label:'Avg Cycle (s)',    fmt:'num1', group:'Cycle Time' },
+  { key:'best_cycle_sec',   label:'Best Cycle (s)',   fmt:'num1', group:'Cycle Time' },
+  { key:'worst_cycle_sec',  label:'Worst Cycle (s)',  fmt:'num1', group:'Cycle Time' },
+  { key:'target_cycle_sec', label:'Target Cycle (s)', fmt:'num1', group:'Cycle Time' },
+  { key:'cycle_efficiency', label:'Cycle Eff %',      fmt:'pct',  group:'Cycle Time' },
+];
+var COLS_TIME = [
+  { key:'running_min',       label:'Running (min)',       fmt:'num1', group:'Time' },
+  { key:'downtime_min',      label:'Downtime (min)',      fmt:'num1', group:'Time' },
+  { key:'major_downtime_min',label:'Major DT (min)',      fmt:'num1', group:'Time' },
+  { key:'minor_downtime_min',label:'Minor DT (min)',      fmt:'num1', group:'Time' },
+  { key:'idle_min',          label:'Idle (min)',          fmt:'num1', group:'Time' },
+];
+var COLS_ALARM = [
+  { key:'alarm_count', label:'Alarms', fmt:'int', group:'Alarms' },
+];
+// Program columns shown in shift / daily / weekly / monthly rows
+var COLS_PROGRAM_SHIFT = [
+  { key:'program_label',    label:'Program No',      fmt:'str',  group:'Program' },
+  { key:'part_name',        label:'Part Name',       fmt:'str',  group:'Program' },
+  { key:'pgm_target_cycle', label:'Target Cycle(s)', fmt:'num1', group:'Program' },
+  { key:'program_count',    label:'Programs Run',    fmt:'int',  group:'Program' },
+];
+var COLS_HOURLY = [
+  { key:'readings',          label:'Readings',        fmt:'int',  group:'Data' },
+  { key:'program_label',     label:'Program',         fmt:'str',  group:'Program' },
+  { key:'part_name',         label:'Part Name',       fmt:'str',  group:'Program' },
+  { key:'target_cycle_sec',  label:'Target Cycle(s)', fmt:'num1', group:'Program' },
+  { key:'avg_spindle_speed', label:'Spindle (rpm)',   fmt:'num0', group:'Machine' },
+  { key:'avg_feed_rate',     label:'Feed Rate',       fmt:'num0', group:'Machine' },
+  { key:'avg_cycle_sec',     label:'Avg Cycle (s)',   fmt:'num1', group:'Cycle Time' },
+  { key:'min_cycle_sec',     label:'Min Cycle (s)',   fmt:'num1', group:'Cycle Time' },
+  { key:'max_cycle_sec',     label:'Max Cycle (s)',   fmt:'num1', group:'Cycle Time' },
+  { key:'cycle_efficiency',  label:'Cycle Eff %',     fmt:'pct',  group:'Cycle Time' },
+  { key:'parts_produced',    label:'Parts',           fmt:'int',  group:'Production' },
+  { key:'running_pct',       label:'Running %',       fmt:'pct',  group:'Time' },
+  { key:'idle_pct',          label:'Idle %',          fmt:'pct',  group:'Time' },
+  { key:'alarm_count',       label:'Alarms',          fmt:'int',  group:'Alarms' },
+];
+var COLS_MULTI = [
+  { key:'shifts', label:'Shifts', fmt:'int', group:'Meta' },
+];
+var COLS_RAW = [
+  { key:'machine_state',   label:'Machine State', fmt:'str',  group:'Status' },
+  { key:'is_running',      label:'Running',       fmt:'str',  group:'Status' },
+  { key:'run_status',      label:'Run Status',    fmt:'str',  group:'Status' },
+  { key:'program_no',      label:'Program No',    fmt:'str',  group:'Status' },
+  { key:'part_count',      label:'Part Count',    fmt:'int',  group:'Production' },
+  { key:'last_cycle_sec',  label:'Cycle (s)',      fmt:'num1', group:'Production' },
+  { key:'raw_cycle_sec',   label:'Raw Cycle (s)', fmt:'num1', group:'Production' },
+  { key:'spindle_speed',   label:'Spindle (rpm)', fmt:'num0', group:'Machine' },
+  { key:'feed_rate',       label:'Feed Rate',     fmt:'num0', group:'Machine' },
+  { key:'alarm_active',    label:'Alarm',         fmt:'str',  group:'Alarms' },
+  { key:'alarm_no',        label:'Alarm No',      fmt:'str',  group:'Alarms' },
+];
+
+// Cursor-based pagination state (raw data only)
+var cursorStack    = [];    // previous page cursors for ← Prev navigation
+var currentCursor  = null;  // null = first page; ISO timestamp for next pages
+var nextCursorValue= null;  // next_cursor returned from last API response
+var _keepCursor    = false; // internal flag: skip cursor reset on next runReport() call
+
+function getColDefs(type) {
+  if (type === 'hourly') return COLS_HOURLY;
+  if (type === 'raw')    return COLS_RAW;
+  var base = COLS_OEE.concat(COLS_PROD, COLS_CYCLE, COLS_TIME, COLS_ALARM);
+  if (type === 'daily' || type === 'weekly' || type === 'monthly') {
+    return COLS_MULTI.concat(COLS_PROGRAM_SHIFT, base);
+  }
+  // shift: program columns shown first (most important per user request)
+  return COLS_PROGRAM_SHIFT.concat(base);
+}
+
+/* ─── Toggle accordion sections ─────────────────── */
+function toggleSection(hdr) {
+  var body  = hdr.nextElementSibling;
+  var arrow = hdr.querySelector('.rb-section-arrow');
+  var open  = body.classList.toggle('open');
+  if (arrow) { arrow.classList.toggle('open', open); }
+}
+
+/* ─── Report type selection ─────────────────────── */
+function setType(type, btn) {
+  currentType = type;
+  cursorStack = []; currentCursor = null; nextCursorValue = null;
+  document.querySelectorAll('.rb-type-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  updateColumnList();
+  // Show raw hint and switch to short date range
+  var hint = document.getElementById('raw-hint');
+  if (hint) hint.style.display = (type === 'raw') ? 'block' : 'none';
+  if (type === 'raw' && document.getElementById('f-from')) {
+    setRange(1); // default to today for raw
+  }
+  // Show time hint for shift/daily/weekly/monthly; show presets for hourly/raw
+  var timeHint    = document.getElementById('time-hint');
+  var timePresets = document.getElementById('time-presets');
+  var isTimeable  = (type === 'hourly' || type === 'raw');
+  if (timeHint)    timeHint.style.display    = (!isTimeable) ? 'block' : 'none';
+  if (timePresets) timePresets.style.display = isTimeable    ? 'flex'  : 'none';
+}
+
+/* ─── Build column checkboxes ───────────────────── */
+function updateColumnList() {
+  var defs  = getColDefs(currentType);
+  var groups = {};
+  defs.forEach(function(c) {
+    if (!groups[c.group]) groups[c.group] = [];
+    groups[c.group].push(c);
+  });
+  var html = '<span class="rb-check-all" onclick="checkAllCols(true)">All</span> · ' +
+             '<span class="rb-check-all" onclick="checkAllCols(false)">None</span>';
+  Object.keys(groups).forEach(function(g) {
+    html += '<div class="rb-col-group"><div class="rb-col-group-name">' + g + '</div>';
+    groups[g].forEach(function(c) {
+      var checked = (c.group === 'OEE' || c.group === 'Production' || c.group === 'Cycle Time' || c.group === 'Program') ? 'checked' : '';
+      html += '<label class="rb-check-row">' +
+        '<input type="checkbox" class="col-check" data-key="' + c.key + '" data-fmt="' + c.fmt + '" ' + checked + '>' +
+        c.label + '</label>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('col-body').innerHTML = html;
+}
+
+function checkAllCols(state) {
+  document.querySelectorAll('.col-check').forEach(function(cb) { cb.checked = state; });
+}
+
+/* ─── Date range helpers ─────────────────────────── */
+function todayIST() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+function setRange(days) {
+  var t = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  var f = new Date(t); f.setDate(f.getDate() - days + 1);
+  document.getElementById('f-from').value = f.toLocaleDateString('en-CA');
+  document.getElementById('f-to').value   = t.toLocaleDateString('en-CA');
+}
+function setThisMonth() {
+  var t = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  var f = new Date(t.getFullYear(), t.getMonth(), 1);
+  document.getElementById('f-from').value = f.toLocaleDateString('en-CA');
+  document.getElementById('f-to').value   = t.toLocaleDateString('en-CA');
+}
+function setTimeRange(from, to) {
+  document.getElementById('f-time-from').value = from;
+  document.getElementById('f-time-to').value   = to;
+}
+function clearTimeRange() {
+  document.getElementById('f-time-from').value = '';
+  document.getElementById('f-time-to').value   = '';
+}
+
+/* ─── Load machines & programs ───────────────────── */
+function loadMachines() {
+  zFetch('/api/reports/machines').then(function(d) {
+    if (!d || !d.machines) return;
+    var sel = document.getElementById('f-machine');
+    sel.innerHTML = d.machines.map(function(m) {
+      return '<option value="' + m + '">' + m + '</option>';
+    }).join('');
+    loadPrograms();
+  });
+}
+function loadPrograms() {
+  var mid = document.getElementById('f-machine').value;
+  zFetch('/api/reports/programs?machine_id=' + encodeURIComponent(mid)).then(function(d) {
+    var sel = document.getElementById('f-program');
+    var opts = '<option value="">All Programs</option>';
+    if (d && d.programs) {
+      d.programs.forEach(function(p) {
+        opts += '<option value="' + p.program_no + '">' + p.program_no +
+                (p.part_name ? ' — ' + p.part_name : '') +
+                (p.target_cycle_sec ? ' (' + p.target_cycle_sec + 's)' : '') + '</option>';
+      });
+    }
+    sel.innerHTML = opts;
+  });
+}
+
+/* ─── Run report ─────────────────────────────────── */
+function runReport() {
+  // Reset cursor state on a fresh run (not when navigating pages)
+  if (!_keepCursor) { cursorStack = []; currentCursor = null; nextCursorValue = null; }
+  _keepCursor = false;
+
+  var from    = document.getElementById('f-from').value;
+  var to      = document.getElementById('f-to').value;
+  var machine = document.getElementById('f-machine').value;
+  var program = document.getElementById('f-program').value;
+  var shift   = document.querySelector('[name="f-shift"]:checked').value;
+  var checked = Array.from(document.querySelectorAll('.col-check:checked'));
+
+  if (!from || !to) { zToast('Please select a date range', 'warning'); return; }
+  if (!checked.length) { zToast('Select at least one column', 'warning'); return; }
+
+  var btn = document.getElementById('run-btn');
+  var spin = document.getElementById('run-spinner');
+  btn.style.display = 'none'; spin.style.display = 'block';
+
+  // Show loading in table area
+  document.getElementById('rb-empty-state').style.display = 'none';
+  document.getElementById('table-wrap').innerHTML = '<div class="rb-loading">⟳ Querying database…</div>';
+  document.getElementById('preview-hdr').style.display = 'none';
+  document.getElementById('rpt-header').style.display  = 'none';
+  document.getElementById('rpt-footer').style.display  = 'none';
+
+  var timeFrom = document.getElementById('f-time-from').value || '';
+  var timeTo   = document.getElementById('f-time-to').value   || '';
+
+  var url = '/api/reports/query?type=' + currentType +
+    '&machine_id=' + encodeURIComponent(machine) +
+    '&date_from=' + from + '&date_to=' + to +
+    '&shift=' + shift +
+    '&page_size=500' +
+    (timeFrom ? '&time_from=' + encodeURIComponent(timeFrom) : '') +
+    (timeTo   ? '&time_to='   + encodeURIComponent(timeTo)   : '') +
+    (currentCursor ? '&cursor=' + encodeURIComponent(currentCursor) : '') +
+    (program ? '&program_no=' + encodeURIComponent(program) : '');
+
+  zFetch(url, {}, 30000).then(function(d) {
+    btn.style.display = ''; spin.style.display = 'none';
+    if (!d || !d.ok) {
+      document.getElementById('table-wrap').innerHTML =
+        '<div class="rb-empty"><div class="rb-empty-icon">⚠</div><div>Error: ' + (d && d.error ? d.error : 'Query failed') + '</div></div>';
+      return;
+    }
+    // Collect selected col defs
+    var colMap = {};
+    getColDefs(currentType).forEach(function(c) { colMap[c.key] = c; });
+    var selCols = checked.map(function(cb) { return colMap[cb.getAttribute('data-key')]; }).filter(Boolean);
+
+    lastResult = { rows: d.rows, summary: d.summary, cols: selCols, meta: d };
+    renderReport(d, selCols);
+  }).catch(function(e) {
+    btn.style.display = ''; spin.style.display = 'none';
+    document.getElementById('table-wrap').innerHTML =
+      '<div class="rb-empty"><div class="rb-empty-icon">⚠</div><div>Error running report</div></div>';
+    zToast('Report query failed', 'error');
+  });
+}
+
+/* ─── Render report table ──────────────────────── */
+function renderReport(d, cols) {
+  var rows     = d.rows || [];
+  var summary  = d.summary || {};
+  var type     = d.type || currentType;
+  var machine  = document.getElementById('f-machine').value;
+  var program  = document.getElementById('f-program');
+  var progLabel= program.options[program.selectedIndex] ? program.options[program.selectedIndex].text : 'All';
+  var shift    = document.querySelector('[name="f-shift"]:checked').value;
+  var company  = document.getElementById('hdr-company').value || 'Factory-MIOS';
+  var title    = document.getElementById('hdr-title').value   || 'OEE Report';
+  var prepby   = document.getElementById('hdr-prepby').value;
+  var notes    = document.getElementById('hdr-notes').value;
+  var showAvg  = document.getElementById('opt-avg').checked;
+  var showMin  = document.getElementById('opt-min').checked;
+  var showMax  = document.getElementById('opt-max').checked;
+  var showSum  = document.getElementById('opt-sum').checked;
+
+  // Header
+  document.getElementById('rpt-company').textContent  = company;
+  document.getElementById('rpt-subtitle').textContent = title + ' — ' + capFirst(type);
+  document.getElementById('rpt-date').textContent =
+    new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Kolkata'}) + ', ' +
+    new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'}) + ' IST';
+  var tfDisp = d.time_from ? d.time_from : '';
+  var ttDisp = d.time_to   ? d.time_to   : '';
+  var timeDisp = (tfDisp || ttDisp)
+    ? ' · <strong>' + escH(tfDisp||'00:00') + ' → ' + escH(ttDisp||'23:59') + ' IST</strong>'
+    : '';
+  document.getElementById('rpt-meta-row').innerHTML =
+    '<span class="rb-rpt-meta-item">Machine: <strong>' + machine + '</strong></span>' +
+    '<span class="rb-rpt-meta-item">Program: <strong>' + progLabel + '</strong></span>' +
+    '<span class="rb-rpt-meta-item">Shift: <strong>' + (shift==='both'?'A + B':shift) + '</strong></span>' +
+    '<span class="rb-rpt-meta-item">Period: <strong>' + escH(d.from) + ' → ' + escH(d.to) + '</strong>' + timeDisp + '</span>' +
+    '<span class="rb-rpt-meta-item">Rows: <strong>' + rows.length + '</strong></span>';
+
+  // Preview title
+  document.getElementById('preview-title').textContent = title + ' — ' + capFirst(type);
+  document.getElementById('preview-meta').textContent  = d.from + ' to ' + d.to + ' · ' + machine + ' · ' + rows.length + ' rows';
+
+  // Cursor pagination state from response
+  var hasMore = !!d.has_more;
+  nextCursorValue = d.next_cursor || null;
+  var totalCount = d.count || rows.length;
+
+  // Period column label
+  var periodLabel = type === 'hourly' ? 'Hour' :
+                    type === 'raw'    ? 'Timestamp' :
+                    type === 'shift'  ? 'Date / Shift' :
+                    type === 'daily'  ? 'Date' :
+                    type === 'weekly' ? 'Week' : 'Month';
+
+  // Table head
+  var thead = '<tr><th style="text-align:left">' + periodLabel + '</th>' +
+    cols.map(function(c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+
+  // Table body
+  var tbody = '';
+  if (!rows.length) {
+    tbody = '<tr><td colspan="' + (cols.length+1) + '" style="text-align:center;padding:30px;color:var(--muted)">No data for selected range</td></tr>';
+  } else {
+    tbody = rows.map(function(r) {
+      // Period cell: shift type gets compact date + time range; hourly gets hour_label if available
+      var periodVal;
+      if (type === 'shift' && r.shift_date) {
+        periodVal = r.shift_date + ' Sh.' + (r.shift||'') +
+          (r.shift_from ? ' <span style="color:var(--muted);font-size:9.5px">' + escH(r.shift_from) + '→' + escH(r.shift_to||'') + '</span>' : '');
+      } else if (type === 'hourly' && r.hour_label) {
+        periodVal = escH(r.hour_label);
+      } else {
+        periodVal = escH(r.timestamp || r.period || r.hour || r.shift_date || '—');
+      }
+      return '<tr><td style="font-family:monospace;font-size:10.5px">' + periodVal + '</td>' +
+        cols.map(function(c) {
+          var v = r[c.key];
+          var rowAlarm = (type === 'raw' && r.alarm_active === 'YES') ? 'color:var(--red)' : '';
+          var colStyle = cellStyle(c.key, v) || rowAlarm;
+          return '<td style="' + colStyle + '">' + fmtCell(v, c.fmt) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+  }
+
+  // Summary rows
+  var tfoot = '';
+  if (rows.length) {
+    if (showAvg) tfoot += summaryRow('AVG', cols, summary, 'avg', 'avg-row');
+    if (showMin) tfoot += summaryRow('MIN', cols, summary, 'min', 'min-row');
+    if (showMax) tfoot += summaryRow('MAX', cols, summary, 'max', 'max-row');
+    if (showSum) tfoot += summaryRow('SUM', cols, summary, 'sum', 'sum-row');
+  }
+
+  // Pagination controls (raw data only — cursor-based)
+  var pagination = '';
+  if (type === 'raw') {
+    var pageNum = cursorStack.length + 1;
+    pagination =
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,.15)">' +
+        '<span style="font-size:11px;color:var(--muted)">Showing ' + rows.length.toLocaleString() + ' rows · Page ' + pageNum + (hasMore ? ' (more available)' : '') + '</span>' +
+        '<div style="display:flex;gap:6px">' +
+          (cursorStack.length > 0 ? '<button class="rb-export-btn csv" onclick="goPrev()" style="padding:4px 10px;font-size:11px">← Prev</button>' : '') +
+          (hasMore ? '<button class="rb-export-btn csv" onclick="goNext()" style="padding:4px 10px;font-size:11px">Next →</button>' : '') +
+        '</div>' +
+      '</div>';
+  }
+
+  var tableHtml =
+    '<table class="rb-table" id="rb-tbl">' +
+    '<thead>' + thead + '</thead>' +
+    '<tbody>' + tbody + '</tbody>' +
+    (tfoot ? '<tfoot>' + tfoot + '</tfoot>' : '') +
+    '</table>' + pagination;
+
+  document.getElementById('table-wrap').innerHTML = tableHtml;
+
+  // Render program breakdown + change log below the main table
+  renderProgramSections(d, type);
+
+  // Footer
+  document.getElementById('rpt-footer-left').textContent =
+    (prepby ? 'Prepared by: ' + prepby : 'Factory-MIOS Platform') + (notes ? ' · ' + notes : '');
+  document.getElementById('rpt-footer-right').textContent =
+    'Generated: ' + new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'});
+
+  // Show all sections
+  document.getElementById('preview-hdr').style.display = '';
+  document.getElementById('rpt-header').style.display  = '';
+  document.getElementById('rpt-footer').style.display  = '';
+}
+
+function summaryRow(label, cols, summary, stat, cls) {
+  return '<tr class="' + cls + '"><td><strong>' + label + '</strong></td>' +
+    cols.map(function(c) {
+      var s = summary[c.key];
+      if (!s || s[stat] === undefined) return '<td>—</td>';
+      return '<td><strong>' + fmtCell(s[stat], c.fmt) + '</strong></td>';
+    }).join('') + '</tr>';
+}
+
+/* ─── Cursor page navigation (raw data) ─────────── */
+function goNext() {
+  if (!nextCursorValue) return;
+  cursorStack.push(currentCursor);   // save current cursor so Prev can go back
+  currentCursor   = nextCursorValue;
+  nextCursorValue = null;
+  _keepCursor = true;
+  runReport();
+}
+function goPrev() {
+  if (!cursorStack.length) return;
+  currentCursor   = cursorStack.pop();  // restore previous cursor
+  nextCursorValue = null;
+  _keepCursor = true;
+  runReport();
+}
+
+/* ─── Formatting helpers ─────────────────────────── */
+function fmtCell(v, fmt) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (fmt === 'str') return escH(String(v));
+  var n = parseFloat(v);
+  if (isNaN(n)) return escH(String(v));
+  switch(fmt) {
+    case 'pct':  return n.toFixed(1) + '%';
+    case 'int':  return Math.round(n).toLocaleString();
+    case 'num0': return Math.round(n).toLocaleString();
+    case 'num1': return n.toFixed(1);
+    case 'num2': return n.toFixed(2);
+    default:     return n.toFixed(1);
+  }
+}
+function fmtPeriod(v) {
+  if (!v) return '—';
+  // Format dates nicely
+  if (/^\d{4}-\d{2}-\d{2} (A|B)$/.test(v)) {
+    var parts = v.split(' ');
+    try {
+      var d = new Date(parts[0] + 'T00:00:00');
+      return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}) + ' · ' + parts[1];
+    } catch(e) {}
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) {
+    try {
+      var d = new Date(v.slice(0,10) + 'T00:00:00');
+      return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) + v.slice(10);
+    } catch(e) {}
+  }
+  return v;
+}
+function cellStyle(key, v) {
+  var oeeKeys = ['oee','availability','performance','quality','running_pct','cycle_efficiency','attainment_pct'];
+  if (oeeKeys.indexOf(key) === -1) return '';
+  var n = parseFloat(v);
+  if (isNaN(n)) return '';
+  if (n >= 85) return 'color:#00ff88;font-weight:700';
+  if (n >= 65) return 'color:#ffb300;font-weight:700';
+  return 'color:#ff4444;font-weight:700';
+}
+function capFirst(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/* ─── Export CSV ─────────────────────────────────── */
+function exportCSV() {
+  if (!lastResult || !lastResult.rows.length) { zToast('No data to export', 'warning'); return; }
+  var cols = lastResult.cols;
+  var rows = lastResult.rows;
+  var hdr  = ['Period'].concat(cols.map(function(c) { return c.label; }));
+  var body = rows.map(function(r) {
+    return [r.timestamp || r.period || r.hour || r.shift_date || ''].concat(
+      cols.map(function(c) {
+        var v = r[c.key];
+        return v !== null && v !== undefined ? String(v) : '';
+      })
+    ).map(function(s) { return '"' + String(s).replace(/"/g,'""') + '"'; }).join(',');
+  });
+  var csv = [hdr.join(',')].concat(body).join('\n');
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'oee-report-' + currentType + '-' + new Date().toLocaleDateString('en-CA') + '.csv';
+  a.click();
+  zToast('CSV downloaded', 'success');
+}
+
+/* ─── Export XLSX (simple) ───────────────────────── */
+function exportXLSX() {
+  if (!lastResult || !lastResult.rows.length) { zToast('No data to export', 'warning'); return; }
+  // Build a simple HTML table and use Blob trick for xlsx-compatible xls
+  var cols = lastResult.cols;
+  var rows = lastResult.rows;
+  var company = document.getElementById('hdr-company').value || 'Factory-MIOS';
+  var title   = document.getElementById('hdr-title').value   || 'OEE Report';
+
+  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+    '<head><meta charset="UTF-8"><style>th{background:#003366;color:white;} .avg{background:#e8f4e8;} .min{background:#fff8e8;} .max{background:#e8f0ff;}</style></head><body>' +
+    '<h2>' + escH(company) + ' — ' + escH(title) + '</h2>' +
+    '<p>Type: ' + capFirst(lastResult.meta.type) + ' | Machine: ' + escH(lastResult.meta.machine_id) +
+    ' | Period: ' + lastResult.meta.from + ' to ' + lastResult.meta.to + '</p>' +
+    '<table border="1" cellpadding="4">' +
+    '<thead><tr><th>Period</th>' + cols.map(function(c){return '<th>'+escH(c.label)+'</th>';}).join('') + '</tr></thead>' +
+    '<tbody>' +
+    rows.map(function(r){
+      return '<tr><td>' + escH(fmtPeriod(r.timestamp||r.period||r.hour||r.shift_date||'')) + '</td>' +
+        cols.map(function(c){return '<td>'+escH(fmtCell(r[c.key],c.fmt))+'</td>';}).join('') + '</tr>';
+    }).join('') +
+    '</tbody></table></body></html>';
+
+  var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'oee-report-' + currentType + '-' + new Date().toLocaleDateString('en-CA') + '.xls';
+  a.click();
+  zToast('Excel downloaded', 'success');
+}
+
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ─── Program Breakdown + Change Log sections ────── */
+function renderProgramSections(d, type) {
+  // Only for non-raw types that have program data
+  if (type === 'raw') return;
+  var wrap = document.getElementById('prog-sections');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  var breakdown = d.program_breakdown || [];
+  var log       = d.program_log       || [];
+
+  // ── Program Breakdown ──────────────────────────
+  if (breakdown.length) {
+    var bHtml =
+      '<div class="prog-section">' +
+        '<div class="prog-section-hdr"><span>⚙</span> PROGRAM BREAKDOWN — Who ran & how well</div>' +
+        '<div style="overflow-x:auto"><table class="prog-tbl">' +
+          '<thead><tr>' +
+            '<th>Program</th><th>Part Name</th><th>Target(s)</th>' +
+            '<th>Readings</th><th>Cycles</th>' +
+            '<th>Avg Cycle(s)</th><th>Best(s)</th><th>Worst(s)</th>' +
+            '<th>Cycle Eff%</th>' +
+            '<th>First Seen</th><th>Last Seen</th>' +
+          '</tr></thead>' +
+          '<tbody>' +
+          breakdown.map(function(p) {
+            var eff = parseFloat(p.cycle_efficiency);
+            var effStyle = isNaN(eff) ? '' :
+              eff >= 85 ? 'color:#00ff88;font-weight:700' :
+              eff >= 65 ? 'color:#ffb300;font-weight:700' :
+              'color:#ff4444;font-weight:700';
+            return '<tr>' +
+              '<td><span class="prog-badge">' + escH(p.program_label||'—') + '</span></td>' +
+              '<td>' + escH(p.part_name||'—') + '</td>' +
+              '<td>' + (p.target_cycle_sec > 0 ? parseFloat(p.target_cycle_sec).toFixed(1) + 's' : '—') + '</td>' +
+              '<td>' + Number(p.readings).toLocaleString() + '</td>' +
+              '<td>' + Number(p.cycles).toLocaleString() + '</td>' +
+              '<td>' + (p.avg_cycle_sec   ? parseFloat(p.avg_cycle_sec).toFixed(1)   : '—') + '</td>' +
+              '<td>' + (p.best_cycle_sec  ? parseFloat(p.best_cycle_sec).toFixed(1)  : '—') + '</td>' +
+              '<td>' + (p.worst_cycle_sec ? parseFloat(p.worst_cycle_sec).toFixed(1) : '—') + '</td>' +
+              '<td style="' + effStyle + '">' + (isNaN(eff) ? '—' : eff.toFixed(1) + '%') + '</td>' +
+              '<td style="font-size:10px;color:var(--muted)">' + escH(p.first_seen||'') + '</td>' +
+              '<td style="font-size:10px;color:var(--muted)">' + escH(p.last_seen||'')  + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody>' +
+        '</table></div>' +
+      '</div>';
+    wrap.insertAdjacentHTML('beforeend', bHtml);
+  }
+
+  // ── Program Change Log ─────────────────────────
+  if (log.length) {
+    var lHtml =
+      '<div class="prog-section" style="margin-top:10px">' +
+        '<div class="prog-section-hdr"><span>🔄</span> PROGRAM CHANGE LOG — ' + log.length + ' change' + (log.length>1?'s':'') + ' detected</div>' +
+        '<div style="overflow-x:auto"><table class="prog-tbl">' +
+          '<thead><tr>' +
+            '<th style="text-align:left">Changed At (IST)</th>' +
+            '<th style="text-align:left">From Program</th>' +
+            '<th style="text-align:left">To Program</th>' +
+          '</tr></thead>' +
+          '<tbody>' +
+          log.map(function(l) {
+            return '<tr>' +
+              '<td style="font-family:monospace;font-size:10.5px;color:var(--muted)">' + escH(l.changed_at) + '</td>' +
+              '<td><span class="prog-log-from">' + escH(l.from_label) + '</span></td>' +
+              '<td><span class="prog-log-to">→ ' + escH(l.to_label) + '</span></td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody>' +
+        '</table></div>' +
+      '</div>';
+    wrap.insertAdjacentHTML('beforeend', lHtml);
+  }
+}
+
+/* ─── Init ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof zRenderNav === 'function') zRenderNav('z-nav');
+  if (typeof zStartClock === 'function') zStartClock('z-clock');
+  if (typeof zCheckAuth  === 'function') zCheckAuth();
+
+  // Default range: last 30 days
+  setRange(30);
+
+  // Load machines (also triggers programs)
+  loadMachines();
+
+  // Build initial column list
+  updateColumnList();
+
+  // Reload programs when machine changes
+  document.getElementById('f-machine').addEventListener('change', loadPrograms);
+});
+</script>
+</body>
+</html>

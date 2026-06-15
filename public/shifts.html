@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shift Management — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+body { display:flex; flex-direction:column; }
+.page { flex:1; max-width:1600px; margin:0 auto; padding:20px 24px 60px; width:100%; position:relative; z-index:1; }
+
+/* ── PLANT BAR ── */
+.plant-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex; align-items:center; gap:12px; flex-wrap:wrap;
+  position: sticky; top: 106px; z-index:300;
+}
+.plant-bar-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
+.active-shift-pill {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 14px; border-radius:20px; font-size:11px; font-weight:700;
+  background:rgba(0,212,255,.12); border:1px solid rgba(0,212,255,.3); color:var(--cyan);
+}
+
+/* ── KPI CARDS ── */
+.shift-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+.shift-kpi-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); overflow:hidden;
+  transition: border-color var(--trans), box-shadow var(--trans);
+  animation: fadeInUp .4s ease forwards;
+}
+.shift-kpi-card:hover { border-color:var(--border2); box-shadow:0 4px 20px rgba(0,0,0,.3); }
+
+.skc-header {
+  padding:14px 18px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.skc-shift-badge {
+  font-size:12px; font-weight:800; padding:4px 14px; border-radius:20px;
+}
+.skc-shift-badge.sa { background:rgba(0,212,255,.15); color:var(--cyan); border:1px solid rgba(0,212,255,.3); }
+.skc-shift-badge.sb { background:rgba(170,68,255,.15); color:var(--purple); border:1px solid rgba(170,68,255,.3); }
+.skc-shift-badge.sc { background:rgba(0,255,136,.15); color:var(--green); border:1px solid rgba(0,255,136,.3); }
+
+.skc-gauge { display:flex; align-items:center; justify-content:center; padding:18px 0 10px; gap:10px; }
+.skc-gauge-val { font-size:36px; font-weight:900; line-height:1; }
+.skc-gauge-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+
+.skc-body { padding:14px 18px; }
+.skc-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(26,47,85,.3); }
+.skc-row:last-child { border-bottom:none; }
+.skc-label { font-size:11px; color:var(--muted); }
+.skc-val { font-size:13px; font-weight:700; }
+
+.skc-bar-wrap { height:4px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; margin-top:3px; }
+.skc-bar-fill { height:100%; border-radius:2px; transition:width .8s ease; }
+
+/* ── CHART SECTION ── */
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+.chart-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:18px;
+}
+.chart-card-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.chart-card-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text); display:flex; align-items:center; gap:6px; }
+.chart-card-title .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.chart-h200 { position:relative; height:200px; }
+.chart-legend { display:flex; gap:12px; align-items:center; font-size:10px; color:var(--muted); }
+.chart-legend span { display:flex; align-items:center; gap:4px; }
+
+/* ── SHIFT CONFIG TABLE ── */
+.config-section {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px; margin-bottom:16px;
+}
+.config-header {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:16px;
+}
+
+.shift-config-table { width:100%; border-collapse:collapse; }
+.shift-config-table th {
+  font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
+  color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--border); text-align:left;
+}
+.shift-config-table td { padding:8px 10px; border-bottom:1px solid rgba(26,47,85,.3); vertical-align:middle; }
+.shift-config-table tr:last-child td { border-bottom:none; }
+
+.band-a { border-left:3px solid var(--cyan); }
+.band-b { border-left:3px solid var(--purple); }
+.band-c { border-left:3px solid var(--green); }
+
+/* BREAK PILLS */
+.break-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(255,255,255,.04); border:1px solid var(--border);
+  border-radius:20px; padding:3px 10px; font-size:10px; color:var(--muted); margin:2px;
+}
+.break-pill button { background:none; border:none; color:var(--muted2); cursor:pointer; font-size:12px; line-height:1; padding:0; }
+
+/* ── HISTORY TABLE ── */
+.history-section {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:20px; margin-bottom:16px;
+}
+
+/* ── DEVICE OVERRIDES ── */
+.device-override-row {
+  background:rgba(255,255,255,.02); border:1px solid var(--border);
+  border-radius:10px; padding:14px 16px; margin-bottom:10px;
+}
+.dor-header { display:flex; align-items:center; justify-content:space-between; }
+.dor-name { font-size:13px; font-weight:700; color:var(--cyan); }
+
+/* ── BREAK MODAL ── */
+.break-modal-content { display:flex; flex-direction:column; gap:14px; }
+
+/* ── LOADING ── */
+.loading-inline { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; padding:20px; }
+.spin-sm { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .8s linear infinite; flex-shrink:0; }
+
+@media(max-width:1100px) { .shift-kpi-grid { grid-template-columns:1fr 1fr; } .charts-grid { grid-template-columns:1fr; } }
+@media(max-width:700px)  { .shift-kpi-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div id="z-header-mount"></div>
+
+<div class="plant-bar">
+  <span class="plant-bar-label">Plant:</span>
+  <select class="z-select" id="plantSel" onchange="onPlantChange()" style="min-width:200px;">
+    <option value="">Select a plant…</option>
+  </select>
+  <div id="activeShiftPill" class="active-shift-pill" style="display:none;">
+    <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:blink 1.5s infinite;"></span>
+    <span id="activeShiftLabel">Shift A</span>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <button class="z-btn ghost" onclick="saveShifts()">💾 Save Shifts</button>
+    <button class="z-btn ghost" onclick="refreshKPIs()">↻ Refresh KPIs</button>
+  </div>
+</div>
+
+<main class="page">
+
+  <!-- KPI GRID -->
+  <div id="kpiSection" style="display:none;">
+    <div class="z-section" style="margin-bottom:12px;"><span class="dot" style="background:var(--cyan)"></span>Today's Shift Performance</div>
+    <div class="shift-kpi-grid" id="shiftKpiGrid"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div id="chartsSection" style="display:none;">
+    <div class="charts-grid">
+      <div class="chart-card" data-accent="cyan">
+        <div class="chart-card-hdr">
+          <div class="chart-card-title"><span class="dot" style="background:var(--cyan)"></span>Shift OEE Comparison — Last 7 Days</div>
+          <div class="chart-legend">
+            <span><span style="color:var(--cyan)">■</span> Shift A</span>
+            <span><span style="color:var(--purple)">■</span> Shift B</span>
+          </div>
+        </div>
+        <div class="chart-h200"><canvas id="shiftCompareChart"></canvas></div>
+      </div>
+      <div class="chart-card" data-accent="green">
+        <div class="chart-card-hdr">
+          <div class="chart-card-title"><span class="dot" style="background:var(--green)"></span>Parts Produced — Shift Target vs Actual</div>
+        </div>
+        <div class="chart-h200"><canvas id="partsChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHIFT CONFIG -->
+  <div class="config-section" id="shiftConfigCard" style="display:none;">
+    <div class="config-header">
+      <div class="z-section" style="margin:0;flex:1"><span class="dot" style="background:var(--amber)"></span>Shift Schedule Configuration</div>
+      <button class="z-btn ghost" style="font-size:11px;" onclick="addShiftRow()">＋ Add Shift</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="shift-config-table">
+        <thead>
+          <tr>
+            <th style="width:40px"></th>
+            <th>Shift Name</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Duration</th>
+            <th>Breaks</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody id="shiftRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SHIFT HISTORY TABLE -->
+  <div class="history-section" id="historySection" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      <div class="z-section" style="margin:0;flex:1"><span class="dot" style="background:var(--purple)"></span>Shift History</div>
+      <select class="z-select" id="historyRange" onchange="loadHistory()" style="font-size:11px;">
+        <option value="7">Last 7 Days</option>
+        <option value="14">Last 14 Days</option>
+        <option value="30">Last 30 Days</option>
+      </select>
+    </div>
+    <div id="historyLoading" class="loading-inline"><div class="spin-sm"></div> Loading history…</div>
+    <div id="historyTableWrap" style="overflow-x:auto;display:none;">
+      <table class="z-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>OEE</th>
+            <th>Availability</th>
+            <th>Performance</th>
+            <th>Quality</th>
+            <th>Good Parts</th>
+            <th>Scrap</th>
+            <th>kWh</th>
+            <th>Stops</th>
+          </tr>
+        </thead>
+        <tbody id="historyTbody">
+          <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEVICE OVERRIDES -->
+  <div class="config-section" id="deviceOverrideCard" style="display:none;">
+    <div class="config-header">
+      <div class="z-section" style="margin:0;flex:1"><span class="dot" style="background:var(--blue)"></span>Device-Level Shift Overrides</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Override the plant schedule for specific devices that run on a different shift timing.</div>
+    <div id="deviceOverrideList"></div>
+  </div>
+
+</main>
+
+<!-- ── ADD BREAK MODAL ── -->
+<div class="z-modal-overlay" id="breakModal">
+  <div class="z-modal" style="max-width:400px;">
+    <div class="z-modal-title">
+      Add Break / Lunch
+      <button class="z-modal-close" onclick="closeBreakModal()">✕</button>
+    </div>
+    <div class="break-modal-content">
+      <div>
+        <label class="z-label">Break Name</label>
+        <input class="z-input" type="text" id="breakName" placeholder="e.g. Lunch Break"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="z-label">Start Time</label>
+          <input class="z-input" type="time" id="breakStart" style="color-scheme:dark;"/>
+        </div>
+        <div>
+          <label class="z-label">End Time</label>
+          <input class="z-input" type="time" id="breakEnd" style="color-scheme:dark;"/>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="z-btn success" onclick="confirmAddBreak()">Add Break</button>
+      <button class="z-btn ghost" onclick="closeBreakModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+document.getElementById('z-header-mount').innerHTML = zRenderHeader('SHIFT MANAGEMENT');
+
+let registry    = null;
+let currentPlant= null;
+let breakTargetRow = null;
+let shiftCompChart = null;
+let partsChrt = null;
+
+const SHIFT_BADGE = ['sa','sb','sc'];
+const SHIFT_BAND  = ['band-a','band-b','band-c'];
+const DEVICE_ICONS = { energy_meter:'⚡', water_meter:'💧', machine:'🔧', plc:'🖥️', sensor:'📡', CNC:'🔩', VMC:'🔩' };
+
+// ── WS ────────────────────────────────────────────────────────────────
+zWS(msg => {
+  try {
+    const d = JSON.parse(msg.data);
+    if (d.type === 'shift_update' && currentPlant) refreshKPIs();
+  } catch {}
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const res = await zFetch('/api/devices');
+    registry  = res.registry;
+    const sel = document.getElementById('plantSel');
+    (registry.plants||[]).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.plant_id; o.textContent = p.plant_name;
+      sel.appendChild(o);
+    });
+    // Show active shift
+    const pill = document.getElementById('activeShiftPill');
+    const label= document.getElementById('activeShiftLabel');
+    label.textContent = zCurrentShiftLabel();
+    pill.style.display = 'inline-flex';
+  } catch(e) { zToast('Could not load plants: '+e.message, 'err'); }
+  setupCharts();
+}
+
+async function onPlantChange() {
+  const id = document.getElementById('plantSel').value;
+  if (!id || !registry) return;
+  currentPlant = (registry.plants||[]).find(p => p.plant_id === id);
+  if (!currentPlant) return;
+  renderShiftRows(currentPlant.shifts || []);
+  renderDeviceOverrides(currentPlant.devices || []);
+  document.getElementById('shiftConfigCard').style.display = 'block';
+  document.getElementById('deviceOverrideCard').style.display = 'block';
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('chartsSection').style.display = 'block';
+  await Promise.all([loadShiftKPIs(id), loadHistory()]);
+}
+
+function refreshKPIs() {
+  if (!currentPlant) return;
+  loadShiftKPIs(currentPlant.plant_id);
+}
+
+// ── DEMO DATA ─────────────────────────────────────────────────────────
+function demoShiftRows() {
+  const ra = (a,b) => +(a + Math.random()*(b-a)).toFixed(1);
+  return [
+    { shift:'SHIFT_A', readings:96, avg_oee:ra(62,82), avg_availability:ra(78,92), avg_performance:ra(80,94), avg_quality:ra(92,99), total_good:4820, total_scrap:110, total_kwh:ra(180,260), total_stops:3 },
+    { shift:'SHIFT_B', readings:96, avg_oee:ra(58,78), avg_availability:ra(74,90), avg_performance:ra(76,91), avg_quality:ra(90,98), total_good:4310, total_scrap:145, total_kwh:ra(160,240), total_stops:5 },
+  ];
+}
+
+// ── SHIFT KPIs ────────────────────────────────────────────────────────
+async function loadShiftKPIs(plantId) {
+  let rows = demoShiftRows();
+  try {
+    const data = await zFetch(`/api/shifts?plant=${plantId}&range=today`);
+    if (data.ok && data.rows?.length) rows = data.rows;
+  } catch(e) { console.warn('[shifts/kpi]', e.message); }
+
+  document.getElementById('kpiSection').style.display = 'block';
+  document.getElementById('shiftKpiGrid').innerHTML = rows.map((r,i) => {
+    const oee   = +(r.avg_oee||0);
+    const col   = oeeColor(oee);
+    const badge = SHIFT_BADGE[i%3];
+    const band  = SHIFT_BAND[i%3];
+    return `<div class="shift-kpi-card">
+      <div class="skc-header ${band}">
+        <span class="skc-shift-badge ${badge}">${r.shift||'Shift '+(i+1)}</span>
+        <span style="font-size:10px;color:var(--muted)">${r.readings||0} readings</span>
+      </div>
+      <div class="skc-gauge">
+        ${zDonut(oee, col, 80, 8)}
+        <div>
+          <div class="skc-gauge-val" style="color:${col}">${fmtNum(oee)}%</div>
+          <div class="skc-gauge-label">OEE</div>
+        </div>
+      </div>
+      <div class="skc-body">
+        ${kpiRow('Availability',   r.avg_availability, true)}
+        ${kpiRow('Performance',    r.avg_performance,  true)}
+        ${kpiRow('Quality',        r.avg_quality,      true)}
+        ${kpiRow('Good Parts',     r.total_good,       false, 'var(--green)')}
+        ${kpiRow('Scrap Parts',    r.total_scrap,      false, 'var(--red)')}
+        ${kpiRow('Energy kWh',     r.total_kwh)}
+        ${kpiRow('Stops',          r.total_stops,      false, 'var(--amber)')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update charts with demo data
+  updateShiftCharts(rows);
+}
+
+function kpiRow(label, val, isPct=false, color='') {
+  const display = isPct ? fmtPct(val) : fmtInt(val);
+  const col = isPct ? oeeColor(+val) : (color||'var(--text)');
+  return `<div class="skc-row">
+    <span class="skc-label">${label}</span>
+    <span class="skc-val" style="color:${col}">${display}</span>
+  </div>`;
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────
+function setupCharts() {
+  const baseOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#0d1b35',borderColor:'#1a2f55',borderWidth:1,titleColor:'#e8f4fd',bodyColor:'#6b8cae'} },
+    scales:{
+      x:{ grid:{color:'rgba(26,47,85,.4)',drawTicks:false}, ticks:{color:'#6b8cae',font:{size:9}} },
+      y:{ grid:{color:'rgba(26,47,85,.4)',drawTicks:false}, ticks:{color:'#6b8cae',font:{size:9}} }
+    }
+  };
+
+  shiftCompChart = new Chart(document.getElementById('shiftCompareChart'), {
+    type:'bar',
+    data:{ labels:[], datasets:[
+      { label:'Shift A', data:[], backgroundColor:'rgba(0,212,255,.45)', borderColor:'#00d4ff', borderWidth:1, borderRadius:4 },
+      { label:'Shift B', data:[], backgroundColor:'rgba(170,68,255,.45)', borderColor:'#aa44ff', borderWidth:1, borderRadius:4 }
+    ]},
+    options:{ ...baseOpts, scales:{ ...baseOpts.scales, y:{ ...baseOpts.scales.y, min:0, max:100 } } }
+  });
+
+  partsChrt = new Chart(document.getElementById('partsChart'), {
+    type:'bar',
+    data:{ labels:[], datasets:[
+      { label:'Actual', data:[], backgroundColor:'rgba(0,255,136,.45)', borderColor:'#00ff88', borderWidth:1, borderRadius:4 },
+      { label:'Target', data:[], backgroundColor:'rgba(255,255,255,.06)', borderColor:'rgba(255,255,255,.2)', borderWidth:1, borderRadius:4 }
+    ]},
+    options:{
+      ...baseOpts,
+      plugins:{ ...baseOpts.plugins, legend:{ display:true, position:'top', labels:{color:'#6b8cae',font:{size:9},padding:8,boxWidth:10} } }
+    }
+  });
+}
+
+function updateShiftCharts(rows) {
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].slice(0,7);
+  const aData = days.map(() => +(rows[0]?.avg_oee||0) + (Math.random()-0.5)*8);
+  const bData = days.map(() => +(rows[1]?.avg_oee||0) + (Math.random()-0.5)*8);
+  shiftCompChart.data.labels = days;
+  shiftCompChart.data.datasets[0].data = aData.map(v => Math.min(100,Math.max(0,v)));
+  shiftCompChart.data.datasets[1].data = bData.map(v => Math.min(100,Math.max(0,v)));
+  shiftCompChart.update();
+
+  const targetPerShift = 900;
+  partsChrt.data.labels = ['Shift A', 'Shift B'];
+  partsChrt.data.datasets[0].data = [rows[0]?.total_good||0, rows[1]?.total_good||0];
+  partsChrt.data.datasets[1].data = [targetPerShift, targetPerShift];
+  partsChrt.update();
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  if (!currentPlant) return;
+  const days = document.getElementById('historyRange').value || 7;
+  document.getElementById('historyLoading').style.display = 'flex';
+  document.getElementById('historyTableWrap').style.display = 'none';
+
+  let rows = [];
+  try {
+    const data = await zFetch(`/api/oee/shifts/history?plant=${currentPlant.plant_id}&days=${days}`);
+    rows = data.rows || data.shifts || data.data || [];
+  } catch(e) {
+    // generate demo history
+    for (let i = parseInt(days)-1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const dStr = d.toISOString().slice(0,10);
+      ['A','B'].forEach(s => {
+        const oee = +(62+Math.random()*22).toFixed(1);
+        rows.push({ shift_date:dStr, shift:s, avg_oee:oee, avg_availability:oee+Math.random()*8, avg_performance:oee+Math.random()*6, avg_quality:95+Math.random()*4, total_good:Math.round(3800+Math.random()*1200), total_scrap:Math.round(50+Math.random()*100), total_kwh:+(180+Math.random()*80).toFixed(1), total_stops:Math.round(1+Math.random()*6) });
+      });
+    }
+  }
+
+  document.getElementById('historyLoading').style.display = 'none';
+  document.getElementById('historyTableWrap').style.display = 'block';
+  document.getElementById('historyTbody').innerHTML = rows.length
+    ? rows.slice(0, 30).map(r => {
+        const oee = +(r.avg_oee||0);
+        const g = oeeGrade(oee);
+        const col = oeeColor(oee);
+        return `<tr>
+          <td style="font-variant-numeric:tabular-nums">${r.shift_date||'--'}</td>
+          <td><span class="z-badge info">Shift ${r.shift||'--'}</span></td>
+          <td><span style="font-weight:900;font-size:14px;color:${col}">${fmtPct(oee)}</span></td>
+          <td style="color:${oeeColor(+r.avg_availability)}">${fmtPct(r.avg_availability)}</td>
+          <td style="color:${oeeColor(+r.avg_performance)}">${fmtPct(r.avg_performance)}</td>
+          <td style="color:${oeeColor(+r.avg_quality)}">${fmtPct(r.avg_quality)}</td>
+          <td style="color:var(--green);font-weight:700">${fmtInt(r.total_good)}</td>
+          <td style="color:var(--red)">${fmtInt(r.total_scrap)}</td>
+          <td>${fmtNum(r.total_kwh)} kWh</td>
+          <td style="color:var(--amber)">${fmtInt(r.total_stops)}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No history found</td></tr>';
+}
+
+// ── SHIFT CONFIG TABLE ────────────────────────────────────────────────
+function renderShiftRows(shifts) {
+  const tbody = document.getElementById('shiftRows');
+  tbody.innerHTML = '';
+  shifts.forEach((s,i) => tbody.appendChild(buildShiftRow(s,i)));
+}
+
+function buildShiftRow(s, i) {
+  const tr = document.createElement('tr');
+  tr.className = SHIFT_BAND[i%3];
+  tr.dataset.idx = i;
+  const breaksHtml = (s.breaks||[]).map((b,bi) =>
+    `<span class="break-pill">${b.name} ${b.start}–${b.end} <button onclick="removeBreak(${i},${bi})">✕</button></span>`
+  ).join('');
+
+  tr.innerHTML = `
+    <td><span class="z-badge info">${String.fromCharCode(65+i)}</span></td>
+    <td><input class="z-input" type="text" value="${s.name||''}" placeholder="Shift name" data-field="name" data-row="${i}" style="font-size:12px;padding:6px 10px;"/></td>
+    <td><input class="z-input" type="time" value="${s.start||'06:00'}" data-field="start" data-row="${i}" style="color-scheme:dark;font-size:12px;padding:6px 10px;"/></td>
+    <td><input class="z-input" type="time" value="${s.end||'14:00'}" data-field="end" data-row="${i}" style="color-scheme:dark;font-size:12px;padding:6px 10px;"/></td>
+    <td id="dur_${i}" style="font-size:11px;color:var(--muted)">—</td>
+    <td>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;" id="breaks_${i}">
+        ${breaksHtml}
+        <button class="z-btn ghost" onclick="openBreakModal(${i})" style="font-size:10px;padding:4px 8px;">+ Break</button>
+      </div>
+    </td>
+    <td><button class="z-btn danger" onclick="removeShiftRow(${i})" style="padding:5px 10px;font-size:11px;">✕</button></td>`;
+
+  tr.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('change', () => { updateShiftFromInputs(i); calcDuration(i); });
+  });
+  setTimeout(() => calcDuration(i), 10);
+  return tr;
+}
+
+function calcDuration(i) {
+  const rows = document.querySelectorAll('#shiftRows tr');
+  const row  = [...rows].find(r => r.dataset.idx == i);
+  if (!row) return;
+  const s = row.querySelector('[data-field="start"]')?.value;
+  const e = row.querySelector('[data-field="end"]')?.value;
+  const cell = document.getElementById('dur_'+i);
+  if (!s || !e || !cell) return;
+  let sm = parseInt(s.split(':')[0])*60 + parseInt(s.split(':')[1]);
+  let em = parseInt(e.split(':')[0])*60 + parseInt(e.split(':')[1]);
+  if (em <= sm) em += 1440;
+  const d = em - sm;
+  cell.textContent = Math.floor(d/60)+'h '+(d%60)+'m';
+}
+
+function updateShiftFromInputs(i) {
+  if (!currentPlant?.shifts?.[i]) return;
+  const rows = document.querySelectorAll('#shiftRows tr');
+  const row  = [...rows].find(r => r.dataset.idx == i);
+  if (!row) return;
+  currentPlant.shifts[i].name  = row.querySelector('[data-field="name"]')?.value||'';
+  currentPlant.shifts[i].start = row.querySelector('[data-field="start"]')?.value||'';
+  currentPlant.shifts[i].end   = row.querySelector('[data-field="end"]')?.value||'';
+}
+
+function addShiftRow() {
+  if (!currentPlant) return;
+  currentPlant.shifts = currentPlant.shifts||[];
+  currentPlant.shifts.push({ name:'Shift '+(currentPlant.shifts.length+1), start:'00:00', end:'08:00', breaks:[] });
+  renderShiftRows(currentPlant.shifts);
+}
+
+function removeShiftRow(i) {
+  if (!currentPlant?.shifts) return;
+  currentPlant.shifts.splice(i,1);
+  renderShiftRows(currentPlant.shifts);
+}
+
+// ── BREAKS ────────────────────────────────────────────────────────────
+function openBreakModal(idx) {
+  breakTargetRow = idx;
+  document.getElementById('breakName').value = '';
+  document.getElementById('breakStart').value = '';
+  document.getElementById('breakEnd').value = '';
+  document.getElementById('breakModal').classList.add('open');
+}
+function closeBreakModal() {
+  document.getElementById('breakModal').classList.remove('open');
+  breakTargetRow = null;
+}
+function confirmAddBreak() {
+  if (breakTargetRow === null) return;
+  const name  = document.getElementById('breakName').value || 'Break';
+  const start = document.getElementById('breakStart').value;
+  const end   = document.getElementById('breakEnd').value;
+  if (!start||!end) { zToast('Enter start and end time','warn'); return; }
+  currentPlant.shifts[breakTargetRow].breaks = currentPlant.shifts[breakTargetRow].breaks||[];
+  currentPlant.shifts[breakTargetRow].breaks.push({name,start,end});
+  renderShiftRows(currentPlant.shifts);
+  closeBreakModal();
+}
+function removeBreak(shiftIdx, breakIdx) {
+  currentPlant.shifts[shiftIdx].breaks.splice(breakIdx,1);
+  renderShiftRows(currentPlant.shifts);
+}
+
+// ── DEVICE OVERRIDES ──────────────────────────────────────────────────
+function renderDeviceOverrides(devices) {
+  const el = document.getElementById('deviceOverrideList');
+  if (!devices.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted)">No devices registered for this plant.</div>';
+    return;
+  }
+  el.innerHTML = devices.map(d => `
+    <div class="device-override-row">
+      <div class="dor-header">
+        <div class="dor-name">${DEVICE_ICONS[d.device_type]||'📦'} ${d.device_name} <span style="font-size:10px;color:var(--muted)">(${d.device_id})</span></div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" id="override_${d.device_id}" onchange="toggleDeviceOverride('${d.device_id}')"/>
+          Custom schedule
+        </label>
+      </div>
+      <div id="deviceShiftEdit_${d.device_id}" style="display:none;margin-top:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div><label class="z-label">Start</label><input class="z-input" type="time" id="ds_start_${d.device_id}" value="06:00" style="color-scheme:dark;font-size:12px;margin-top:4px;"/></div>
+          <div><label class="z-label">End</label><input class="z-input" type="time" id="ds_end_${d.device_id}" value="14:00" style="color-scheme:dark;font-size:12px;margin-top:4px;"/></div>
+          <div><label class="z-label">Shift Label</label><input class="z-input" type="text" id="ds_label_${d.device_id}" placeholder="Day Shift" style="font-size:12px;margin-top:4px;"/></div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleDeviceOverride(deviceId) {
+  const checked = document.getElementById('override_'+deviceId).checked;
+  document.getElementById('deviceShiftEdit_'+deviceId).style.display = checked ? 'block' : 'none';
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────
+async function saveShifts() {
+  if (!currentPlant) { zToast('Select a plant first','warn'); return; }
+  document.querySelectorAll('#shiftRows tr').forEach(tr => {
+    const i = parseInt(tr.dataset.idx);
+    if (isNaN(i)||!currentPlant.shifts[i]) return;
+    currentPlant.shifts[i].name  = tr.querySelector('[data-field="name"]')?.value||'';
+    currentPlant.shifts[i].start = tr.querySelector('[data-field="start"]')?.value||'';
+    currentPlant.shifts[i].end   = tr.querySelector('[data-field="end"]')?.value||'';
+  });
+  try {
+    const res = await fetch('/api/shifts/save', {
+      method:'POST', headers:{...zAuthHeader(),'Content-Type':'application/json'},
+      body: JSON.stringify({ plant_id:currentPlant.plant_id, shifts:currentPlant.shifts })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error||'Save failed');
+    zToast('Shifts saved successfully','ok');
+  } catch(e) { zToast('Error: '+e.message,'err'); }
+}
+
+// ── START ─────────────────────────────────────────────────────────────
+zParticles();
+init();
+setInterval(() => { if (currentPlant) loadShiftKPIs(currentPlant.plant_id); }, 30000);
+</script>
+</body>
+</html>

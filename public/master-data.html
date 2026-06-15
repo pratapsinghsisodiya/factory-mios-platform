@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Data — OEE Dashboard</title>
+<link rel="stylesheet" href="/_shared.css">
+<script src="/_shared.js"></script>
+<style>
+.page-header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 1.5rem 0.8rem; border-bottom: 1px solid var(--border); }
+.page-header h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: .5rem; }
+
+.main-content { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* ── Cards ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.card-header h2 { font-size: .95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: .4rem; }
+
+/* ── Form inline ── */
+.form-grid { display: grid; grid-template-columns: 100px 1fr 1fr 120px 1fr 1fr auto; gap: .6rem; align-items: end; }
+@media (max-width: 1100px) { .form-grid { grid-template-columns: 1fr 1fr 1fr; } }
+label { display: block; font-size: .7rem; color: var(--muted); margin-bottom: .28rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; padding: .52rem .7rem; font-size: .85rem; font-family: inherit;
+  transition: border-color .2s; box-sizing: border-box;
+}
+input:focus, select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,212,255,.1); }
+
+.btn { padding: .52rem 1rem; border-radius: 7px; border: none; cursor: pointer; font-size: .82rem; font-weight: 700; font-family: inherit; transition: opacity .15s; }
+.btn:hover { opacity: .84; }
+.btn-add  { background: var(--cyan);  color: #000; }
+.btn-save { background: var(--green); color: #000; }
+.btn-del  { background: rgba(255,68,68,.15); color: #ff4444; border: 1px solid rgba(255,68,68,.25); }
+.btn-edit { background: rgba(0,212,255,.1); color: var(--cyan); border: 1px solid rgba(0,212,255,.2); }
+.btn-cancel { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+/* ── Table ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.data-table th { text-align: left; padding: .5rem .75rem; color: var(--muted); border-bottom: 1px solid var(--border); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.data-table td { padding: .52rem .75rem; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+.data-table tr:hover td { background: rgba(255,255,255,.03); }
+.data-table td.num { font-weight: 700; font-variant-numeric: tabular-nums; }
+.data-table input { padding: .3rem .5rem; font-size: .8rem; background: var(--bg); }
+.actions { display: flex; gap: .4rem; white-space: nowrap; }
+.empty-row td { text-align: center; color: var(--muted); padding: 2.5rem; font-size: .85rem; }
+
+/* ── Search bar ── */
+.search-bar { display: flex; gap: .6rem; align-items: center; }
+.search-bar input { width: 220px; font-size: .8rem; padding: .4rem .7rem; }
+.count-badge { font-size: .72rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border); padding: .2rem .6rem; border-radius: 20px; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: .8rem 1.2rem; border-radius: 10px; font-size: .85rem; font-weight: 600; opacity: 0; transform: translateY(12px); transition: all .25s; z-index: 1000; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok  { border-color: var(--green); }
+.toast.err { border-color: #ff4444; }
+
+/* ── Info card ── */
+.info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: .75rem; margin-bottom: 1rem; }
+.info-box { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: .75rem 1rem; }
+.info-box .lbl { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.info-box .val { font-size: 1.2rem; font-weight: 800; color: var(--text); margin-top: .25rem; }
+
+/* ── Inline edit ── */
+.editing td { background: rgba(0,212,255,.04) !important; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<div class="page-header">
+  <h1>📋 Master Data — Demo Machine Hobbing Machine (896) Programs</h1>
+  <div style="display:flex;gap:.6rem;">
+    <button onclick="loadPrograms()" class="btn btn-cancel">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="main-content">
+
+  <!-- Info cards -->
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="lbl">Total Programs</div>
+      <div class="val" id="info-total">—</div>
+    </div>
+    <div class="info-box" style="border-color:rgba(0,212,255,.3);position:relative;">
+      <div class="lbl">Current Program <span id="live-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#555;margin-left:5px;vertical-align:middle"></span></div>
+      <div class="val" id="info-curr-prog" style="color:var(--cyan)">—</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:3px" id="info-curr-name">—</div>
+    </div>
+    <div class="info-box" style="border-color:rgba(0,255,136,.3);">
+      <div class="lbl">Target Cycle Time <span style="font-size:.62rem;color:var(--muted)">(current program)</span></div>
+      <div class="val" id="info-curr-cycle" style="color:var(--green)">—</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:3px" id="info-curr-rate">—</div>
+    </div>
+    <div class="info-box">
+      <div class="lbl">Machine</div>
+      <div class="val" style="font-size:.85rem;">Demo Machine 896</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Industrial CNC 32iB</div>
+    </div>
+  </div>
+
+  <!-- Add new program form -->
+  <div class="card">
+    <div class="card-header">
+      <h2>➕ Add New Program</h2>
+    </div>
+    <div class="form-grid" id="add-form">
+      <div>
+        <label>Program No. *</label>
+        <input type="number" id="a-progno" placeholder="e.g. 1001" min="1">
+      </div>
+      <div>
+        <label>Part / Job Name *</label>
+        <input type="text" id="a-partname" placeholder="e.g. Shaft Housing">
+      </div>
+      <div>
+        <label>Part Number</label>
+        <input type="text" id="a-partno" placeholder="e.g. SA-1001-A">
+      </div>
+      <div>
+        <label>Ideal Cycle (sec) *</label>
+        <input type="number" id="a-cycle" placeholder="44" min="1" max="9999" value="44">
+      </div>
+      <div>
+        <label>Material</label>
+        <input type="text" id="a-material" placeholder="e.g. EN8 Steel">
+      </div>
+      <div>
+        <label>Description / Notes</label>
+        <input type="text" id="a-desc" placeholder="Optional notes">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn btn-add" onclick="addProgram()">➕ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Programs table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>⚙️ Program Master Table</h2>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search programs…" oninput="filterTable()">
+        <span class="count-badge" id="count-badge">— programs</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" id="programs-table">
+        <thead>
+          <tr>
+            <th>Program No.</th>
+            <th>Part / Job Name</th>
+            <th>Part Number</th>
+            <th>Ideal Cycle (sec)</th>
+            <th>Target Parts / Shift (12h)</th>
+            <th>Material</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="programs-tbody">
+          <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cycle time reference card -->
+  <div class="card">
+    <div class="card-header">
+      <h2>📖 Cycle Time Reference</h2>
+    </div>
+    <div style="font-size:.82rem;color:var(--muted);line-height:1.8;max-width:700px;">
+      <p><strong style="color:var(--text)">Ideal Cycle Time</strong> is the theoretical minimum time to produce one part with zero losses. Used as the denominator in OEE Performance calculation.</p>
+      <p style="margin-top:.5rem;"><strong style="color:var(--text)">OEE Performance</strong> = (Ideal Cycle Time × Parts Produced) ÷ Run Time</p>
+      <p style="margin-top:.5rem;"><strong style="color:var(--text)">Target Parts / Shift</strong> is auto-calculated: (43200 sec shift ÷ Ideal Cycle) × typical availability (≈ 90%)</p>
+      <p style="margin-top:.5rem;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:7px;padding:.6rem .9rem;color:var(--text);">
+        💡 <strong>Demo Machine Hobbing Machine (896)</strong> — cycle times range from 36s (DH102208 66T) to 255s (F165111 36T) depending on tooth count and module. Development programs have no cycle time set until engineering qualification is complete.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let _programs = [];
+let _editId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  zCheckAuth();
+  zRenderNav('master');
+  loadPrograms();
+  // Refresh live cards every 10 seconds
+  setInterval(loadLiveInfo, 10000);
+});
+
+async function loadPrograms() {
+  try {
+    const d = await zFetch('/api/cnc/programs');
+    _programs = (d && d.data) ? d.data : [];
+    updateInfoCards();
+    renderTable();
+    loadLiveInfo(); // fetch live program after master data loaded
+  } catch(e) {
+    document.getElementById('programs-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="8">Error loading: ${e.message}</td></tr>`;
+  }
+}
+
+function updateInfoCards() {
+  document.getElementById('info-total').textContent = _programs.length;
+}
+
+// ── Live current-program cards ────────────────────────────────────
+async function loadLiveInfo() {
+  try {
+    const d = await zFetch('/api/cnc/live?machine=MACHINE001');
+    if (!d) return;
+    const live = d.machine || d; // /api/cnc/live returns { machine: {...} }
+    const progNo = parseInt(live.program_no) || 0;
+
+    // Find matching program in master table
+    const prog = _programs.find(p => parseInt(p.program_no) === progNo);
+
+    // Current program
+    const dot = document.getElementById('live-dot');
+    const isRunning = live.machine_state === 'RUNNING' || live.is_running;
+    if (dot) dot.style.background = isRunning ? 'var(--green)' : '#555';
+
+    document.getElementById('info-curr-prog').textContent = progNo > 0 ? 'O' + String(progNo).padStart(4,'0') : '—';
+    document.getElementById('info-curr-name').textContent = prog ? prog.part_name : (progNo > 0 ? 'Program #'+progNo : 'No program active');
+
+    // Target cycle
+    if (prog && prog.target_cycle_sec) {
+      const cyc = parseFloat(prog.target_cycle_sec);
+      const pph = cyc > 0 ? (3600 / cyc).toFixed(1) + ' pcs/hr' : '—';
+      document.getElementById('info-curr-cycle').textContent = cyc + 's';
+      document.getElementById('info-curr-rate').textContent  = pph + ' theoretical max';
+    } else {
+      document.getElementById('info-curr-cycle').textContent = '—';
+      document.getElementById('info-curr-rate').textContent  = progNo > 0 ? 'Not in master data' : '—';
+    }
+  } catch(e) {
+    document.getElementById('info-curr-prog').textContent  = '—';
+    document.getElementById('info-curr-cycle').textContent = '—';
+  }
+}
+
+function calcTargetParts(cycleSec) {
+  if (!cycleSec || cycleSec <= 0) return '—';
+  return Math.floor(43200 / cycleSec * 0.9).toLocaleString();
+}
+
+function renderTable(filter) {
+  const tbody = document.getElementById('programs-tbody');
+  let rows = _programs;
+  if (filter) {
+    const q = filter.toLowerCase();
+    rows = rows.filter(p =>
+      String(p.program_no).includes(q) ||
+      (p.part_name||'').toLowerCase().includes(q) ||
+      (p.part_number||'').toLowerCase().includes(q) ||
+      (p.material||'').toLowerCase().includes(q)
+    );
+  }
+  document.getElementById('count-badge').textContent = rows.length + ' program' + (rows.length!==1?'s':'');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No programs found. Add one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(p => {
+    if (_editId === p.program_no) return editRow(p);
+    return `<tr>
+      <td class="num">${p.program_no}</td>
+      <td style="font-weight:600;">${p.part_name||'—'}</td>
+      <td style="color:var(--muted);">${p.part_number||'—'}</td>
+      <td class="num">${p.target_cycle_sec||44}s</td>
+      <td class="num">${calcTargetParts(p.target_cycle_sec)}</td>
+      <td>${p.material||'—'}</td>
+      <td style="color:var(--muted);font-size:.77rem;">${(p.description||'').slice(0,40)}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-edit" onclick="startEdit(${p.program_no})">✏️ Edit</button>
+          <button class="btn btn-del"  onclick="deleteProgram(${p.program_no})">🗑 Del</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function editRow(p) {
+  return `<tr class="editing">
+    <td class="num">${p.program_no}</td>
+    <td><input type="text"   id="e-name"   value="${p.part_name||''}"    placeholder="Part name"></td>
+    <td><input type="text"   id="e-partno" value="${p.part_number||''}"  placeholder="Part number"></td>
+    <td><input type="number" id="e-cycle"  value="${p.target_cycle_sec||44}" min="1" max="9999"></td>
+    <td class="num" id="e-target-display">${calcTargetParts(p.target_cycle_sec)}</td>
+    <td><input type="text"   id="e-mat"    value="${p.material||''}"     placeholder="Material"></td>
+    <td><input type="text"   id="e-desc"   value="${p.description||''}"  placeholder="Notes"></td>
+    <td>
+      <div class="actions">
+        <button class="btn btn-save"   onclick="saveEdit(${p.program_no})">✅ Save</button>
+        <button class="btn btn-cancel" onclick="cancelEdit()">✖ Cancel</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+function startEdit(id) {
+  _editId = id;
+  renderTable(document.getElementById('search-input').value);
+  // Update target display live as cycle changes
+  const cycleInput = document.getElementById('e-cycle');
+  if (cycleInput) {
+    cycleInput.addEventListener('input', function() {
+      const tgt = document.getElementById('e-target-display');
+      if (tgt) tgt.textContent = calcTargetParts(this.value);
+    });
+  }
+}
+
+function cancelEdit() { _editId = null; renderTable(); }
+
+async function saveEdit(progNo) {
+  const payload = {
+    program_no:      progNo,
+    part_name:       document.getElementById('e-name').value.trim(),
+    part_number:     document.getElementById('e-partno').value.trim(),
+    target_cycle_sec: parseFloat(document.getElementById('e-cycle').value) || 44,
+    material:        document.getElementById('e-mat').value.trim(),
+    description:     document.getElementById('e-desc').value.trim()
+  };
+  if (!payload.part_name) { showToast('Part name is required', 'err'); return; }
+
+  try {
+    await zFetch('/api/cnc/programs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...zAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    showToast(`✅ Program ${progNo} saved`, 'ok');
+    _editId = null;
+    loadPrograms();
+  } catch(e) { showToast('Save failed: ' + e.message, 'err'); }
+}
+
+async function addProgram() {
+  const progNo   = parseInt(document.getElementById('a-progno').value);
+  const partName = document.getElementById('a-partname').value.trim();
+  const cycle    = parseFloat(document.getElementById('a-cycle').value) || 44;
+
+  if (!progNo || !partName) {
+    showToast('Program No. and Part Name are required', 'err');
+    return;
+  }
+
+  const payload = {
+    program_no:       progNo,
+    part_name:        partName,
+    part_number:      document.getElementById('a-partno').value.trim(),
+    target_cycle_sec: cycle,
+    material:         document.getElementById('a-material').value.trim(),
+    description:      document.getElementById('a-desc').value.trim()
+  };
+
+  try {
+    await zFetch('/api/cnc/programs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...zAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    showToast(`✅ Program ${progNo} — ${partName} added`, 'ok');
+    // Clear form
+    ['a-progno','a-partname','a-partno','a-material','a-desc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('a-cycle').value = '44';
+    loadPrograms();
+  } catch(e) { showToast('Add failed: ' + e.message, 'err'); }
+}
+
+async function deleteProgram(progNo) {
+  if (!confirm(`Delete program ${progNo}? This cannot be undone.`)) return;
+  try {
+    await zFetch('/api/cnc/programs/'+progNo, { method:'DELETE', headers: zAuthHeader() });
+    showToast(`Program ${progNo} deleted`, 'ok');
+    loadPrograms();
+  } catch(e) { showToast('Delete failed: ' + e.message, 'err'); }
+}
+
+function filterTable() {
+  renderTable(document.getElementById('search-input').value);
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show '+(type||'ok');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => { t.className='toast'; }, 3400);
+}
+</script>
+</body>
+</html>

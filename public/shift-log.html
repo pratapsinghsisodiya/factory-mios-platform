@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shift Log — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+/* ── Page layout ── */
+.main-wrap{max-width:960px;margin:0 auto;padding:20px 16px 80px}
+
+/* ── Tab bar ── */
+.tab-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:2px;overflow-x:auto;position:sticky;top:58px;z-index:390;flex-shrink:0}
+.tab-bar::-webkit-scrollbar{height:2px}
+.tab-item{padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;transition:all .2s;font-family:inherit}
+.tab-item:hover{color:var(--text)}
+.tab-item.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+
+/* ── Sections ── */
+.section{display:none}
+.section.active{display:block}
+
+/* ── Shift header banner ── */
+.shift-banner{background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(0,255,136,.04));border:1px solid rgba(0,212,255,.2);border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.shift-banner-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.shift-banner-val{font-size:20px;font-weight:800;color:var(--cyan)}
+
+/* ── Form helpers ── */
+.form-grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:600px){.g2,.g3{grid-template-columns:1fr}}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.hint{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Calc box ── */
+.calc-box{background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:12px 16px;margin-top:10px;display:none}
+.calc-box.show{display:block}
+.calc-row{display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+.calc-item .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.calc-item .big{font-size:22px;font-weight:800;color:var(--text)}
+.calc-item .sub{font-size:10px;color:var(--muted)}
+
+/* ── Summary tiles ── */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.summary-tile{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.tile-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.tile-val{font-size:20px;font-weight:800;color:var(--text)}
+.tile-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.tile-val.green{color:var(--green)}
+.tile-val.yellow{color:var(--amber)}
+.tile-val.red{color:var(--red)}
+
+/* ── Filter row ── */
+.filter-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end}
+.filter-row .form-group{margin:0;min-width:130px}
+
+/* ── Card title ── */
+.card-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.badge-minor{background:rgba(255,179,0,.15);color:var(--amber)}
+.badge-major{background:rgba(255,68,68,.15);color:var(--red)}
+.badge-a{background:rgba(0,255,136,.12);color:var(--green)}
+.badge-b{background:rgba(255,179,0,.12);color:var(--amber)}
+.badge-c{background:rgba(170,68,255,.12);color:var(--purple)}
+
+/* ── Edit modal override ── */
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1}
+.modal-close:hover{color:var(--text)}
+
+/* ── Bottom nav padding ── */
+@media(max-width:700px){.main-wrap{padding-bottom:80px}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="z-header">
+  <a href="/" class="z-logo">
+    <div class="z-logo-icon">Z</div>
+    <div>
+      <div class="z-logo-name">FACTORY-MIOS</div>
+      <div class="z-logo-sub">Factory-MIOS</div>
+    </div>
+  </a>
+  <div class="z-hdr-right">
+    <span class="clock-txt" id="z-clock">--:--:--</span>
+    <span id="z-user-name" style="font-size:12px;color:var(--muted)"></span>
+    <button class="z-btn ghost" onclick="zLogout()" style="font-size:11px;padding:5px 12px">Sign Out</button>
+  </div>
+</header>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-item active" onclick="showTab('setup')"    id="tab-setup">   Shift Setup</button>
+  <button class="tab-item"        onclick="showTab('downtime')" id="tab-downtime"> Downtime Log</button>
+  <button class="tab-item"        onclick="showTab('defects')"  id="tab-defects">  Defect Log</button>
+  <button class="tab-item"        onclick="showTab('history')"  id="tab-history">  History</button>
+</div>
+
+<!-- ══════ TAB 1: SHIFT SETUP ══════ -->
+<div class="section active" id="section-setup">
+<div class="main-wrap">
+
+  <!-- Current shift banner -->
+  <div class="shift-banner">
+    <div>
+      <div class="shift-banner-label">Current Shift</div>
+      <div class="shift-banner-val" id="bannerShift">—</div>
+    </div>
+    <div>
+      <div class="shift-banner-label">Date</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text)" id="bannerDate">—</div>
+    </div>
+    <div>
+      <div class="shift-banner-label">Shift Time</div>
+      <div style="font-size:14px;font-weight:700;color:var(--muted)" id="bannerTime">—</div>
+    </div>
+  </div>
+
+  <!-- Setup form -->
+  <div class="z-card" style="margin-bottom:16px" data-accent="cyan">
+    <div class="z-section"><span class="dot" style="background:var(--cyan)"></span>Shift Setup — Target Production</div>
+
+    <div class="form-grid g3" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="z-label">Shift Date</label>
+        <input type="date" id="ss-date" class="z-input"/>
+      </div>
+      <div class="form-group">
+        <label class="z-label">Shift</label>
+        <select id="ss-shift" class="z-input z-select">
+          <option value="SHIFT_A">Shift A — Morning</option>
+          <option value="SHIFT_B">Shift B — Afternoon</option>
+          <option value="SHIFT_C">Shift C — Night</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="z-label">Plant</label>
+        <select id="ss-plant" class="z-input z-select">
+          <option value="plant_1">Plant 1</option>
+          <option value="plant_2">Plant 2</option>
+          <option value="plant_3">Plant 3</option>
+          <option value="plant_4">Plant 4</option>
+          <option value="plant_5">Plant 5</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid g2" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="z-label">Operator Name</label>
+        <input type="text" id="ss-operator" class="z-input" placeholder="e.g. Rajesh Kumar"/>
+      </div>
+      <div class="form-group">
+        <label class="z-label">Target Production (units)</label>
+        <input type="number" id="ss-target" class="z-input" placeholder="e.g. 480" min="1" oninput="calcFromTarget()"/>
+      </div>
+    </div>
+
+    <div class="form-grid g2" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="z-label">Ideal Cycle Time (sec/unit)</label>
+        <input type="number" id="ss-cycle" class="z-input" placeholder="e.g. 60" min="0.1" step="0.1" oninput="calcFromCycle()"/>
+        <span class="hint">Leave blank to auto-calculate from target</span>
+      </div>
+      <div class="form-group">
+        <label class="z-label">Shift Duration</label>
+        <select id="ss-duration" class="z-input z-select" onchange="calcFromCycle()">
+          <option value="480">8 hours (standard)</option>
+          <option value="720">12 hours</option>
+          <option value="540">9 hours</option>
+          <option value="360">6 hours</option>
+          <option value="240">4 hours</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Calc result -->
+    <div class="calc-box" id="calcBox">
+      <div class="calc-row">
+        <div class="calc-item"><div class="label">Planned Production</div><div class="big" id="calcPlanned">—</div><div class="sub">units/shift</div></div>
+        <div class="calc-item"><div class="label">Ideal Cycle Time</div><div class="big" id="calcCycle">—</div><div class="sub">sec/unit</div></div>
+        <div class="calc-item"><div class="label">Shift Duration</div><div class="big" id="calcDur">—</div><div class="sub">hours</div></div>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:12px">
+      <label class="z-label">Notes (optional)</label>
+      <textarea id="ss-notes" class="z-input" style="resize:vertical;min-height:64px" placeholder="Material batch, machine changes, special instructions…"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="z-btn primary" onclick="saveShiftSetup()">Save Shift Setup</button>
+      <button class="z-btn ghost"   onclick="loadShiftSetup()">Load Existing</button>
+    </div>
+  </div>
+
+  <!-- Loaded shift summary -->
+  <div class="z-card" id="setupSummaryCard" style="display:none;margin-bottom:16px">
+    <div class="z-section"><span class="dot" style="background:var(--green)"></span>Current Shift Setup</div>
+    <div id="setupSummaryBody"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════ TAB 2: DOWNTIME LOG ══════ -->
+<div class="section" id="section-downtime">
+<div class="main-wrap">
+
+  <div class="z-card" style="margin-bottom:16px" data-accent="amber">
+    <div class="z-section"><span class="dot" style="background:var(--amber)"></span>Log Downtime Event</div>
+
+    <div class="form-grid g3" style="margin-bottom:12px">
+      <div class="form-group"><label class="z-label">Shift Date</label><input type="date" id="dt-date" class="z-input"/></div>
+      <div class="form-group"><label class="z-label">Shift</label>
+        <select id="dt-shift" class="z-input z-select">
+          <option value="SHIFT_A">Shift A</option><option value="SHIFT_B">Shift B</option><option value="SHIFT_C">Shift C</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Operator Name</label><input type="text" id="dt-operator" class="z-input" placeholder="Your name"/></div>
+    </div>
+
+    <div class="form-grid g2" style="margin-bottom:12px">
+      <div class="form-group"><label class="z-label">Start Time (optional)</label><input type="datetime-local" id="dt-start" class="z-input"/></div>
+      <div class="form-group"><label class="z-label">End Time (optional)</label><input type="datetime-local" id="dt-end" class="z-input" oninput="calcDowntimeDuration()"/></div>
+    </div>
+
+    <div class="form-grid g3" style="margin-bottom:12px">
+      <div class="form-group"><label class="z-label">Duration (min) *</label><input type="number" id="dt-duration" class="z-input" placeholder="e.g. 15" min="0.5" step="0.5"/></div>
+      <div class="form-group"><label class="z-label">Category *</label>
+        <select id="dt-category" class="z-input z-select">
+          <option value="MINOR">Minor (&lt; 10 min)</option><option value="MAJOR">Major (≥ 10 min)</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Machine / Line (optional)</label><input type="text" id="dt-machine" class="z-input" placeholder="e.g. M2, Line 1"/></div>
+    </div>
+
+    <div class="form-grid g2" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="z-label">Reason Code *</label>
+        <select id="dt-reason-code" class="z-input z-select">
+          <option value="">— Select reason —</option>
+          <optgroup label="Equipment">
+            <option value="BREAKDOWN">Breakdown / Failure</option>
+            <option value="MAINT_PLANNED">Planned Maintenance</option>
+            <option value="MAINT_UNPLANNED">Unplanned Maintenance</option>
+            <option value="CHANGEOVER">Changeover / Setup</option>
+            <option value="TOOL_CHANGE">Tool Change</option>
+            <option value="ADJUST_QUALITY">Quality Adjustment Stop</option>
+          </optgroup>
+          <optgroup label="Material">
+            <option value="MATERIAL_WAIT">Waiting for Material</option>
+            <option value="MATERIAL_QUALITY">Material Quality Issue</option>
+            <option value="MATERIAL_CHANGE">Material Change</option>
+          </optgroup>
+          <optgroup label="Operations">
+            <option value="NO_OPERATOR">No Operator</option>
+            <option value="SHIFT_CHANGE">Shift Change</option>
+            <option value="CLEANING">Cleaning / 5S</option>
+            <option value="MEETING">Team Meeting</option>
+            <option value="TRIAL">Trial / Testing</option>
+          </optgroup>
+          <optgroup label="Utilities">
+            <option value="POWER_FAIL">Power Failure</option>
+            <option value="UTILITY_FAIL">Utility Failure (Air/Water)</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="PLANNED_STOP">Planned Stop</option>
+            <option value="OTHER">Other (see detail)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Detail / Notes</label><input type="text" id="dt-reason-detail" class="z-input" placeholder="Optional: describe what happened"/></div>
+    </div>
+
+    <button class="z-btn success" onclick="saveDowntime()">Log Downtime</button>
+  </div>
+
+  <!-- Downtime list -->
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="card-title-row">
+      <div class="z-section" style="margin-bottom:0;flex:1"><span class="dot" style="background:var(--amber)"></span>Downtime Entries</div>
+    </div>
+    <div class="filter-row">
+      <div class="form-group"><label class="z-label">Date</label><input type="date" id="dtf-date" class="z-input" oninput="loadDowntime()"/></div>
+      <div class="form-group"><label class="z-label">Shift</label>
+        <select id="dtf-shift" class="z-select" onchange="loadDowntime()">
+          <option value="">All</option><option value="SHIFT_A">A</option><option value="SHIFT_B">B</option><option value="SHIFT_C">C</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Category</label>
+        <select id="dtf-cat" class="z-select" onchange="loadDowntime()">
+          <option value="">All</option><option value="MINOR">Minor</option><option value="MAJOR">Major</option>
+        </select>
+      </div>
+    </div>
+    <div class="summary-grid" id="dtSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="z-table">
+        <thead><tr><th>Date/Shift</th><th>Operator</th><th>Duration</th><th>Category</th><th>Reason</th><th>Machine</th><th>Actions</th></tr></thead>
+        <tbody id="dtTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════ TAB 3: DEFECT LOG ══════ -->
+<div class="section" id="section-defects">
+<div class="main-wrap">
+
+  <div class="z-card" style="margin-bottom:16px" data-accent="red">
+    <div class="z-section"><span class="dot" style="background:var(--red)"></span>Log Defects / Rejections</div>
+
+    <div class="form-grid g3" style="margin-bottom:12px">
+      <div class="form-group"><label class="z-label">Shift Date</label><input type="date" id="df-date" class="z-input"/></div>
+      <div class="form-group"><label class="z-label">Shift</label>
+        <select id="df-shift" class="z-input z-select">
+          <option value="SHIFT_A">Shift A</option><option value="SHIFT_B">Shift B</option><option value="SHIFT_C">Shift C</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Operator Name</label><input type="text" id="df-operator" class="z-input" placeholder="Your name"/></div>
+    </div>
+
+    <div class="form-grid g3" style="margin-bottom:12px">
+      <div class="form-group"><label class="z-label">Defect Count *</label><input type="number" id="df-count" class="z-input" placeholder="e.g. 12" min="1"/></div>
+      <div class="form-group"><label class="z-label">Defect Type *</label>
+        <select id="df-type" class="z-input z-select">
+          <option value="">— Select type —</option>
+          <optgroup label="Dimensional"><option value="OVERSIZE">Oversize</option><option value="UNDERSIZE">Undersize</option><option value="OUT_OF_ROUND">Out of Round</option><option value="SURFACE_DEFECT">Surface Defect</option></optgroup>
+          <optgroup label="Assembly"><option value="MISSING_PART">Missing Part</option><option value="WRONG_PART">Wrong Part</option><option value="ASSEMBLY_ERROR">Assembly Error</option></optgroup>
+          <optgroup label="Material"><option value="MATERIAL_DEFECT">Material Defect</option><option value="CONTAMINATION">Contamination</option><option value="CORROSION">Corrosion / Rust</option></optgroup>
+          <optgroup label="Process"><option value="WELD_DEFECT">Weld Defect</option><option value="PAINT_DEFECT">Paint/Coating Defect</option><option value="CRACK">Crack / Fracture</option><option value="BURR">Burr / Flash</option><option value="TEMP_DEVIATION">Temperature Deviation</option></optgroup>
+          <optgroup label="Other"><option value="REWORK">Rework Required</option><option value="OTHER_DEFECT">Other</option></optgroup>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Line / Machine (optional)</label><input type="text" id="df-machine" class="z-input" placeholder="e.g. L1, M3"/></div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="z-label">Root Cause / Reason *</label>
+      <input type="text" id="df-reason" class="z-input" placeholder="e.g. Tool wear, wrong material batch, operator error…"/>
+    </div>
+
+    <button class="z-btn success" onclick="saveDefect()">Log Defects</button>
+  </div>
+
+  <!-- Defect list -->
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="z-section" style="margin-bottom:12px"><span class="dot" style="background:var(--red)"></span>Defect Entries</div>
+    <div class="filter-row">
+      <div class="form-group"><label class="z-label">Date</label><input type="date" id="dff-date" class="z-input" oninput="loadDefects()"/></div>
+      <div class="form-group"><label class="z-label">Shift</label>
+        <select id="dff-shift" class="z-select" onchange="loadDefects()">
+          <option value="">All</option><option value="SHIFT_A">A</option><option value="SHIFT_B">B</option><option value="SHIFT_C">C</option>
+        </select>
+      </div>
+    </div>
+    <div class="summary-grid" id="dfSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="z-table">
+        <thead><tr><th>Date/Shift</th><th>Operator</th><th>Count</th><th>Type</th><th>Reason</th><th>Machine</th><th>Actions</th></tr></thead>
+        <tbody id="dfTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════ TAB 4: HISTORY ══════ -->
+<div class="section" id="section-history">
+<div class="main-wrap">
+
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="z-section" style="margin-bottom:12px"><span class="dot" style="background:var(--blue)"></span>Shift Log History</div>
+    <div class="filter-row">
+      <div class="form-group"><label class="z-label">From</label><input type="date" id="hf-from" class="z-input" oninput="loadHistory()"/></div>
+      <div class="form-group"><label class="z-label">To</label><input type="date" id="hf-to" class="z-input" oninput="loadHistory()"/></div>
+      <div class="form-group"><label class="z-label">Shift</label>
+        <select id="hf-shift" class="z-select" onchange="loadHistory()">
+          <option value="">All</option><option value="SHIFT_A">A</option><option value="SHIFT_B">B</option><option value="SHIFT_C">C</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="z-label">Type</label>
+        <select id="hf-type" class="z-select" onchange="loadHistory()">
+          <option value="all">All Events</option>
+          <option value="targets">Shift Targets</option>
+          <option value="downtime">Downtime</option>
+          <option value="defects">Defects</option>
+        </select>
+      </div>
+    </div>
+    <div class="summary-grid" id="histSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="z-table">
+        <thead><tr><th>Date</th><th>Shift</th><th>Type</th><th>Operator</th><th>Value</th><th>Detail</th><th>Logged At</th><th>Actions</th></tr></thead>
+        <tbody id="histTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="z-modal-overlay" id="editModal">
+  <div class="z-modal" style="max-width:540px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:700" id="modalTitle">Edit Entry</div>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div id="modalBody"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="z-btn primary" onclick="submitModalEdit()">Save Changes</button>
+      <button class="z-btn danger"  onclick="deleteEntry()">Delete</button>
+      <button class="z-btn ghost"   onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auth guard ─────────────────────────────────────────────
+const TOKEN = localStorage.getItem('oee_token');
+if (!TOKEN) window.location.href = '/login?redirect=/shift-log';
+function authH(){ return {'Content-Type':'application/json',Authorization:'Bearer '+TOKEN}; }
+
+// ── Dates & shift detection ────────────────────────────────
+const todayISO = new Date().toISOString().slice(0,10);
+
+function detectShift(){
+  const h=new Date().getHours();
+  if(h>=6&&h<14) return 'SHIFT_A';
+  if(h>=14&&h<22) return 'SHIFT_B';
+  return 'SHIFT_C';
+}
+function detectShiftLabel(code){
+  return {SHIFT_A:'Shift A — Morning (06:00–14:00)',SHIFT_B:'Shift B — Afternoon (14:00–22:00)',SHIFT_C:'Shift C — Night (22:00–06:00)'}[code]||code;
+}
+function detectShiftTime(code){
+  return {SHIFT_A:'06:00 – 14:00',SHIFT_B:'14:00 – 22:00',SHIFT_C:'22:00 – 06:00'}[code]||'—';
+}
+
+// Update banner
+(function(){
+  const s=detectShift();
+  document.getElementById('bannerShift').textContent=detectShiftLabel(s);
+  document.getElementById('bannerDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('bannerTime').textContent=detectShiftTime(s);
+})();
+
+// Pre-fill dates
+['ss-date','dt-date','df-date','dtf-date','dff-date'].forEach(id=>{
+  const el=document.getElementById(id); if(el) el.value=todayISO;
+});
+const hfFrom=document.getElementById('hf-from'),hfTo=document.getElementById('hf-to');
+if(hfFrom){const d=new Date();d.setDate(d.getDate()-7);hfFrom.value=d.toISOString().slice(0,10);}
+if(hfTo) hfTo.value=todayISO;
+
+// Pre-select current shift
+const curShift=detectShift();
+['ss-shift','dt-shift','df-shift'].forEach(id=>{
+  const el=document.getElementById(id); if(el) el.value=curShift;
+});
+
+// ── Tab switching ──────────────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='downtime') loadDowntime();
+  if(name==='defects')  loadDefects();
+  if(name==='history')  loadHistory();
+}
+
+// ── Calc ───────────────────────────────────────────────────
+function calcFromCycle(){
+  const cycle=parseFloat(document.getElementById('ss-cycle').value)||0;
+  const durMin=parseInt(document.getElementById('ss-duration').value)||480;
+  const box=document.getElementById('calcBox');
+  if(cycle>0){
+    const planned=Math.floor((durMin*60)/cycle);
+    document.getElementById('calcPlanned').textContent=planned.toLocaleString();
+    document.getElementById('calcCycle').textContent=cycle.toFixed(1);
+    document.getElementById('calcDur').textContent=(durMin/60).toFixed(1);
+    if(!document.getElementById('ss-target').value) document.getElementById('ss-target').value=planned;
+    box.classList.add('show');
+  }else box.classList.remove('show');
+}
+function calcFromTarget(){
+  const target=parseInt(document.getElementById('ss-target').value)||0;
+  const durMin=parseInt(document.getElementById('ss-duration').value)||480;
+  const box=document.getElementById('calcBox');
+  if(target>0){
+    const cycleCalc=((durMin*60)/target).toFixed(1);
+    document.getElementById('calcPlanned').textContent=target.toLocaleString();
+    document.getElementById('calcCycle').textContent=cycleCalc;
+    document.getElementById('calcDur').textContent=(durMin/60).toFixed(1);
+    if(!document.getElementById('ss-cycle').value) document.getElementById('ss-cycle').value=cycleCalc;
+    box.classList.add('show');
+  }else box.classList.remove('show');
+}
+function calcDowntimeDuration(){
+  const s=document.getElementById('dt-start').value,e=document.getElementById('dt-end').value;
+  if(s&&e){const diff=(new Date(e)-new Date(s))/60000;if(diff>0){document.getElementById('dt-duration').value=diff.toFixed(1);document.getElementById('dt-category').value=diff>=10?'MAJOR':'MINOR';}}
+}
+
+// ── Shift Setup ────────────────────────────────────────────
+async function saveShiftSetup(){
+  const d=document.getElementById('ss-date').value,shift=document.getElementById('ss-shift').value;
+  const operator=document.getElementById('ss-operator').value.trim();
+  const target=parseInt(document.getElementById('ss-target').value)||null;
+  const cycle=parseFloat(document.getElementById('ss-cycle').value)||null;
+  const durMin=parseInt(document.getElementById('ss-duration').value)||480;
+  const planned=cycle&&durMin?Math.floor((durMin*60)/cycle):target;
+  const plant=document.getElementById('ss-plant').value,notes=document.getElementById('ss-notes').value.trim();
+  if(!d||!shift||!operator){zToast('Please fill date, shift, and operator name','err');return;}
+  if(!target&&!cycle){zToast('Enter at least target production or ideal cycle time','warn');return;}
+  try{
+    const r=await fetch('/api/shift-targets',{method:'POST',headers:authH(),body:JSON.stringify({shift_date:d,shift,operator_name:operator,target_production:target,ideal_cycle_sec:cycle,planned_production:planned,plant_id:plant,notes})});
+    const data=await r.json();
+    if(data.ok){zToast('Shift setup saved!','ok');loadShiftSetup();}
+    else zToast(data.error||'Save failed','err');
+  }catch(e){zToast('Network error','err');}
+}
+
+async function loadShiftSetup(){
+  const d=document.getElementById('ss-date').value,shift=document.getElementById('ss-shift').value,plant=document.getElementById('ss-plant').value;
+  if(!d||!shift) return;
+  try{
+    const r=await fetch(`/api/shift-targets?date=${d}&shift=${shift}&plant=${plant}`,{headers:authH()});
+    const data=await r.json();
+    const card=document.getElementById('setupSummaryCard'),body=document.getElementById('setupSummaryBody');
+    if(data.ok&&data.targets&&data.targets.length){
+      const t=data.targets[0]; card.style.display='block';
+      body.innerHTML=`
+        <div class="summary-grid">
+          <div class="summary-tile"><div class="tile-label">Operator</div><div class="tile-val" style="font-size:16px">${t.operator_name}</div></div>
+          <div class="summary-tile"><div class="tile-label">Target</div><div class="tile-val green">${(t.target_production||'—').toLocaleString?.()??'—'}</div><div class="tile-sub">units</div></div>
+          <div class="summary-tile"><div class="tile-label">Planned</div><div class="tile-val">${(t.planned_production||'—').toLocaleString?.()??'—'}</div><div class="tile-sub">units</div></div>
+          <div class="summary-tile"><div class="tile-label">Cycle Time</div><div class="tile-val">${t.ideal_cycle_sec!=null?parseFloat(t.ideal_cycle_sec).toFixed(1):'—'}</div><div class="tile-sub">sec/unit</div></div>
+        </div>
+        ${t.notes?`<div style="font-size:12px;color:var(--muted);margin-top:8px">${esc(t.notes)}</div>`:''}
+        <button class="z-btn ghost" style="margin-top:10px;font-size:11px;padding:5px 12px" onclick="openEditTarget(${t.id})">Edit</button>
+      `;
+    }else card.style.display='none';
+  }catch(e){}
+}
+
+document.getElementById('ss-date').addEventListener('change',loadShiftSetup);
+document.getElementById('ss-shift').addEventListener('change',loadShiftSetup);
+
+// ── Downtime ───────────────────────────────────────────────
+async function saveDowntime(){
+  const d=document.getElementById('dt-date').value,shift=document.getElementById('dt-shift').value;
+  const operator=document.getElementById('dt-operator').value.trim();
+  const duration=parseFloat(document.getElementById('dt-duration').value);
+  const category=document.getElementById('dt-category').value;
+  const reason_code=document.getElementById('dt-reason-code').value;
+  const reason_detail=document.getElementById('dt-reason-detail').value.trim();
+  const machine=document.getElementById('dt-machine').value.trim();
+  const start=document.getElementById('dt-start').value,end=document.getElementById('dt-end').value;
+  if(!d||!shift||!operator){zToast('Fill date, shift, operator','err');return;}
+  if(!duration||duration<=0){zToast('Enter a valid duration','err');return;}
+  if(!reason_code){zToast('Select a reason code','err');return;}
+  try{
+    const r=await fetch('/api/downtime-events',{method:'POST',headers:authH(),body:JSON.stringify({shift_date:d,shift,operator_name:operator,duration_min:duration,category,reason_code,reason_detail,machine_id:machine||null,start_time:start||null,end_time:end||null})});
+    const data=await r.json();
+    if(data.ok){
+      zToast('Downtime logged!','ok');
+      ['dt-duration','dt-reason-detail','dt-machine','dt-start','dt-end'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('dt-reason-code').value='';
+      loadDowntime();
+    }else zToast(data.error||'Save failed','err');
+  }catch(e){zToast('Network error','err');}
+}
+
+async function loadDowntime(){
+  const d=document.getElementById('dtf-date').value,shift=document.getElementById('dtf-shift').value,cat=document.getElementById('dtf-cat').value;
+  let url='/api/downtime-events?';
+  if(d) url+=`shift_date=${d}&`;
+  if(shift) url+=`shift=${shift}&`;
+  if(cat) url+=`category=${cat}&`;
+  try{
+    const r=await fetch(url,{headers:authH()});
+    const data=await r.json();
+    const rows=data.events||data.data||[];
+    renderDowntimeTable(rows); renderDowntimeSummary(rows);
+  }catch(e){document.getElementById('dtTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Error loading data</td></tr>';}
+}
+
+function renderDowntimeSummary(rows){
+  const total=rows.reduce((a,r)=>a+parseFloat(r.duration_min||0),0);
+  const major=rows.filter(r=>r.category==='MAJOR'),minor=rows.filter(r=>r.category==='MINOR');
+  document.getElementById('dtSummary').innerHTML=`
+    <div class="summary-tile"><div class="tile-label">Total Events</div><div class="tile-val">${rows.length}</div></div>
+    <div class="summary-tile"><div class="tile-label">Total Downtime</div><div class="tile-val yellow">${total.toFixed(1)}</div><div class="tile-sub">minutes</div></div>
+    <div class="summary-tile"><div class="tile-label">Major Events</div><div class="tile-val red">${major.length}</div><div class="tile-sub">${major.reduce((a,r)=>a+parseFloat(r.duration_min||0),0).toFixed(0)} min</div></div>
+    <div class="summary-tile"><div class="tile-label">Minor Events</div><div class="tile-val yellow">${minor.length}</div><div class="tile-sub">${minor.reduce((a,r)=>a+parseFloat(r.duration_min||0),0).toFixed(0)} min</div></div>
+  `;
+}
+
+const REASON_LABELS={BREAKDOWN:'Breakdown',MAINT_PLANNED:'Planned Maint.',MAINT_UNPLANNED:'Unplanned Maint.',CHANGEOVER:'Changeover',TOOL_CHANGE:'Tool Change',ADJUST_QUALITY:'Quality Stop',MATERIAL_WAIT:'Material Wait',MATERIAL_QUALITY:'Material Quality',MATERIAL_CHANGE:'Material Change',NO_OPERATOR:'No Operator',SHIFT_CHANGE:'Shift Change',CLEANING:'Cleaning',MEETING:'Meeting',TRIAL:'Trial/Test',POWER_FAIL:'Power Fail',UTILITY_FAIL:'Utility Fail',PLANNED_STOP:'Planned Stop',OTHER:'Other'};
+
+function renderDowntimeTable(rows){
+  const tbody=document.getElementById('dtTableBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No downtime events found</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`
+    <tr>
+      <td>${r.shift_date}<br/><span class="badge badge-${(r.shift||'').slice(-1).toLowerCase()}">${r.shift}</span></td>
+      <td>${r.operator_name}</td>
+      <td style="font-weight:700;color:var(--amber)">${parseFloat(r.duration_min).toFixed(1)} min</td>
+      <td><span class="badge badge-${(r.category||'').toLowerCase()}">${r.category}</span></td>
+      <td>${REASON_LABELS[r.reason_code]||r.reason_code}${r.reason_detail?'<br/><span style="font-size:11px;color:var(--muted)">'+esc(r.reason_detail)+'</span>':''}</td>
+      <td>${r.machine_id||'—'}</td>
+      <td><button class="z-btn ghost" style="font-size:11px;padding:4px 10px" onclick="openEditDowntime(${r.id})">Edit</button></td>
+    </tr>
+  `).join('');
+}
+
+// ── Defects ────────────────────────────────────────────────
+async function saveDefect(){
+  const d=document.getElementById('df-date').value,shift=document.getElementById('df-shift').value;
+  const operator=document.getElementById('df-operator').value.trim();
+  const count=parseInt(document.getElementById('df-count').value);
+  const type=document.getElementById('df-type').value;
+  const reason=document.getElementById('df-reason').value.trim();
+  const machine=document.getElementById('df-machine').value.trim();
+  if(!d||!shift||!operator){zToast('Fill date, shift, operator','err');return;}
+  if(!count||count<1){zToast('Enter valid defect count','err');return;}
+  if(!type){zToast('Select defect type','err');return;}
+  if(!reason){zToast('Enter defect reason','err');return;}
+  try{
+    const r=await fetch('/api/defect-events',{method:'POST',headers:authH(),body:JSON.stringify({shift_date:d,shift,operator_name:operator,defect_count:count,defect_type:type,defect_reason:reason,machine_id:machine||null})});
+    const data=await r.json();
+    if(data.ok){
+      zToast('Defects logged!','ok');
+      ['df-count','df-reason','df-machine'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('df-type').value='';
+      loadDefects();
+    }else zToast(data.error||'Save failed','err');
+  }catch(e){zToast('Network error','err');}
+}
+
+async function loadDefects(){
+  const d=document.getElementById('dff-date').value,shift=document.getElementById('dff-shift').value;
+  let url='/api/defect-events?';
+  if(d) url+=`shift_date=${d}&`;
+  if(shift) url+=`shift=${shift}&`;
+  try{
+    const r=await fetch(url,{headers:authH()});
+    const data=await r.json();
+    const rows=data.events||data.data||[];
+    renderDefectTable(rows); renderDefectSummary(rows);
+  }catch(e){}
+}
+
+function renderDefectSummary(rows){
+  const total=rows.reduce((a,r)=>a+parseInt(r.defect_count||0),0);
+  document.getElementById('dfSummary').innerHTML=`
+    <div class="summary-tile"><div class="tile-label">Log Entries</div><div class="tile-val">${rows.length}</div></div>
+    <div class="summary-tile"><div class="tile-label">Total Defects</div><div class="tile-val red">${total.toLocaleString()}</div><div class="tile-sub">units rejected</div></div>
+  `;
+}
+
+const TYPE_LABELS={OVERSIZE:'Oversize',UNDERSIZE:'Undersize',OUT_OF_ROUND:'Out of Round',SURFACE_DEFECT:'Surface Defect',MISSING_PART:'Missing Part',WRONG_PART:'Wrong Part',ASSEMBLY_ERROR:'Assembly Error',MATERIAL_DEFECT:'Material Defect',CONTAMINATION:'Contamination',CORROSION:'Corrosion',WELD_DEFECT:'Weld Defect',PAINT_DEFECT:'Paint Defect',CRACK:'Crack',BURR:'Burr/Flash',TEMP_DEVIATION:'Temp Deviation',REWORK:'Rework',OTHER_DEFECT:'Other'};
+
+function renderDefectTable(rows){
+  const tbody=document.getElementById('dfTableBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No defect events found</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`
+    <tr>
+      <td>${r.shift_date}<br/><span class="badge badge-${(r.shift||'').slice(-1).toLowerCase()}">${r.shift}</span></td>
+      <td>${r.operator_name}</td>
+      <td style="font-weight:700;color:var(--red)">${parseInt(r.defect_count).toLocaleString()}</td>
+      <td>${TYPE_LABELS[r.defect_type]||r.defect_type}</td>
+      <td>${esc(r.defect_reason||'—')}</td>
+      <td>${r.machine_id||'—'}</td>
+      <td><button class="z-btn ghost" style="font-size:11px;padding:4px 10px" onclick="openEditDefect(${r.id})">Edit</button></td>
+    </tr>
+  `).join('');
+}
+
+// ── History ────────────────────────────────────────────────
+async function loadHistory(){
+  const from=document.getElementById('hf-from').value,to=document.getElementById('hf-to').value;
+  const shift=document.getElementById('hf-shift').value,type=document.getElementById('hf-type').value;
+  const params=new URLSearchParams();
+  if(from) params.set('from',from);
+  if(to) params.set('to',to);
+  if(shift) params.set('shift',shift);
+  try{
+    const promises=[];
+    if(type==='all'||type==='targets')  promises.push(fetch(`/api/shift-targets?${params}`,{headers:authH()}).then(r=>r.json()));
+    else promises.push(Promise.resolve({targets:[]}));
+    if(type==='all'||type==='downtime') promises.push(fetch(`/api/downtime-events?${params}`,{headers:authH()}).then(r=>r.json()));
+    else promises.push(Promise.resolve({events:[]}));
+    if(type==='all'||type==='defects')  promises.push(fetch(`/api/defect-events?${params}`,{headers:authH()}).then(r=>r.json()));
+    else promises.push(Promise.resolve({events:[]}));
+    const [td,dd,dfd]=await Promise.all(promises);
+    const targets=(td.targets||[]).map(r=>({...r,_type:'target'}));
+    const dtEvents=(dd.events||dd.data||[]).map(r=>({...r,_type:'downtime'}));
+    const dfEvents=(dfd.events||dfd.data||[]).map(r=>({...r,_type:'defect'}));
+    const all=[...targets,...dtEvents,...dfEvents].sort((a,b)=>new Date(b.shift_date)-new Date(a.shift_date)||(a.shift||'').localeCompare(b.shift||''));
+    renderHistoryTable(all); renderHistorySummary(all,dtEvents,dfEvents);
+  }catch(e){}
+}
+
+function renderHistorySummary(all,dtEvents,dfEvents){
+  const totalDT=dtEvents.reduce((a,r)=>a+parseFloat(r.duration_min||0),0);
+  const totalDef=dfEvents.reduce((a,r)=>a+parseInt(r.defect_count||0),0);
+  document.getElementById('histSummary').innerHTML=`
+    <div class="summary-tile"><div class="tile-label">Total Entries</div><div class="tile-val">${all.length}</div></div>
+    <div class="summary-tile"><div class="tile-label">Downtime</div><div class="tile-val yellow">${totalDT.toFixed(0)} min</div><div class="tile-sub">${dtEvents.length} events</div></div>
+    <div class="summary-tile"><div class="tile-label">Defects</div><div class="tile-val red">${totalDef.toLocaleString()}</div><div class="tile-sub">${dfEvents.length} logs</div></div>
+  `;
+}
+
+function renderHistoryTable(rows){
+  window.openEdit_target=openEditTarget; window.openEdit_downtime=openEditDowntime; window.openEdit_defect=openEditDefect;
+  const tbody=document.getElementById('histTableBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No records found</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>{
+    let typeName='—',value='—',detail='—';
+    if(r._type==='target'){
+      typeName='Setup';
+      value=`Target: ${r.target_production||'—'} | Plan: ${r.planned_production||'—'}`;
+      detail=`Cycle: ${r.ideal_cycle_sec!=null?parseFloat(r.ideal_cycle_sec).toFixed(1)+'s':'—'}`;
+    }else if(r._type==='downtime'){
+      typeName='Downtime';
+      value=`<span style="color:var(--amber);font-weight:700">${parseFloat(r.duration_min).toFixed(1)} min</span>`;
+      detail=`<span class="badge badge-${(r.category||'').toLowerCase()}">${r.category}</span> ${r.reason_code}${r.reason_detail?' — '+esc(r.reason_detail):''}`;
+    }else{
+      typeName='Defect';
+      value=`<span style="color:var(--red);font-weight:700">${parseInt(r.defect_count).toLocaleString()} units</span>`;
+      detail=`${r.defect_type} — ${esc(r.defect_reason||'—')}`;
+    }
+    const logged=r.logged_at||r.created_at;
+    const loggedStr=logged?new Date(logged).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr>
+      <td>${r.shift_date}</td>
+      <td><span class="badge badge-${(r.shift||'').slice(-1).toLowerCase()}">${r.shift}</span></td>
+      <td style="color:var(--muted)">${typeName}</td>
+      <td>${r.operator_name||'—'}</td>
+      <td>${value}</td>
+      <td style="font-size:11px;color:var(--muted)">${detail}</td>
+      <td style="font-size:11px;color:var(--muted)">${loggedStr}</td>
+      <td><button class="z-btn ghost" style="font-size:11px;padding:4px 10px" onclick="openEdit_${r._type}(${r.id})">Edit</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Modal helpers ──────────────────────────────────────────
+let _editType=null,_editId=null;
+
+function openModal(title,body){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=body;
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal(){document.getElementById('editModal').classList.remove('open');_editType=null;_editId=null;}
+document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+async function openEditTarget(id){
+  _editType='target';_editId=id;
+  try{
+    const r=await fetch(`/api/shift-targets/${id}`,{headers:authH()});
+    const data=await r.json();const t=data.target||data;
+    openModal('Edit Shift Target',`
+      <div class="form-grid g2" style="margin-bottom:12px">
+        <div class="form-group"><label class="z-label">Target Production</label><input type="number" id="em-target" class="z-input" value="${t.target_production||''}"/></div>
+        <div class="form-group"><label class="z-label">Ideal Cycle (sec)</label><input type="number" step="0.1" id="em-cycle" class="z-input" value="${t.ideal_cycle_sec!=null?parseFloat(t.ideal_cycle_sec).toFixed(1):''}"/></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label class="z-label">Operator Name</label><input type="text" id="em-operator" class="z-input" value="${esc(t.operator_name||'')}"/></div>
+      <div class="form-group"><label class="z-label">Notes</label><textarea id="em-notes" class="z-input" style="min-height:60px">${esc(t.notes||'')}</textarea></div>
+    `);
+  }catch(e){zToast('Failed to load record','err');}
+}
+
+async function openEditDowntime(id){
+  _editType='downtime';_editId=id;
+  try{
+    const r=await fetch(`/api/downtime-events/${id}`,{headers:authH()});
+    const data=await r.json();const t=data.event||data;
+    openModal('Edit Downtime Event',`
+      <div class="form-grid g2" style="margin-bottom:12px">
+        <div class="form-group"><label class="z-label">Duration (min)</label><input type="number" step="0.5" id="em-duration" class="z-input" value="${parseFloat(t.duration_min).toFixed(1)}"/></div>
+        <div class="form-group"><label class="z-label">Category</label><select id="em-category" class="z-input z-select"><option value="MINOR" ${t.category==='MINOR'?'selected':''}>Minor</option><option value="MAJOR" ${t.category==='MAJOR'?'selected':''}>Major</option></select></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label class="z-label">Operator</label><input type="text" id="em-operator" class="z-input" value="${esc(t.operator_name||'')}"/></div>
+      <div class="form-group" style="margin-bottom:10px"><label class="z-label">Reason Code</label><input type="text" id="em-reason-code" class="z-input" value="${esc(t.reason_code||'')}"/></div>
+      <div class="form-group"><label class="z-label">Detail</label><input type="text" id="em-detail" class="z-input" value="${esc(t.reason_detail||'')}"/></div>
+    `);
+  }catch(e){zToast('Failed to load record','err');}
+}
+
+async function openEditDefect(id){
+  _editType='defect';_editId=id;
+  try{
+    const r=await fetch(`/api/defect-events/${id}`,{headers:authH()});
+    const data=await r.json();const t=data.event||data;
+    openModal('Edit Defect Entry',`
+      <div class="form-grid g2" style="margin-bottom:12px">
+        <div class="form-group"><label class="z-label">Defect Count</label><input type="number" id="em-count" class="z-input" value="${t.defect_count||''}"/></div>
+        <div class="form-group"><label class="z-label">Operator</label><input type="text" id="em-operator" class="z-input" value="${esc(t.operator_name||'')}"/></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label class="z-label">Defect Type</label><input type="text" id="em-type" class="z-input" value="${esc(t.defect_type||'')}"/></div>
+      <div class="form-group"><label class="z-label">Reason</label><input type="text" id="em-reason" class="z-input" value="${esc(t.defect_reason||'')}"/></div>
+    `);
+  }catch(e){zToast('Failed to load record','err');}
+}
+
+async function submitModalEdit(){
+  if(!_editType||!_editId){closeModal();return;}
+  let body={};
+  if(_editType==='target'){
+    body={target_production:parseInt(document.getElementById('em-target').value)||null,ideal_cycle_sec:parseFloat(document.getElementById('em-cycle').value)||null,operator_name:document.getElementById('em-operator').value.trim(),notes:document.getElementById('em-notes').value.trim()};
+  }else if(_editType==='downtime'){
+    body={duration_min:parseFloat(document.getElementById('em-duration').value),category:document.getElementById('em-category').value,operator_name:document.getElementById('em-operator').value.trim(),reason_code:document.getElementById('em-reason-code').value.trim(),reason_detail:document.getElementById('em-detail').value.trim()};
+  }else{
+    body={defect_count:parseInt(document.getElementById('em-count').value),operator_name:document.getElementById('em-operator').value.trim(),defect_type:document.getElementById('em-type').value.trim(),defect_reason:document.getElementById('em-reason').value.trim()};
+  }
+  const urls={target:`/api/shift-targets/${_editId}`,downtime:`/api/downtime-events/${_editId}`,defect:`/api/defect-events/${_editId}`};
+  try{
+    const r=await fetch(urls[_editType],{method:'PUT',headers:authH(),body:JSON.stringify(body)});
+    const data=await r.json();
+    if(data.ok){zToast('Updated!','ok');closeModal();loadDowntime();loadDefects();loadHistory();}
+    else zToast(data.error||'Update failed','err');
+  }catch(e){zToast('Network error','err');}
+}
+
+async function deleteEntry(){
+  if(!_editType||!_editId) return;
+  if(!confirm('Delete this entry? This cannot be undone.')) return;
+  const urls={target:`/api/shift-targets/${_editId}`,downtime:`/api/downtime-events/${_editId}`,defect:`/api/defect-events/${_editId}`};
+  try{
+    const r=await fetch(urls[_editType],{method:'DELETE',headers:authH()});
+    const data=await r.json();
+    if(data.ok){zToast('Deleted','ok');closeModal();loadDowntime();loadDefects();loadHistory();}
+    else zToast(data.error||'Delete failed','err');
+  }catch(e){zToast('Network error','err');}
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+<script src="/_shared.js"></script>
+</body>
+</html>

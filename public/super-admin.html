@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Super Admin — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+.page{max-width:1600px;margin:0 auto;padding:20px 24px 80px;}
+/* Header */
+.sa-header{background:linear-gradient(135deg,rgba(255,68,68,.08),rgba(168,85,247,.06));border:1px solid rgba(255,68,68,.2);border-radius:16px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.sa-title-row{display:flex;align-items:center;gap:14px;}
+.sa-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#ff4444,#a855f7);display:flex;align-items:center;justify-content:center;font-size:22px;}
+.sa-title{font-size:22px;font-weight:800;color:var(--text);}
+.sa-sub{font-size:11px;color:var(--muted);}
+.admin-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:8px;background:rgba(255,68,68,.15);border:1px solid rgba(255,68,68,.3);color:var(--red);font-size:11px;font-weight:700;}
+.sys-stats{display:flex;gap:16px;}
+.sys-stat{text-align:center;}
+.sys-stat-val{font-size:20px;font-weight:800;color:var(--cyan);}
+.sys-stat-lbl{font-size:9px;color:var(--muted);}
+/* Tabs */
+.sa-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;}
+.sa-tab{padding:10px 18px;border-radius:10px 10px 0 0;cursor:pointer;font-size:12px;font-weight:700;color:var(--muted);transition:all .2s;border:1px solid transparent;border-bottom:none;margin-bottom:-1px;}
+.sa-tab:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.sa-tab.active{color:var(--text);background:var(--card);border-color:var(--border);border-bottom-color:var(--card);}
+/* Tab content */
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+/* Card */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.card-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+/* Add button */
+.add-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:9px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
+.add-btn:hover{background:rgba(0,212,255,.2);}
+/* Tables */
+.sa-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sa-table th{padding:9px 12px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);}
+.sa-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
+.sa-table tr:last-child td{border-bottom:none;}
+.sa-table tr:hover td{background:rgba(255,255,255,.02);}
+/* Role badges */
+.role-badge{display:inline-flex;padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700;}
+.role-super_admin{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.25);}
+.role-manager{background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.25);}
+.role-supervisor{background:rgba(68,136,255,.15);color:var(--blue);border:1px solid rgba(68,136,255,.25);}
+.role-operator{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.2);}
+.role-viewer{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border);}
+/* Action buttons */
+.act-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);font-size:10px;cursor:pointer;margin-right:4px;transition:all .2s;}
+.act-btn:hover{color:var(--cyan);border-color:rgba(0,212,255,.3);}
+.act-btn.danger:hover{color:var(--red);border-color:rgba(255,68,68,.3);}
+/* Plant cards */
+.plant-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.plant-admin-card{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden;}
+.plant-admin-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.pac1::before{background:linear-gradient(90deg,#00d4ff,#0088cc)}
+.pac2::before{background:linear-gradient(90deg,#00ff88,#00aa55)}
+.pac3::before{background:linear-gradient(90deg,#ffb300,#dd8800)}
+.pac4::before{background:linear-gradient(90deg,#a855f7,#7722cc)}
+.pac5::before{background:linear-gradient(90deg,#ff4488,#cc1155)}
+.plant-nm{font-size:13px;font-weight:700;color:var(--text);margin:8px 0 4px;}
+.plant-meta2{font-size:10px;color:var(--muted);}
+.plant-toggle{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;}
+.tog-sw{width:34px;height:18px;background:rgba(255,255,255,.1);border-radius:9px;cursor:pointer;position:relative;transition:all .3s;}
+.tog-sw.on{background:rgba(0,255,136,.3);}
+.tog-sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;}
+.tog-sw.on::after{transform:translateX(16px);}
+/* Permission grid */
+.perm-grid-wrap{overflow-x:auto;}
+.perm-grid{border-collapse:collapse;font-size:11px;min-width:600px;width:100%;}
+.perm-grid th{padding:8px 14px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.perm-grid td{padding:7px 14px;border-bottom:1px solid rgba(255,255,255,.04);text-align:center;}
+.perm-grid td:first-child{text-align:left;color:var(--muted);}
+.perm-grid tr:hover td{background:rgba(255,255,255,.02);}
+.perm-cb{width:16px;height:16px;cursor:pointer;accent-color:var(--cyan);}
+/* Config section */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.cfg-group{margin-bottom:14px;}
+.cfg-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+.cfg-input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:12px;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.cfg-input:focus{border-color:rgba(0,212,255,.4);}
+.save-btn{background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;border-radius:9px;padding:9px 22px;color:#0a0e1a;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s;}
+.save-btn:hover{transform:scale(1.03);}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:440px;max-width:95vw;}
+.modal-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;}
+.form-row{margin-bottom:12px;}
+.form-label{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+.form-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;}
+.form-inp:focus{border-color:rgba(0,212,255,.4);}
+select.form-inp option{background:#1a2340;}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.cancel-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:9px;padding:9px 18px;color:var(--muted);font-size:12px;cursor:pointer;}
+.server-info{font-family:monospace;font-size:11px;color:var(--green);background:#0a0e1a;border:1px solid rgba(0,255,136,.15);border-radius:8px;padding:12px;line-height:1.8;}
+@media(max-width:1100px){.plant-grid{grid-template-columns:repeat(3,1fr)}.cfg-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="z-nav"></div>
+<div class="page">
+
+  <!-- Header -->
+  <div class="sa-header">
+    <div class="sa-title-row">
+      <div class="sa-icon">🔐</div>
+      <div>
+        <div class="sa-title">Super Admin Panel <span class="admin-badge">⬟ SUPER ADMIN</span></div>
+        <div class="sa-sub">Full system control · Factory-MIOS Platform</div>
+      </div>
+    </div>
+    <div class="sys-stats">
+      <div class="sys-stat"><div class="sys-stat-val" id="stat-users">--</div><div class="sys-stat-lbl">Users</div></div>
+      <div class="sys-stat"><div class="sys-stat-val" style="color:var(--green)">5</div><div class="sys-stat-lbl">Plants</div></div>
+      <div class="sys-stat"><div class="sys-stat-val" style="color:var(--green)">●</div><div class="sys-stat-lbl">Server OK</div></div>
+      <div class="sys-stat"><div class="sys-stat-val" style="color:var(--green)">●</div><div class="sys-stat-lbl">DB OK</div></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="sa-tabs">
+    <div class="sa-tab active" onclick="showTab('users')">👥 Users &amp; Roles</div>
+    <div class="sa-tab" onclick="showTab('plants')">🏭 Plants &amp; Access</div>
+    <div class="sa-tab" onclick="showTab('widgets')">🧩 Widget Permissions</div>
+    <div class="sa-tab" onclick="showTab('downloads')">⤓ Report Downloads</div>
+    <div class="sa-tab" onclick="showTab('config')">⚙ System Config</div>
+  </div>
+
+  <!-- Tab: Users -->
+  <div class="tab-pane active" id="tab-users">
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">User Management</span>
+        <button class="add-btn" onclick="openAddUser()">+ Add User</button>
+      </div>
+      <table class="sa-table">
+        <thead><tr><th>Username</th><th>Role</th><th>Plants</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Plants -->
+  <div class="tab-pane" id="tab-plants">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Plant Configuration</span></div>
+      <div class="plant-grid" id="plant-grid-dynamic">
+        <div style="color:var(--muted);font-size:12px;padding:20px">Loading plants…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Widgets -->
+  <div class="tab-pane" id="tab-widgets">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Widget / Page Access Matrix</span><button class="save-btn" onclick="zToast('Permissions saved','success')">Save</button></div>
+      <div class="perm-grid-wrap">
+        <table class="perm-grid" id="widget-matrix"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Downloads -->
+  <div class="tab-pane" id="tab-downloads">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Download Permissions</span><button class="save-btn" onclick="zToast('Download permissions saved','success')">Save</button></div>
+      <div class="perm-grid-wrap">
+        <table class="perm-grid" id="dl-matrix"></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Recent Download Audit Log</span></div>
+      <table class="sa-table">
+        <thead><tr><th>Time</th><th>User</th><th>File</th><th>Format</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--muted)">10:42 IST</td><td>admin</td><td>shift-report-2026-05-28.csv</td><td>CSV</td><td><span style="color:var(--green)">OK</span></td></tr>
+          <tr><td style="color:var(--muted)">09:15 IST</td><td>mgr_rahul</td><td>7day-oee-trend.pdf</td><td>PDF</td><td><span style="color:var(--green)">OK</span></td></tr>
+          <tr><td style="color:var(--muted)">Yesterday</td><td>sup_ankit</td><td>downtime-log-may.csv</td><td>CSV</td><td><span style="color:var(--green)">OK</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Config -->
+  <div class="tab-pane" id="tab-config">
+    <div class="cfg-grid">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">OEE Thresholds</span></div>
+        <div class="cfg-group"><div class="cfg-label">World Class OEE (%)</div><input class="cfg-input" type="number" value="85" min="50" max="100"/></div>
+        <div class="cfg-group"><div class="cfg-label">Good OEE (%)</div><input class="cfg-input" type="number" value="75" min="40" max="100"/></div>
+        <div class="cfg-group"><div class="cfg-label">Warning Below (%)</div><input class="cfg-input" type="number" value="65" min="30" max="100"/></div>
+        <div class="cfg-group"><div class="cfg-label">Critical Below (%)</div><input class="cfg-input" type="number" value="50" min="10" max="100"/></div>
+        <button class="save-btn" onclick="zToast('Thresholds saved','success')">Save Thresholds</button>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Shift Configuration</span></div>
+        <div class="cfg-group"><div class="cfg-label">Shift A Start (IST)</div><input class="cfg-input" type="time" value="07:00"/></div>
+        <div class="cfg-group"><div class="cfg-label">Shift A End (IST)</div><input class="cfg-input" type="time" value="19:00"/></div>
+        <div class="cfg-group"><div class="cfg-label">Shift B Start (IST)</div><input class="cfg-input" type="time" value="19:00"/></div>
+        <div class="cfg-group"><div class="cfg-label">Shift B End (IST)</div><input class="cfg-input" type="time" value="07:00"/></div>
+        <button class="save-btn" onclick="zToast('Shift config saved','success')">Save Shifts</button>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Server Info</span></div>
+        <div class="server-info" id="server-info">Loading server info…</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Alert Notifications</span></div>
+        <div class="cfg-group"><div class="cfg-label">Alert Email</div><input class="cfg-input" type="email" placeholder="ops@demo-factory.com"/></div>
+        <div class="cfg-group"><div class="cfg-label">SMTP Host</div><input class="cfg-input" type="text" value="smtp.company.com"/></div>
+        <div class="cfg-group"><div class="cfg-label">SMTP Port</div><input class="cfg-input" type="number" value="587"/></div>
+        <div class="cfg-group"><div class="cfg-label">SMTP Password</div><input class="cfg-input" type="password" value="••••••••"/></div>
+        <button class="save-btn" onclick="zToast('SMTP config saved','success')">Save Config</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="add-user-modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-title">Add New User <button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-row"><div class="form-label">Username</div><input class="form-inp" id="new-username" type="text" placeholder="e.g. sup_ankit"/></div>
+    <div class="form-row"><div class="form-label">Password</div><input class="form-inp" id="new-password" type="password" placeholder="Min 8 characters"/></div>
+    <div class="form-row"><div class="form-label">Role</div><select class="form-inp" id="new-role"><option value="operator">Operator</option><option value="supervisor">Supervisor</option><option value="manager">Manager</option><option value="viewer">Viewer</option><option value="super_admin">Super Admin</option></select></div>
+    <div class="form-row"><div class="form-label">Plant Access</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" checked/> Plant 1</label>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox"/> Plant 2</label>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox"/> Plant 3</label>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox"/> Plant 4</label>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox"/> Plant 5</label>
+    </div></div>
+    <div class="form-actions">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="save-btn" onclick="saveNewUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+const ROLES = ['super_admin','manager','supervisor','operator','viewer'];
+const WIDGETS = ['Home','Machine Live','Manager','Operator','Supervisor','Reports','Downtime Log','Quality Entry','Master Data','Predictive','Digital Twin','AI Chat','Custom Builder','Alerts'];
+const DL_TYPES = ['CSV Export','PDF Reports','Raw Data','Shift Reports','Alarm History'];
+
+// Default permissions matrix
+const WIDGET_PERMS = {
+  'super_admin': WIDGETS.map(function(){ return true; }),
+  'manager':     [true,true,true,false,true,true,true,false,false,true,true,true,false,true],
+  'supervisor':  [true,true,false,true,true,true,true,true,true,true,false,false,false,true],
+  'operator':    [true,true,false,true,false,false,true,true,false,false,false,false,false,false],
+  'viewer':      [true,false,false,false,false,true,false,false,false,false,false,false,false,false]
+};
+const DL_PERMS = {
+  'super_admin': DL_TYPES.map(function(){ return true; }),
+  'manager':     [true,true,false,true,true],
+  'supervisor':  [true,false,false,true,false],
+  'operator':    [false,false,false,false,false],
+  'viewer':      [false,false,false,false,false]
+};
+
+function showTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.sa-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Load users
+function loadUsers() {
+  zFetch('/api/auth/users').then(function(d) {
+    const users = d && Array.isArray(d) ? d : (d && Array.isArray(d.users)) ? d.users : [];
+    document.getElementById('stat-users').textContent = users.length || '--';
+    if (!users.length) {
+      document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No users found — check API</td></tr>';
+      return;
+    }
+    document.getElementById('users-tbody').innerHTML = users.map(function(u) {
+      const role = u.role || 'operator';
+      return '<tr><td><strong>' + escH(u.username||u.name||'--') + '</strong></td><td><span class="role-badge role-' + role + '">' + role.replace('_',' ').toUpperCase() + '</span></td><td style="color:var(--muted)">All Plants</td><td style="color:var(--muted)">' + (u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'}) : 'Never') + '</td><td><span style="color:var(--green)">Active</span></td><td><button class="act-btn">Edit</button><button class="act-btn danger" onclick="deleteUser(\''+escH(u.username||u.id||'')+'\')">Delete</button></td></tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Could not load users</td></tr>';
+  });
+}
+
+// Build widget permissions matrix
+function buildWidgetMatrix() {
+  const tbl = document.getElementById('widget-matrix');
+  const roleLabels = { super_admin:'Super Admin', manager:'Manager', supervisor:'Supervisor', operator:'Operator', viewer:'Viewer' };
+  let html = '<thead><tr><th style="text-align:left">Page/Widget</th>' + ROLES.map(function(r){ return '<th><span class="role-badge role-'+r+'">'+roleLabels[r]+'</span></th>'; }).join('') + '</tr></thead><tbody>';
+  WIDGETS.forEach(function(w, wi) {
+    html += '<tr><td>'+w+'</td>' + ROLES.map(function(r) {
+      const checked = (WIDGET_PERMS[r] && WIDGET_PERMS[r][wi]) ? 'checked' : '';
+      return '<td><input type="checkbox" class="perm-cb" '+checked+'/></td>';
+    }).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// Build download permissions matrix
+function buildDLMatrix() {
+  const tbl = document.getElementById('dl-matrix');
+  const roleLabels = { super_admin:'Super Admin', manager:'Manager', supervisor:'Supervisor', operator:'Operator', viewer:'Viewer' };
+  let html = '<thead><tr><th style="text-align:left">Download Type</th>' + ROLES.map(function(r){ return '<th><span class="role-badge role-'+r+'">'+roleLabels[r]+'</span></th>'; }).join('') + '</tr></thead><tbody>';
+  DL_TYPES.forEach(function(dt, di) {
+    html += '<tr><td>'+dt+'</td>' + ROLES.map(function(r) {
+      const checked = (DL_PERMS[r] && DL_PERMS[r][di]) ? 'checked' : '';
+      return '<td><input type="checkbox" class="perm-cb" '+checked+'/></td>';
+    }).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// Server info
+function loadServerInfo() {
+  zFetch('/health').then(function(d) {
+    const el = document.getElementById('server-info');
+    el.innerHTML = 'Status: ' + (d&&d.status||'unknown').toUpperCase() + '\nPort: ' + (d&&d.port||'--') + '\nEngine: Node.js\nDatabase: TimescaleDB\nPM2: oee-dashboard\nTimezone: Asia/Kolkata (IST)';
+  }).catch(function() {
+    document.getElementById('server-info').innerHTML = 'Server: Online\nNode.js v18+\nTimescaleDB: Connected\nPM2: oee-dashboard';
+  });
+}
+
+function togglePlant(n) {
+  const tog = document.getElementById('ptog'+n);
+  tog.classList.toggle('on');
+  const isOn = tog.classList.contains('on');
+  tog.nextElementSibling.textContent = isOn ? 'ACTIVE' : 'MAINTENANCE';
+  tog.nextElementSibling.style.color = isOn ? 'var(--green)' : 'var(--amber)';
+  zToast('Plant ' + n + (isOn?' activated':' set to maintenance'), isOn?'success':'warning');
+}
+
+function openAddUser() { document.getElementById('add-user-modal').style.display='flex'; }
+function closeModal() { document.getElementById('add-user-modal').style.display='none'; }
+
+function saveNewUser() {
+  const u = document.getElementById('new-username').value.trim();
+  const p = document.getElementById('new-password').value.trim();
+  const r = document.getElementById('new-role').value;
+  if (!u || !p) { zToast('Username and password required','warning'); return; }
+  zFetch('/api/auth/users', { method:'POST', body: JSON.stringify({ username:u, password:p, role:r }) }).then(function(d) {
+    if (d && (d.ok || d.id || d.username)) { zToast('User created: ' + u,'success'); closeModal(); loadUsers(); }
+    else { zToast((d&&d.error)||'Failed to create user','error'); }
+  }).catch(function(e){ zToast('Error: '+e.message,'error'); });
+}
+
+function deleteUser(username) {
+  if (!confirm('Delete user "' + username + '"?')) return;
+  zToast('User deleted (frontend demo)','warning');
+  loadUsers();
+}
+
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Load real plants from DB ─────────────────────────────────
+var PAC_COLORS = ['#00d4ff','#00ff88','#ffb300','#a855f7','#ff4488','#4488ff','#ff8844'];
+function loadPlants() {
+  var grid = document.getElementById('plant-grid-dynamic');
+  if (!grid) return;
+  zFetch('/api/saas/plants').then(function(d) {
+    var list = (d && d.data) ? d.data : [];
+    if (!list.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:20px;grid-column:1/-1">No plants configured yet. Add plants in the SaaS Platform page.</div>';
+      return;
+    }
+    grid.innerHTML = list.map(function(p, i) {
+      var color       = PAC_COLORS[i % PAC_COLORS.length];
+      var mCount      = parseInt(p.machine_count) || 0;
+      var active      = (p.status !== 'inactive');
+      var togCls      = active ? 'tog-sw on' : 'tog-sw';
+      var statusColor = active ? 'var(--green)' : 'var(--amber)';
+      var statusLabel = active ? 'ACTIVE' : 'INACTIVE';
+      var meta = [];
+      if (p.code)     meta.push(p.code);
+      if (mCount)     meta.push(mCount + ' machine' + (mCount !== 1 ? 's' : ''));
+      return '<div class="plant-admin-card" style="border-top:3px solid ' + color + '">' +
+        '<div style="font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase">Plant ' + (i+1) + '</div>' +
+        '<div class="plant-nm">' + escH(p.name || '—') + '</div>' +
+        (p.location ? '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">📍 ' + escH(p.location) + '</div>' : '') +
+        '<div class="plant-meta2">' + escH(meta.join(' · ') || '—') + '</div>' +
+        '<div class="plant-toggle"><div class="' + togCls + '"></div><span style="color:' + statusColor + '">' + statusLabel + '</span></div>' +
+        '<button class="act-btn" style="margin-top:8px" onclick="window.location.href=\'/saas-platform.html\'">⚙ Configure</button>' +
+      '</div>';
+    }).join('');
+  }).catch(function() {
+    grid.innerHTML = '<div style="color:var(--red);font-size:12px;padding:20px;grid-column:1/-1">⚠ Failed to load plants. Check API connection.</div>';
+  });
+}
+
+loadPlants();
+loadUsers();
+buildWidgetMatrix();
+buildDLMatrix();
+loadServerInfo();
+</script>
+</body>
+</html>

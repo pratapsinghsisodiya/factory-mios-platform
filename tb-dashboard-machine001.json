@@ -1,0 +1,2463 @@
+{
+  "title": "CNC OEE Dashboard \u2014 Industrial Machine 001",
+  "configuration": {
+    "description": "Full real-time OEE monitoring for Demo CNC Machine Hobbing Machine",
+    "filters": {},
+    "entityAliases": {
+      "c7877dd2-1cb8-4194-b413-3d962348f554": {
+        "id": "c7877dd2-1cb8-4194-b413-3d962348f554",
+        "alias": "MACHINE-001-Industrial CNC",
+        "filter": {
+          "type": "entityName",
+          "resolveMultiple": false,
+          "entityNameFilter": "MACHINE-001-Industrial CNC",
+          "entityType": "DEVICE"
+        }
+      }
+    },
+    "timewindow": {
+      "displayValue": "Last 1 hour",
+      "selectedTab": 0,
+      "realtime": {
+        "realtimeType": 1,
+        "interval": 5000,
+        "timewindowMs": 3600000,
+        "quickInterval": "CURRENT_HOUR"
+      },
+      "history": {
+        "historyType": 0,
+        "timewindowMs": 3600000,
+        "interval": 5000,
+        "fixedTimewindow": {
+          "startTimeMs": 0,
+          "endTimeMs": 0
+        }
+      },
+      "aggregation": {
+        "type": "NONE",
+        "limit": 500
+      }
+    },
+    "settings": {
+      "stateControllerId": "entity",
+      "showTitle": true,
+      "backgroundColor": "#0d1117",
+      "color": "rgba(255,255,255,0.87)",
+      "padding": "8px",
+      "margin": "0px",
+      "dashboardCss": ""
+    },
+    "states": {
+      "realtime": {
+        "name": "\u26a1 Real-Time Monitor",
+        "root": true,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "09d0bd7d-9439-4e91-91a0-ebac08016a33": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 0
+              },
+              "147e7cfb-c666-4bf2-a003-44cf290026a5": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 4
+              },
+              "e746def9-bcd5-4cd0-b03f-502d012724a4": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 8
+              },
+              "014430f5-2abc-4345-8f4f-b9f8212a01d0": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 12
+              },
+              "32f8bbad-98e0-4938-850d-843fd6d0499c": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 16
+              },
+              "24c36bfe-830a-451a-a7d5-a20338778d1c": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 0,
+                "col": 20
+              },
+              "382ab377-ea0b-45d8-92be-739396e226f9": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 0
+              },
+              "d79e1f89-8093-4d1b-a869-c80a86d3496e": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 4
+              },
+              "05585c41-606b-49b1-b549-d2cb7c39786c": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 8
+              },
+              "a652e43c-b028-4531-a929-765d293d5174": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 12
+              },
+              "bd01427b-1358-4b44-877e-1be3c1b27a2e": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 16
+              },
+              "6f720936-18e8-4604-8522-ac05a4d7e96c": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 4,
+                "col": 20
+              },
+              "c6d33ba6-1352-4f6c-8826-dc2d49b3ad98": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 8,
+                "col": 0
+              },
+              "b0f51621-90a9-4d03-ac58-5711e5e0feb6": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 16,
+                "col": 0
+              },
+              "1eb4f665-89a6-4058-8a5c-68eecac4728a": {
+                "sizeX": 24,
+                "sizeY": 5,
+                "row": 24,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 10,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      },
+      "oee": {
+        "name": "\ud83d\udcca OEE Dashboard",
+        "root": false,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "963349f7-a0b6-47e3-b3f9-eb507dad6791": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 0
+              },
+              "2ca2ef8d-1c11-462a-b0d3-6602e9770679": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 6
+              },
+              "0aa68e1b-111a-4fb2-822a-1726b69604eb": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 12
+              },
+              "cfdd7609-c1cb-4f8b-bfaa-45bb4b45451a": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 18
+              },
+              "747c85c1-9d39-4373-9d5f-d3b35f62560d": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 0
+              },
+              "acbfeff0-ce22-44d7-90e5-1979d59718a6": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 4
+              },
+              "151c686f-4b40-4252-88e6-cacd399e9b4c": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 8
+              },
+              "8244a757-cddd-404e-9e1e-c53599886092": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 12
+              },
+              "b6ab7921-7058-4f0a-9259-f8ad1565b38d": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 16
+              },
+              "1d8864eb-88ea-441e-9527-f67d5371efee": {
+                "sizeX": 4,
+                "sizeY": 4,
+                "row": 6,
+                "col": 20
+              },
+              "490fd58e-dbae-4677-a773-3ce9e399ed69": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 10,
+                "col": 0
+              },
+              "4570a328-2363-43d2-a1c4-98fba1461106": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 18,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 10,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      },
+      "production": {
+        "name": "\ud83c\udfed Production KPIs",
+        "root": false,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "19224c1c-0c54-4560-8e4f-a1b067476ef8": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 0
+              },
+              "5eb18f6d-64d9-4348-b788-24fae55c340a": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 6
+              },
+              "bdbaee74-2c46-419f-aba7-5d19bec1a424": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 12
+              },
+              "87e0cc50-4b9f-4f5c-9d80-2e2c412c4cb8": {
+                "sizeX": 6,
+                "sizeY": 6,
+                "row": 0,
+                "col": 18
+              },
+              "a9e823e9-198a-4acd-bb18-4a7629645dcf": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 6,
+                "col": 0
+              },
+              "cbcfdc34-740c-400a-97ea-970b725c0afd": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 14,
+                "col": 0
+              },
+              "5e62968d-68f2-4177-a5f3-905fed8e334b": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 22,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 10,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      },
+      "alarms": {
+        "name": "\u26a0 Alarms & Events",
+        "root": false,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "3ccc9333-e1af-4315-9d1a-a81646e4c5d1": {
+                "sizeX": 6,
+                "sizeY": 4,
+                "row": 0,
+                "col": 0
+              },
+              "004d9c92-5804-48a2-b80e-f81a550e3e88": {
+                "sizeX": 6,
+                "sizeY": 4,
+                "row": 0,
+                "col": 6
+              },
+              "931cd7a3-5872-4eae-9605-644ef2fef68f": {
+                "sizeX": 6,
+                "sizeY": 4,
+                "row": 0,
+                "col": 12
+              },
+              "2e3ea03c-01cc-482a-b34a-407930e0310e": {
+                "sizeX": 6,
+                "sizeY": 4,
+                "row": 0,
+                "col": 18
+              },
+              "108b2e01-0a7c-4abf-a5cb-adcdbef42899": {
+                "sizeX": 24,
+                "sizeY": 8,
+                "row": 4,
+                "col": 0
+              },
+              "f2acb2f7-171a-4091-ad0e-926a39c438ce": {
+                "sizeX": 24,
+                "sizeY": 12,
+                "row": 12,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 10,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      },
+      "trends": {
+        "name": "\ud83d\udcc8 Long-Term Trends",
+        "root": false,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "4afb8400-9979-42f1-8479-30fc4ce4bfc1": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 0,
+                "col": 0
+              },
+              "a50f4e79-bc30-47a0-830d-b00b17131de1": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 7,
+                "col": 0
+              },
+              "09eb3608-2319-4b0e-8af1-1de772aa6c2d": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 14,
+                "col": 0
+              },
+              "fc9411dd-d03c-4dda-89b6-7d0f27d2ff68": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 21,
+                "col": 0
+              },
+              "c3e34dc7-8ef2-438a-b35c-6e1e42ae305a": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 28,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 10,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      }
+    }
+  },
+  "widgets": {
+    "09d0bd7d-9439-4e91-91a0-ebac08016a33": {
+      "id": "09d0bd7d-9439-4e91-91a0-ebac08016a33",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "machine_state",
+                "type": "timeseries",
+                "label": "Machine State",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.1977353977368962
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00d4ff",
+          "showTitle": true
+        },
+        "title": "Machine State",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "147e7cfb-c666-4bf2-a003-44cf290026a5": {
+      "id": "147e7cfb-c666-4bf2-a003-44cf290026a5",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "spindle_speed",
+                "type": "timeseries",
+                "label": "Spindle Speed",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.5532845156981114
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00ff88",
+          "showTitle": true
+        },
+        "title": "Spindle Speed",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "rpm",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "e746def9-bcd5-4cd0-b03f-502d012724a4": {
+      "id": "e746def9-bcd5-4cd0-b03f-502d012724a4",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "feed_rate",
+                "type": "timeseries",
+                "label": "Feed Rate",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.03363930903169188
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ffb300",
+          "showTitle": true
+        },
+        "title": "Feed Rate",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "mm/min",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "014430f5-2abc-4345-8f4f-b9f8212a01d0": {
+      "id": "014430f5-2abc-4345-8f4f-b9f8212a01d0",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "part_count",
+                "type": "timeseries",
+                "label": "Part Count",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.03905428158134483
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#4488ff",
+          "showTitle": true
+        },
+        "title": "Part Count",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "32f8bbad-98e0-4938-850d-843fd6d0499c": {
+      "id": "32f8bbad-98e0-4938-850d-843fd6d0499c",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "last_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Last Cycle",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.690675695487313
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#a855f7",
+          "showTitle": true
+        },
+        "title": "Last Cycle",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "s",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "24c36bfe-830a-451a-a7d5-a20338778d1c": {
+      "id": "24c36bfe-830a-451a-a7d5-a20338778d1c",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "program_no",
+                "type": "timeseries",
+                "label": "Program No",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.4709343300298936
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00ff88",
+          "showTitle": true
+        },
+        "title": "Program No",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "382ab377-ea0b-45d8-92be-739396e226f9": {
+      "id": "382ab377-ea0b-45d8-92be-739396e226f9",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "is_running",
+                "type": "timeseries",
+                "label": "Is Running",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.8602688341374709
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00d4ff",
+          "showTitle": true
+        },
+        "title": "Is Running",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "d79e1f89-8093-4d1b-a869-c80a86d3496e": {
+      "id": "d79e1f89-8093-4d1b-a869-c80a86d3496e",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "alarm_active",
+                "type": "timeseries",
+                "label": "Alarm Active",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.6186078650127191
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ff4444",
+          "showTitle": true
+        },
+        "title": "Alarm Active",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "05585c41-606b-49b1-b549-d2cb7c39786c": {
+      "id": "05585c41-606b-49b1-b549-d2cb7c39786c",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "auto_mode",
+                "type": "timeseries",
+                "label": "Auto Mode",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.605168825154967
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#4488ff",
+          "showTitle": true
+        },
+        "title": "Auto Mode",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "a652e43c-b028-4531-a929-765d293d5174": {
+      "id": "a652e43c-b028-4531-a929-765d293d5174",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "motion_status",
+                "type": "timeseries",
+                "label": "Motion Status",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.4314448349025194
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ffb300",
+          "showTitle": true
+        },
+        "title": "Motion Status",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "bd01427b-1358-4b44-877e-1be3c1b27a2e": {
+      "id": "bd01427b-1358-4b44-877e-1be3c1b27a2e",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "run_status",
+                "type": "timeseries",
+                "label": "Run Status",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.45171983172090624
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#a855f7",
+          "showTitle": true
+        },
+        "title": "Run Status",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "6f720936-18e8-4604-8522-ac05a4d7e96c": {
+      "id": "6f720936-18e8-4604-8522-ac05a4d7e96c",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "connection_status",
+                "type": "timeseries",
+                "label": "Connection",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.11722216805198915
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00ff88",
+          "showTitle": true
+        },
+        "title": "Connection",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "c6d33ba6-1352-4f6c-8826-dc2d49b3ad98": {
+      "id": "c6d33ba6-1352-4f6c-8826-dc2d49b3ad98",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "spindle_speed",
+                "type": "timeseries",
+                "label": "Spindle (RPM)",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.3837733084045237
+              },
+              {
+                "name": "feed_rate",
+                "type": "timeseries",
+                "label": "Feed Rate (mm/min)",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.8869675083095556
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Spindle Speed & Feed Rate",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "b0f51621-90a9-4d03-ac58-5711e5e0feb6": {
+      "id": "b0f51621-90a9-4d03-ac58-5711e5e0feb6",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "last_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Last Cycle (s)",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.4769969058650786
+              },
+              {
+                "name": "raw_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Raw Cycle (s)",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.7177575564495893
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Cycle Time History",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "1eb4f665-89a6-4058-8a5c-68eecac4728a": {
+      "id": "1eb4f665-89a6-4058-8a5c-68eecac4728a",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "idle_time_sec",
+                "type": "timeseries",
+                "label": "Idle (s)",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.29106257984395933
+              },
+              {
+                "name": "alarm_no",
+                "type": "timeseries",
+                "label": "Alarm No",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.7595986022319273
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Idle Time & Alarms",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "963349f7-a0b6-47e3-b3f9-eb507dad6791": {
+      "id": "963349f7-a0b6-47e3-b3f9-eb507dad6791",
+      "type": "latest",
+      "bundleAlias": "gauges",
+      "typeAlias": "radial-gauge",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "oee",
+                "type": "timeseries",
+                "label": "OEE %",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.060670998871575565
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "minValue": 0,
+          "maxValue": 100,
+          "startAngle": 30,
+          "ticksAngle": 300,
+          "unitTicks": 4,
+          "majorTicks": 10,
+          "colorPlate": "#0d1117",
+          "colorTitle": "rgba(255,255,255,0.87)",
+          "colorNumbers": "rgba(255,255,255,0.6)",
+          "colorNeedle": "#00d4ff",
+          "colorNeedleEnd": "#00d4ff",
+          "colorValueBoxRect": "#0d1117",
+          "colorValueBoxRectEnd": "#0d1117",
+          "colorValueBoxBackground": "#0d1117",
+          "colorValueText": "#00d4ff",
+          "colorMajorTicks": "rgba(255,255,255,0.4)",
+          "colorMinorTicks": "rgba(255,255,255,0.2)",
+          "valueBox": true,
+          "valueText": true,
+          "highlights": [
+            {
+              "from": 0,
+              "to": 50.0,
+              "color": "rgba(255,68,68,0.3)"
+            },
+            {
+              "from": 50.0,
+              "to": 75.0,
+              "color": "rgba(255,179,0,0.3)"
+            },
+            {
+              "from": 75.0,
+              "to": 100,
+              "color": "rgba(0,255,136,0.3)"
+            }
+          ]
+        },
+        "title": "OEE %",
+        "showTitle": true,
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "2ca2ef8d-1c11-462a-b0d3-6602e9770679": {
+      "id": "2ca2ef8d-1c11-462a-b0d3-6602e9770679",
+      "type": "latest",
+      "bundleAlias": "gauges",
+      "typeAlias": "radial-gauge",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "availability",
+                "type": "timeseries",
+                "label": "Availability",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.28091060920311217
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "minValue": 0,
+          "maxValue": 100,
+          "startAngle": 30,
+          "ticksAngle": 300,
+          "unitTicks": 4,
+          "majorTicks": 10,
+          "colorPlate": "#0d1117",
+          "colorTitle": "rgba(255,255,255,0.87)",
+          "colorNumbers": "rgba(255,255,255,0.6)",
+          "colorNeedle": "#00ff88",
+          "colorNeedleEnd": "#00ff88",
+          "colorValueBoxRect": "#0d1117",
+          "colorValueBoxRectEnd": "#0d1117",
+          "colorValueBoxBackground": "#0d1117",
+          "colorValueText": "#00ff88",
+          "colorMajorTicks": "rgba(255,255,255,0.4)",
+          "colorMinorTicks": "rgba(255,255,255,0.2)",
+          "valueBox": true,
+          "valueText": true,
+          "highlights": [
+            {
+              "from": 0,
+              "to": 50.0,
+              "color": "rgba(255,68,68,0.3)"
+            },
+            {
+              "from": 50.0,
+              "to": 75.0,
+              "color": "rgba(255,179,0,0.3)"
+            },
+            {
+              "from": 75.0,
+              "to": 100,
+              "color": "rgba(0,255,136,0.3)"
+            }
+          ]
+        },
+        "title": "Availability",
+        "showTitle": true,
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "0aa68e1b-111a-4fb2-822a-1726b69604eb": {
+      "id": "0aa68e1b-111a-4fb2-822a-1726b69604eb",
+      "type": "latest",
+      "bundleAlias": "gauges",
+      "typeAlias": "radial-gauge",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "performance",
+                "type": "timeseries",
+                "label": "Performance",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.9771226695076332
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "minValue": 0,
+          "maxValue": 100,
+          "startAngle": 30,
+          "ticksAngle": 300,
+          "unitTicks": 4,
+          "majorTicks": 10,
+          "colorPlate": "#0d1117",
+          "colorTitle": "rgba(255,255,255,0.87)",
+          "colorNumbers": "rgba(255,255,255,0.6)",
+          "colorNeedle": "#ffb300",
+          "colorNeedleEnd": "#ffb300",
+          "colorValueBoxRect": "#0d1117",
+          "colorValueBoxRectEnd": "#0d1117",
+          "colorValueBoxBackground": "#0d1117",
+          "colorValueText": "#ffb300",
+          "colorMajorTicks": "rgba(255,255,255,0.4)",
+          "colorMinorTicks": "rgba(255,255,255,0.2)",
+          "valueBox": true,
+          "valueText": true,
+          "highlights": [
+            {
+              "from": 0,
+              "to": 50.0,
+              "color": "rgba(255,68,68,0.3)"
+            },
+            {
+              "from": 50.0,
+              "to": 75.0,
+              "color": "rgba(255,179,0,0.3)"
+            },
+            {
+              "from": 75.0,
+              "to": 100,
+              "color": "rgba(0,255,136,0.3)"
+            }
+          ]
+        },
+        "title": "Performance",
+        "showTitle": true,
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "cfdd7609-c1cb-4f8b-bfaa-45bb4b45451a": {
+      "id": "cfdd7609-c1cb-4f8b-bfaa-45bb4b45451a",
+      "type": "latest",
+      "bundleAlias": "gauges",
+      "typeAlias": "radial-gauge",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "quality",
+                "type": "timeseries",
+                "label": "Quality",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.09666872356667067
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "minValue": 0,
+          "maxValue": 100,
+          "startAngle": 30,
+          "ticksAngle": 300,
+          "unitTicks": 4,
+          "majorTicks": 10,
+          "colorPlate": "#0d1117",
+          "colorTitle": "rgba(255,255,255,0.87)",
+          "colorNumbers": "rgba(255,255,255,0.6)",
+          "colorNeedle": "#4488ff",
+          "colorNeedleEnd": "#4488ff",
+          "colorValueBoxRect": "#0d1117",
+          "colorValueBoxRectEnd": "#0d1117",
+          "colorValueBoxBackground": "#0d1117",
+          "colorValueText": "#4488ff",
+          "colorMajorTicks": "rgba(255,255,255,0.4)",
+          "colorMinorTicks": "rgba(255,255,255,0.2)",
+          "valueBox": true,
+          "valueText": true,
+          "highlights": [
+            {
+              "from": 0,
+              "to": 50.0,
+              "color": "rgba(255,68,68,0.3)"
+            },
+            {
+              "from": 50.0,
+              "to": 75.0,
+              "color": "rgba(255,179,0,0.3)"
+            },
+            {
+              "from": 75.0,
+              "to": 100,
+              "color": "rgba(0,255,136,0.3)"
+            }
+          ]
+        },
+        "title": "Quality",
+        "showTitle": true,
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "747c85c1-9d39-4373-9d5f-d3b35f62560d": {
+      "id": "747c85c1-9d39-4373-9d5f-d3b35f62560d",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "parts_produced",
+                "type": "timeseries",
+                "label": "Parts Produced",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.5578367858176577
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00ff88",
+          "showTitle": true
+        },
+        "title": "Parts Produced",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "acbfeff0-ce22-44d7-90e5-1979d59718a6": {
+      "id": "acbfeff0-ce22-44d7-90e5-1979d59718a6",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "target_parts",
+                "type": "timeseries",
+                "label": "Target Parts",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.723429989502466
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ffb300",
+          "showTitle": true
+        },
+        "title": "Target Parts",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "151c686f-4b40-4252-88e6-cacd399e9b4c": {
+      "id": "151c686f-4b40-4252-88e6-cacd399e9b4c",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "good_parts",
+                "type": "timeseries",
+                "label": "Good Parts",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.10282851001447679
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00d4ff",
+          "showTitle": true
+        },
+        "title": "Good Parts",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "8244a757-cddd-404e-9e1e-c53599886092": {
+      "id": "8244a757-cddd-404e-9e1e-c53599886092",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "rejection_count",
+                "type": "timeseries",
+                "label": "Rejections",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.19445863140512987
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ff4444",
+          "showTitle": true
+        },
+        "title": "Rejections",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "b6ab7921-7058-4f0a-9259-f8ad1565b38d": {
+      "id": "b6ab7921-7058-4f0a-9259-f8ad1565b38d",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "attainment_pct",
+                "type": "timeseries",
+                "label": "Attainment %",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.6897730078936163
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#a855f7",
+          "showTitle": true
+        },
+        "title": "Attainment %",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "%",
+        "decimals": 2,
+        "actions": {}
+      }
+    },
+    "1d8864eb-88ea-441e-9527-f67d5371efee": {
+      "id": "1d8864eb-88ea-441e-9527-f67d5371efee",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "cycle_efficiency",
+                "type": "timeseries",
+                "label": "Cycle Eff %",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.19512341978791703
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#4488ff",
+          "showTitle": true
+        },
+        "title": "Cycle Eff %",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "490fd58e-dbae-4677-a773-3ce9e399ed69": {
+      "id": "490fd58e-dbae-4677-a773-3ce9e399ed69",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "oee",
+                "type": "timeseries",
+                "label": "OEE %",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.3078361458123582
+              },
+              {
+                "name": "availability",
+                "type": "timeseries",
+                "label": "Availability %",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.01041337941115128
+              },
+              {
+                "name": "performance",
+                "type": "timeseries",
+                "label": "Performance %",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.5899092240052051
+              },
+              {
+                "name": "quality",
+                "type": "timeseries",
+                "label": "Quality %",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.7841762940312176
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "OEE Trend \u2014 Availability / Performance / Quality",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "4570a328-2363-43d2-a1c4-98fba1461106": {
+      "id": "4570a328-2363-43d2-a1c4-98fba1461106",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "downtime_min",
+                "type": "timeseries",
+                "label": "Downtime (min)",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.47521834167357857
+              },
+              {
+                "name": "scrap_rate",
+                "type": "timeseries",
+                "label": "Scrap Rate %",
+                "color": "#ff4488",
+                "settings": {},
+                "_hash": 0.6615376299974329
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Downtime & Scrap Rate",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "19224c1c-0c54-4560-8e4f-a1b067476ef8": {
+      "id": "19224c1c-0c54-4560-8e4f-a1b067476ef8",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "part_count",
+                "type": "timeseries",
+                "label": "Part Count Total",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.4502112826250185
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00ff88",
+          "showTitle": true
+        },
+        "title": "Part Count Total",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "5eb18f6d-64d9-4348-b788-24fae55c340a": {
+      "id": "5eb18f6d-64d9-4348-b788-24fae55c340a",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "program_no",
+                "type": "timeseries",
+                "label": "Current Program",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.15734603701923866
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00d4ff",
+          "showTitle": true
+        },
+        "title": "Current Program",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "bdbaee74-2c46-419f-aba7-5d19bec1a424": {
+      "id": "bdbaee74-2c46-419f-aba7-5d19bec1a424",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "target_parts",
+                "type": "timeseries",
+                "label": "Target Parts",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.6680764359096887
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ffb300",
+          "showTitle": true
+        },
+        "title": "Target Parts",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "pcs",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "87e0cc50-4b9f-4f5c-9d80-2e2c412c4cb8": {
+      "id": "87e0cc50-4b9f-4f5c-9d80-2e2c412c4cb8",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "attainment_pct",
+                "type": "timeseries",
+                "label": "Attainment %",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.5351743577902042
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#a855f7",
+          "showTitle": true
+        },
+        "title": "Attainment %",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "%",
+        "decimals": 1,
+        "actions": {}
+      }
+    },
+    "a9e823e9-198a-4acd-bb18-4a7629645dcf": {
+      "id": "a9e823e9-198a-4acd-bb18-4a7629645dcf",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "part_count",
+                "type": "timeseries",
+                "label": "Parts",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.24856076278962136
+              },
+              {
+                "name": "parts_produced",
+                "type": "timeseries",
+                "label": "Shift Parts",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.33919005269398605
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Parts Produced vs Time",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "cbcfdc34-740c-400a-97ea-970b725c0afd": {
+      "id": "cbcfdc34-740c-400a-97ea-970b725c0afd",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "last_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Cycle (s)",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.21434759282288474
+              },
+              {
+                "name": "raw_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Raw (s)",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.726625177865925
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Cycle Time Analysis",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "5e62968d-68f2-4177-a5f3-905fed8e334b": {
+      "id": "5e62968d-68f2-4177-a5f3-905fed8e334b",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "bars",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "parts_produced",
+                "type": "timeseries",
+                "label": "Parts Produced",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.8886182457359669
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "stack": false,
+          "showLegend": true,
+          "shadowSize": 0
+        },
+        "title": "Hourly Production",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "3ccc9333-e1af-4315-9d1a-a81646e4c5d1": {
+      "id": "3ccc9333-e1af-4315-9d1a-a81646e4c5d1",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "alarm_no",
+                "type": "timeseries",
+                "label": "Active Alarm No",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.3273264280446053
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ff4444",
+          "showTitle": true
+        },
+        "title": "Active Alarm No",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "004d9c92-5804-48a2-b80e-f81a550e3e88": {
+      "id": "004d9c92-5804-48a2-b80e-f81a550e3e88",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "alarm_active",
+                "type": "timeseries",
+                "label": "Alarm Active",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.7863662911793926
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ffb300",
+          "showTitle": true
+        },
+        "title": "Alarm Active",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "931cd7a3-5872-4eae-9605-644ef2fef68f": {
+      "id": "931cd7a3-5872-4eae-9605-644ef2fef68f",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "emergency",
+                "type": "timeseries",
+                "label": "Emergency Stop",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.20571045269448573
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#ff4444",
+          "showTitle": true
+        },
+        "title": "Emergency Stop",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "2e3ea03c-01cc-482a-b34a-407930e0310e": {
+      "id": "2e3ea03c-01cc-482a-b34a-407930e0310e",
+      "type": "latest",
+      "bundleAlias": "cards",
+      "typeAlias": "simple-card",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "status",
+                "type": "timeseries",
+                "label": "Machine Status",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.8133627800763401
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "labelColor": "#00d4ff",
+          "showTitle": true
+        },
+        "title": "Machine Status",
+        "showTitle": true,
+        "titleStyle": {
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "color": "rgba(255,255,255,0.5)"
+        },
+        "units": "",
+        "decimals": 0,
+        "actions": {}
+      }
+    },
+    "108b2e01-0a7c-4abf-a5cb-adcdbef42899": {
+      "id": "108b2e01-0a7c-4abf-a5cb-adcdbef42899",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "alarm_no",
+                "type": "timeseries",
+                "label": "Alarm No",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.46323915658268533
+              },
+              {
+                "name": "alarm_active",
+                "type": "timeseries",
+                "label": "Alarm Flag",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.10037595370300578
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Alarm History (Timeseries)",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "f2acb2f7-171a-4091-ad0e-926a39c438ce": {
+      "id": "f2acb2f7-171a-4091-ad0e-926a39c438ce",
+      "type": "alarm",
+      "bundleAlias": "alarm-widgets",
+      "typeAlias": "alarms-table",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": []
+          }
+        ],
+        "settings": {
+          "enableSearch": true,
+          "enableSelectColumnDisplay": true,
+          "enableFilter": true,
+          "displayDetails": true,
+          "displayAcknowledge": true,
+          "displayClear": true,
+          "defaultSortOrder": "-createdTime",
+          "columns": []
+        },
+        "title": "Alarm Events Log",
+        "showTitle": true,
+        "useDashboardTimewindow": false,
+        "actions": {}
+      }
+    },
+    "4afb8400-9979-42f1-8479-30fc4ce4bfc1": {
+      "id": "4afb8400-9979-42f1-8479-30fc4ce4bfc1",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "spindle_speed",
+                "type": "timeseries",
+                "label": "Spindle (RPM)",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.47721805777088855
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Spindle Speed Long-Term",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "a50f4e79-bc30-47a0-830d-b00b17131de1": {
+      "id": "a50f4e79-bc30-47a0-830d-b00b17131de1",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "feed_rate",
+                "type": "timeseries",
+                "label": "Feed Rate (mm/min)",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.8001549480705269
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Feed Rate Trend",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "09eb3608-2319-4b0e-8af1-1de772aa6c2d": {
+      "id": "09eb3608-2319-4b0e-8af1-1de772aa6c2d",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "last_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Last Cycle (s)",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.4372470113514938
+              },
+              {
+                "name": "raw_cycle_time_sec",
+                "type": "timeseries",
+                "label": "Raw Cycle (s)",
+                "color": "#a855f7",
+                "settings": {},
+                "_hash": 0.30265976288073526
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Cycle Time Long-Term",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "fc9411dd-d03c-4dda-89b6-7d0f27d2ff68": {
+      "id": "fc9411dd-d03c-4dda-89b6-7d0f27d2ff68",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "oee",
+                "type": "timeseries",
+                "label": "OEE %",
+                "color": "#00d4ff",
+                "settings": {},
+                "_hash": 0.9693385943322983
+              },
+              {
+                "name": "cycle_efficiency",
+                "type": "timeseries",
+                "label": "Cycle Eff %",
+                "color": "#4488ff",
+                "settings": {},
+                "_hash": 0.9307742424326856
+              },
+              {
+                "name": "attainment_pct",
+                "type": "timeseries",
+                "label": "Attainment %",
+                "color": "#00ff88",
+                "settings": {},
+                "_hash": 0.05916166102684739
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "OEE & Efficiency Trend",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    },
+    "c3e34dc7-8ef2-438a-b35c-6e1e42ae305a": {
+      "id": "c3e34dc7-8ef2-438a-b35c-6e1e42ae305a",
+      "type": "timeseries",
+      "bundleAlias": "charts",
+      "typeAlias": "basic-timeseries",
+      "actionDescriptorsBySourceId": {},
+      "config": {
+        "datasources": [
+          {
+            "type": "entity",
+            "name": "",
+            "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+            "filterId": null,
+            "dataKeys": [
+              {
+                "name": "downtime_min",
+                "type": "timeseries",
+                "label": "Downtime (min)",
+                "color": "#ff4444",
+                "settings": {},
+                "_hash": 0.7589790177077459
+              },
+              {
+                "name": "idle_time_sec",
+                "type": "timeseries",
+                "label": "Idle (s)",
+                "color": "#ffb300",
+                "settings": {},
+                "_hash": 0.9137549456718053
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "shadowSize": 4,
+          "smoothLines": true,
+          "showLegend": true,
+          "stack": false,
+          "enableSelection": false,
+          "fontColor": "#9ca3af"
+        },
+        "title": "Downtime & Idle Trend",
+        "showTitle": true,
+        "useDashboardTimewindow": true,
+        "actions": {}
+      }
+    }
+  }
+}

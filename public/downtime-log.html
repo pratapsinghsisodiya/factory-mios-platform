@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Downtime Logging — OEE Dashboard</title>
+<link rel="stylesheet" href="/_shared.css">
+<script src="/_shared.js"></script>
+<script src="/js/chart.min.js"></script>
+<style>
+.page-header { display:flex; align-items:center; justify-content:space-between; padding:1.2rem 1.5rem .8rem; border-bottom:1px solid var(--border); }
+.page-header h1 { font-size:1.25rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:.5rem; }
+
+/* ── Selector bar ── */
+.sel-bar { display:flex; gap:.75rem; align-items:flex-end; padding:.85rem 1.5rem; background:rgba(0,212,255,.02); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.sel-grp { display:flex; flex-direction:column; gap:.3rem; }
+.sel-grp label { font-size:.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.sel-grp select, .sel-grp input[type=date] { background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:.48rem .75rem; font-size:.83rem; font-family:inherit; min-width:160px; cursor:pointer; }
+.sel-grp select:focus, .sel-grp input:focus { outline:none; border-color:var(--cyan); }
+.btn-load { padding:.5rem 1.1rem; background:var(--cyan); color:#000; font-weight:700; font-size:.82rem; border:none; border-radius:7px; cursor:pointer; font-family:inherit; align-self:flex-end; }
+.btn-load:hover { opacity:.88; }
+.btn-load:disabled { opacity:.5; cursor:default; }
+
+/* ── Latest 2 shifts ── */
+.shift-summary { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; padding:.9rem 1.5rem; border-bottom:1px solid var(--border); }
+.ss-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:.85rem 1rem; display:flex; gap:.9rem; align-items:center; flex-wrap:wrap; }
+.ss-card.active-card { border-color:rgba(0,212,255,.3); background:rgba(0,212,255,.04); }
+.ss-card .ss-label { font-size:.65rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; background:rgba(255,255,255,.06); padding:.18rem .55rem; border-radius:6px; white-space:nowrap; }
+.ss-stat { text-align:center; min-width:52px; }
+.ss-stat .sv { font-size:1rem; font-weight:800; color:var(--text); }
+.ss-stat .sk { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:.1rem; }
+.avail-ring { position:relative; width:48px; height:48px; flex-shrink:0; }
+.avail-ring canvas { position:absolute; top:0; left:0; }
+.avail-ring .ar-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.62rem; font-weight:800; }
+.ss-date { font-size:.68rem; color:var(--muted); margin-left:auto; white-space:nowrap; }
+
+/* ── KPI row ── */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; padding:1rem 1.5rem; }
+.kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; align-items:center; gap:.9rem; position:relative; overflow:hidden; }
+.kpi-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px 0 0 4px; background:var(--accent-color,var(--cyan)); }
+.kpi-icon { font-size:1.6rem; line-height:1; }
+.kpi-body { flex:1; min-width:0; }
+.kpi-label { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+.kpi-value { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1.1; margin-top:.15rem; }
+.kpi-sub { font-size:.7rem; color:var(--muted); margin-top:.2rem; }
+
+/* ── Main grid ── */
+.main-grid { display:grid; grid-template-columns:420px 1fr; gap:1.25rem; padding:0 1.5rem 1.5rem; }
+@media(max-width:900px){ .main-grid{grid-template-columns:1fr;} .kpi-row{grid-template-columns:repeat(2,1fr);} .shift-summary{grid-template-columns:1fr;} }
+
+/* ── Form ── */
+.form-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.form-card h2 { font-size:.92rem; font-weight:700; color:var(--text); margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-bottom:.7rem; }
+.form-full { margin-bottom:.7rem; }
+label { display:block; font-size:.7rem; color:var(--muted); margin-bottom:.28rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+input[type=text],input[type=email],input[type=datetime-local],select,textarea {
+  width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+  border-radius:7px; padding:.52rem .72rem; font-size:.84rem; font-family:inherit; transition:border-color .2s; box-sizing:border-box;
+}
+input:focus,select:focus,textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(0,212,255,.1); }
+textarea { resize:vertical; min-height:60px; }
+
+/* ── Shift context box ── */
+.shift-ctx-box { background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.2); border-radius:9px; padding:.65rem .9rem; margin-bottom:.75rem; display:none; }
+.shift-ctx-box .ctx-label { font-size:.7rem; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+.shift-ctx-box .ctx-row { display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; }
+.shift-ctx-box .ctx-item { text-align:center; }
+.shift-ctx-box .ctx-item .cv { font-size:1.05rem; font-weight:800; color:var(--text); }
+.shift-ctx-box .ctx-item .ck { font-size:.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+
+/* ── Type toggle ── */
+.type-toggle { display:flex; gap:.5rem; }
+.type-btn { flex:1; padding:.5rem; border-radius:7px; border:1.5px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:.8rem; font-weight:600; transition:all .15s; font-family:inherit; }
+.type-btn.active-planned   { border-color:var(--green);  background:rgba(0,255,136,.12); color:var(--green); }
+.type-btn.active-unplanned { border-color:#ff4488; background:rgba(255,68,136,.12); color:#ff4488; }
+
+/* ── Severity display ── */
+.sev-display { display:flex; align-items:center; justify-content:space-between; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.52rem .72rem; font-size:.84rem; }
+.sev-badge { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:20px; letter-spacing:.06em; }
+.sev-minor  { background:rgba(100,100,120,.2); color:#a0a0c0; }
+.sev-second { background:rgba(255,179,0,.15);  color:var(--amber); }
+.sev-major  { background:rgba(255,68,68,.15);  color:#ff4444; }
+
+/* ── Submit ── */
+.btn-submit { width:100%; padding:.72rem; background:var(--cyan); color:#000; font-weight:700; font-size:.88rem; border:none; border-radius:9px; cursor:pointer; font-family:inherit; margin-top:.5rem; transition:opacity .15s; }
+.btn-submit:hover { opacity:.88; }
+.btn-submit:disabled { opacity:.5; cursor:default; }
+
+/* ── Right panel ── */
+.right-panel { display:flex; flex-direction:column; gap:1rem; }
+.panel-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.panel-card h2 { font-size:.88rem; font-weight:700; color:var(--text); margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; }
+
+/* ── Table ── */
+.events-table { width:100%; border-collapse:collapse; font-size:.77rem; }
+.events-table th { text-align:left; padding:.42rem .55rem; color:var(--muted); border-bottom:1px solid var(--border); font-size:.67rem; text-transform:uppercase; letter-spacing:.05em; }
+.events-table td { padding:.42rem .55rem; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.events-table tr:hover td { background:rgba(255,255,255,.03); }
+.del-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:.82rem; padding:.12rem .32rem; border-radius:5px; transition:color .15s; }
+.del-btn:hover { color:#ff4444; background:rgba(255,68,68,.1); }
+.dur-pill { display:inline-block; font-size:.68rem; font-weight:700; padding:.09rem .42rem; border-radius:20px; }
+.dur-minor  { background:rgba(100,100,120,.2); color:#a0a0c0; }
+.dur-second { background:rgba(255,179,0,.15);  color:var(--amber); }
+.dur-major  { background:rgba(255,68,68,.15);  color:#ff4444; }
+.type-planned   { color:var(--green); font-weight:700; font-size:.7rem; }
+.type-unplanned { color:#ff4488;      font-weight:700; font-size:.7rem; }
+
+/* ── Filter bar ── */
+.filter-bar { display:flex; gap:.55rem; margin-bottom:.85rem; align-items:center; flex-wrap:wrap; }
+.filter-bar select { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:.35rem .6rem; font-size:.77rem; font-family:inherit; width:auto; }
+.filter-btn { padding:.35rem .75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:7px; cursor:pointer; font-size:.77rem; font-family:inherit; transition:border-color .15s; }
+.filter-btn:hover { border-color:var(--cyan); }
+.filter-btn.active { background:rgba(0,212,255,.1); border-color:var(--cyan); color:var(--cyan); }
+.empty-msg { text-align:center; color:var(--muted); padding:2rem; font-size:.83rem; }
+
+/* ── Toast ── */
+.toast { position:fixed; bottom:1.5rem; right:1.5rem; background:var(--card); border:1px solid var(--border); color:var(--text); padding:.8rem 1.2rem; border-radius:10px; font-size:.84rem; font-weight:600; opacity:0; transform:translateY(12px); transition:all .25s; z-index:1000; max-width:320px; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.ok  { border-color:var(--cyan); }
+.toast.err { border-color:#ff4444; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<!-- ══ Header ══ -->
+<div class="page-header">
+  <h1>⛔ Downtime Logging</h1>
+  <div style="display:flex;gap:.6rem;align-items:center;">
+    <span id="hdr-date" style="font-size:.8rem;color:var(--muted);"></span>
+    <button onclick="loadShiftData()" class="filter-btn">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- ══ Selector bar ══ -->
+<div class="sel-bar">
+  <div class="sel-grp">
+    <label>Machine</label>
+    <select id="sel-machine" onchange="loadShiftData()">
+      <option value="MACHINE001">MACHINE001 — Demo Machine Hobbing</option>
+    </select>
+  </div>
+  <div class="sel-grp">
+    <label>Date</label>
+    <input type="date" id="sel-date" onchange="loadShiftData()">
+  </div>
+  <div class="sel-grp">
+    <label>Shift</label>
+    <select id="sel-shift" onchange="loadShiftData()">
+      <option value="A">Shift A (07:00–19:00)</option>
+      <option value="B">Shift B (19:00–07:00)</option>
+    </select>
+  </div>
+  <button class="btn-load" id="btn-load" onclick="loadShiftData()">📥 Load Shift</button>
+</div>
+
+<!-- ══ Latest 2 shifts ══ -->
+<div class="shift-summary">
+  <div class="ss-card" id="ss-card-0"><span class="ss-date">Loading…</span></div>
+  <div class="ss-card" id="ss-card-1"><span class="ss-date">Loading…</span></div>
+</div>
+
+<!-- ══ KPI row ══ -->
+<div class="kpi-row">
+  <div class="kpi-card" style="--accent-color:#a0a0c0;">
+    <span class="kpi-icon">📝</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Minor Events</div>
+      <div class="kpi-value" id="kpi-minor">—</div>
+      <div class="kpi-sub">&lt; 1 min each</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:var(--amber);">
+    <span class="kpi-icon">⚠️</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Second Level</div>
+      <div class="kpi-value" id="kpi-second">—</div>
+      <div class="kpi-sub">1 – 10 min each</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#ff4444;">
+    <span class="kpi-icon">🚨</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Major Events</div>
+      <div class="kpi-value" id="kpi-major">—</div>
+      <div class="kpi-sub">&gt; 10 min each</div>
+    </div>
+  </div>
+  <div class="kpi-card" style="--accent-color:var(--cyan);">
+    <span class="kpi-icon">⏱</span>
+    <div class="kpi-body">
+      <div class="kpi-label">Total Downtime</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+      <div class="kpi-sub" id="kpi-total-sub">Selected shift</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Main grid ══ -->
+<div class="main-grid">
+
+  <!-- ── Log form ── -->
+  <div class="form-card">
+    <h2>⛔ Log Downtime Event</h2>
+
+    <!-- Shift context -->
+    <div class="shift-ctx-box" id="shift-ctx-box">
+      <div class="ctx-label" id="ctx-label">Loading shift data…</div>
+      <div class="ctx-row">
+        <div class="ctx-item"><div class="cv" id="ctx-avail">—%</div><div class="ck">Availability</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-dt">—</div><div class="ck">Downtime</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-parts">—</div><div class="ck">Parts Made</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-oee">—%</div><div class="ck">OEE</div></div>
+        <div class="ctx-item"><div class="cv" id="ctx-logged">—</div><div class="ck">Logged</div></div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label>Start Time</label>
+        <input type="datetime-local" id="f-start" onchange="calcDuration()">
+      </div>
+      <div>
+        <label>End Time</label>
+        <input type="datetime-local" id="f-end" onchange="calcDuration()">
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Duration &amp; Severity (auto-calculated)</label>
+      <div class="sev-display">
+        <span id="sev-dur" style="color:var(--muted);">Select start &amp; end time</span>
+        <span class="sev-badge sev-minor" id="sev-badge">—</span>
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Downtime Type</label>
+      <div class="type-toggle">
+        <button class="type-btn active-unplanned" id="btn-unplanned" onclick="setType('UNPLANNED')">⚡ UNPLANNED</button>
+        <button class="type-btn" id="btn-planned" onclick="setType('PLANNED')">📋 PLANNED</button>
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Standard Downtime Reason <span style="color:var(--muted);font-weight:400;text-transform:none;">(auto-sets type)</span></label>
+      <select id="f-reason" onchange="onReasonChange(this.value)">
+        <option value="">— Select reason —</option>
+        <optgroup label="Unplanned Losses">
+          <option value="1|Tool/Jig/Fix Loss|UNPLANNED">01 — Tool / Jig / Fix Loss</option>
+          <option value="2|Speed Loss|UNPLANNED">02 — Speed Loss</option>
+          <option value="3|NO Sch PM|UNPLANNED">03 — No Scheduled PM</option>
+          <option value="4|No Material - Inhouse|UNPLANNED">04 — No Material (Inhouse)</option>
+          <option value="5|Line Organisation Loss|UNPLANNED">05 — Line Organisation Loss</option>
+          <option value="6|Minor Stoppages Loss|UNPLANNED">06 — Minor Stoppages Loss</option>
+          <option value="7|Yield Loss|UNPLANNED">07 — Yield Loss</option>
+          <option value="8|Jig/Fixture &amp; Tool Loss|UNPLANNED">08 — Jig / Fixture &amp; Tool Loss</option>
+          <option value="9|Energy Loss|UNPLANNED">09 — Energy Loss</option>
+          <option value="11|Defect &amp; Rework Loss|UNPLANNED">11 — Defect &amp; Rework Loss</option>
+          <option value="12|Logistic Loss|UNPLANNED">12 — Logistic Loss</option>
+          <option value="13|Motion Loss|UNPLANNED">13 — Motion Loss</option>
+          <option value="14|No Manpower|UNPLANNED">14 — No Manpower</option>
+          <option value="16|No Power / No Air|UNPLANNED">16 — No Power / No Air</option>
+          <option value="17|Start Up Loss|UNPLANNED">17 — Start Up Loss</option>
+          <option value="18|No Material - Supplier|UNPLANNED">18 — No Material (Supplier)</option>
+          <option value="20|Measure &amp; Adjust Loss|UNPLANNED">20 — Measure &amp; Adjust Loss</option>
+          <option value="22|Development Plan|UNPLANNED">22 — Development Plan</option>
+        </optgroup>
+        <optgroup label="Planned Losses">
+          <option value="10|Set Up &amp; Adjustment Loss|PLANNED">10 — Set Up &amp; Adjustment Loss</option>
+          <option value="15|PM Activity|PLANNED">15 — PM Activity</option>
+        </optgroup>
+        <optgroup label="Planned with Time Limit">
+          <option value="19|Tool Change Loss|PLANNED|30 min limit">19 — Tool Change Loss  ⏱ 30 min limit</option>
+          <option value="21|Cleaning|PLANNED|10 min limit">21 — Cleaning  ⏱ 10 min limit</option>
+        </optgroup>
+      </select>
+    </div>
+    <div id="limit-warning" style="display:none;margin-bottom:.7rem;padding:.5rem .8rem;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;font-size:.78rem;color:var(--amber);"></div>
+
+    <div class="form-full">
+      <label>Additional Details / Comment</label>
+      <textarea id="f-detail" placeholder="Describe the issue in detail…"></textarea>
+    </div>
+
+    <div class="form-full">
+      <label>Action to Take</label>
+      <textarea id="f-action" placeholder="Corrective action required?" rows="2"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label>Assign To</label>
+        <input type="text" id="f-assignee" placeholder="Responsible person">
+      </div>
+      <div>
+        <label>Email (Major only)</label>
+        <input type="email" id="f-email" placeholder="person@company.com">
+      </div>
+    </div>
+
+    <div class="form-full">
+      <label>Operator Name</label>
+      <input type="text" id="f-operator" placeholder="Your name">
+    </div>
+
+    <button class="btn-submit" id="submit-btn" onclick="submitDowntime()">⛔ Log Downtime Event</button>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div class="right-panel">
+
+    <div class="panel-card">
+      <h2>📊 Downtime Pareto — by Reason</h2>
+      <canvas id="pareto-chart" height="155"></canvas>
+    </div>
+
+    <div class="panel-card" style="flex:1;">
+      <h2>📋 Logged Events</h2>
+      <div class="filter-bar">
+        <select id="fil-shift" onchange="renderEvents()" style="width:130px;">
+          <option value="">Both Shifts</option>
+          <option value="A">Shift A</option>
+          <option value="B">Shift B</option>
+        </select>
+        <button class="filter-btn active" id="fil-all"   onclick="setFilter('all')">All</button>
+        <button class="filter-btn" id="fil-major" onclick="setFilter('MAJOR')">🚨 Major</button>
+        <button class="filter-btn" id="fil-sec"   onclick="setFilter('SECOND_LEVEL')">⚠️ 2nd</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Date / Shift</th>
+              <th>Start</th>
+              <th>Duration</th>
+              <th>Type</th>
+              <th>Reason</th>
+              <th>Assigned</th>
+              <th>Action</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr><td colspan="8" class="empty-msg">Select machine, date and shift above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MACHINE_DEFAULT = 'MACHINE001';
+let _allEvents   = [];
+let _shiftCtx    = null;
+let _sevFilter   = 'all';
+let _currentType = 'UNPLANNED';
+let _paretoChart = null;
+
+// ── Init ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  zCheckAuth();
+  zRenderNav('downtime');
+
+  const ist   = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const h     = ist.getHours();
+  const shift = (h >= 7 && h < 19) ? 'A' : 'B';
+  const dateStr = ist.toLocaleDateString('en-CA');
+
+  el('sel-date').value  = dateStr;
+  el('sel-shift').value = shift;
+  el('hdr-date').textContent =
+    ist.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+  try {
+    const u = JSON.parse(localStorage.getItem('oee_user') || '{}');
+    el('f-operator').value = u.name || u.username || '';
+  } catch(_) {}
+
+  // Default start = now rounded to minute
+  const pad = n => String(n).padStart(2,'0');
+  el('f-start').value = `${ist.getFullYear()}-${pad(ist.getMonth()+1)}-${pad(ist.getDate())}T${pad(ist.getHours())}:${pad(ist.getMinutes())}`;
+
+  loadMachines().then(() => loadShiftData());
+});
+
+// ── Machine list ──────────────────────────────────────────────────
+async function loadMachines() {
+  try {
+    const d = await zFetch('/api/cnc/machines-list');
+    if (d && d.data && d.data.length) {
+      const sel = el('sel-machine');
+      sel.innerHTML = '';
+      d.data.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.machine_id;
+        const plant = m.plant_name && m.plant_name !== '—' ? ` (${m.plant_name})` : '';
+        opt.textContent = `${m.machine_id} — ${m.machine_name}${plant}`;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(_) {}
+}
+
+// ── Load shift data ───────────────────────────────────────────────
+async function loadShiftData() {
+  const machine = el('sel-machine').value || MACHINE_DEFAULT;
+  const date    = el('sel-date').value;
+  const shift   = el('sel-shift').value;
+  const btn     = el('btn-load');
+  btn.disabled=true; btn.textContent='⏳ Loading…';
+
+  try {
+    const qp = new URLSearchParams({ machine, date });
+    if (shift) qp.set('shift', shift);
+    const d = await zFetch('/api/cnc/downtime-log?' + qp);
+    _allEvents = (d && d.data) ? d.data : [];
+
+    // Latest 2 shifts
+    loadLatest2Shifts(machine);
+
+    // OEE context for this shift
+    await loadShiftCtx(machine, date, shift);
+
+    updateKPIs();
+    renderEvents();
+    buildPareto();
+  } catch(e) {
+    showToast('Load failed: ' + (e.message||'error'),'err');
+  }
+  btn.disabled=false; btn.textContent='📥 Load Shift';
+}
+
+async function loadShiftCtx(machine, date, shift) {
+  try {
+    const qp = new URLSearchParams({ machine, date });
+    if (shift) qp.set('shift', shift);
+    const d = await zFetch('/api/cnc/rejection-log?' + qp);
+    const ctxArr = (d && d.shift_context) ? d.shift_context : [];
+    _shiftCtx = ctxArr.find(c => c.shift === shift) || ctxArr[0] || null;
+    renderShiftCtxBox(shift, date);
+  } catch(_) { _shiftCtx = null; renderShiftCtxBox(shift, date); }
+}
+
+// ── Latest 2 shifts cards ─────────────────────────────────────────
+async function loadLatest2Shifts(machine) {
+  try {
+    const d = await zFetch(`/api/cnc/shifts?machine=${encodeURIComponent(machine)}&limit=2`);
+    const shifts = (d && d.shifts) ? d.shifts : [];
+    renderSummaryCards(shifts);
+  } catch(_) { renderSummaryCards([]); }
+}
+
+function renderSummaryCards(shifts) {
+  for (let i = 0; i < 2; i++) {
+    const card = el('ss-card-' + i);
+    const s    = shifts[i];
+    if (!s) { card.innerHTML='<span class="ss-date" style="color:var(--muted)">No data</span>'; card.className='ss-card'; continue; }
+
+    const avail  = parseFloat(s.availability) || 0;
+    const dtMin  = parseFloat(s.downtime_min) || 0;
+    const parts  = parseInt(s.parts_produced) || 0;
+    const oee    = parseFloat(s.oee) || 0;
+    const colour = avail >= 90 ? '#00ff88' : avail >= 80 ? '#00cc66' : avail >= 70 ? '#ffb300' : '#ff4444';
+
+    const selDate  = el('sel-date').value;
+    const selShift = el('sel-shift').value;
+    const isActive = s.date === selDate && s.shift === selShift;
+    card.className = 'ss-card' + (isActive ? ' active-card' : '');
+
+    card.innerHTML = `
+      <span class="ss-label">Shift ${s.shift}</span>
+      <div class="ss-stat"><div class="sv" style="color:${colour}">${avail.toFixed(1)}%</div><div class="sk">Avail</div></div>
+      <div class="ss-stat"><div class="sv" style="color:${dtMin>30?'#ff4444':dtMin>15?'var(--amber)':'var(--muted)'}">${dtMin.toFixed(0)}m</div><div class="sk">Downtime</div></div>
+      <div class="ss-stat"><div class="sv">${parts > 0 ? parts.toLocaleString() : '—'}</div><div class="sk">Parts</div></div>
+      <div class="avail-ring">
+        <canvas id="ar-${i}" width="48" height="48"></canvas>
+        <div class="ar-val" id="ar-v-${i}" style="color:${colour}">${avail.toFixed(0)}%</div>
+      </div>
+      <span class="ss-date">${s.date||'—'}</span>
+    `;
+    requestAnimationFrame(() => {
+      const cvs = el('ar-' + i); if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      ctx.clearRect(0,0,48,48);
+      ctx.beginPath(); ctx.arc(24,24,19,0,Math.PI*2); ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=4; ctx.stroke();
+      const pct = Math.min(1, avail / 100);
+      ctx.beginPath(); ctx.arc(24,24,19,-Math.PI/2,-Math.PI/2+pct*Math.PI*2); ctx.strokeStyle=colour; ctx.lineWidth=4; ctx.lineCap='round'; ctx.stroke();
+    });
+  }
+}
+
+// ── Shift context box ─────────────────────────────────────────────
+function renderShiftCtxBox(shift, date) {
+  const box = el('shift-ctx-box');
+  const ctx = _shiftCtx;
+  el('ctx-label').textContent = `Shift ${shift} — ${date}`;
+
+  const avail  = ctx ? parseFloat(ctx.availability)||0 : 0;
+  const dtMin  = ctx ? parseFloat(ctx.downtime_min||0)||0 : 0;
+  const parts  = ctx ? parseInt(ctx.parts_produced)||0 : 0;
+  const oee    = ctx ? parseFloat(ctx.oee)||0 : 0;
+  const logged = _allEvents.length;
+
+  el('ctx-avail').textContent = avail.toFixed(1) + '%';
+  el('ctx-avail').style.color = avail >= 90 ? 'var(--green)' : avail >= 80 ? '#00cc66' : avail >= 70 ? 'var(--amber)' : '#ff4444';
+  el('ctx-dt').textContent    = dtMin.toFixed(0) + ' min';
+  el('ctx-dt').style.color    = dtMin > 30 ? '#ff4444' : dtMin > 15 ? 'var(--amber)' : 'var(--text)';
+  el('ctx-parts').textContent = parts > 0 ? parts.toLocaleString() : '—';
+  el('ctx-oee').textContent   = oee.toFixed(1) + '%';
+  el('ctx-logged').textContent = logged + ' events';
+  box.style.display = 'block';
+}
+
+// ── KPI row ───────────────────────────────────────────────────────
+function updateKPIs() {
+  const total = _allEvents.reduce((s,e) => s+(parseFloat(e.duration_min)||0), 0);
+  el('kpi-minor').textContent  = _allEvents.filter(e=>(e.severity||'').toUpperCase()==='MINOR').length;
+  el('kpi-second').textContent = _allEvents.filter(e=>(e.severity||'').toUpperCase()==='SECOND_LEVEL').length;
+  el('kpi-major').textContent  = _allEvents.filter(e=>(e.severity||'').toUpperCase()==='MAJOR').length;
+  el('kpi-total').textContent  = total.toFixed(1) + ' min';
+}
+
+// ── Duration / severity ───────────────────────────────────────────
+function calcDuration() {
+  const s=el('f-start').value, e=el('f-end').value;
+  if (!s||!e) return;
+  const dur=(new Date(e)-new Date(s))/60000;
+  if (dur<=0){ el('sev-dur').textContent='End must be after start'; el('sev-badge').textContent='—'; return; }
+  let sev,cls;
+  if (dur<1){sev='MINOR';cls='sev-minor';}else if(dur<10){sev='SECOND LEVEL';cls='sev-second';}else{sev='🚨 MAJOR';cls='sev-major';}
+  el('sev-dur').textContent = dur.toFixed(1)+' min';
+  el('sev-dur').style.color = dur>=10?'#ff4444':dur>=1?'var(--amber)':'var(--muted)';
+  const badge=el('sev-badge'); badge.textContent=sev; badge.className='sev-badge '+cls;
+}
+
+function setType(t) {
+  _currentType=t;
+  el('btn-planned').className   = 'type-btn'+(t==='PLANNED'   ?' active-planned':'');
+  el('btn-unplanned').className = 'type-btn'+(t==='UNPLANNED' ?' active-unplanned':'');
+}
+
+function onReasonChange(val) {
+  if (!val){ el('limit-warning').style.display='none'; return; }
+  const parts=val.split('|'); const type=parts[2]||'UNPLANNED'; const limit=parts[3]||null;
+  setType(type);
+  const warn=el('limit-warning');
+  if (limit){ warn.innerHTML=`⏱ <strong>Planned with time limit:</strong> ${limit}. Escalate if exceeded.`; warn.style.display='block'; }
+  else { warn.style.display='none'; }
+}
+
+// ── Filter ────────────────────────────────────────────────────────
+function setFilter(f) {
+  _sevFilter=f;
+  el('fil-all').classList.toggle('active',   f==='all');
+  el('fil-major').classList.toggle('active', f==='MAJOR');
+  el('fil-sec').classList.toggle('active',   f==='SECOND_LEVEL');
+  renderEvents();
+}
+
+// ── Submit ────────────────────────────────────────────────────────
+async function submitDowntime() {
+  const startVal = el('f-start').value;
+  const endVal   = el('f-end').value;
+  const reasonRaw= el('f-reason').value;
+  const operator = el('f-operator').value.trim();
+  if (!startVal||!endVal||!reasonRaw||!operator){ showToast('Fill: Start Time, End Time, Reason, Operator','err'); return; }
+
+  const reasonParts = reasonRaw.split('|');
+  const reason = reasonParts[1]||reasonRaw;
+  const dur    = (new Date(endVal)-new Date(startVal))/60000;
+  if (dur<=0){ showToast('End time must be after start time','err'); return; }
+
+  const machine = el('sel-machine').value || MACHINE_DEFAULT;
+  const date    = el('sel-date').value;
+  const shift   = el('sel-shift').value;
+
+  const btn=el('submit-btn'); btn.disabled=true; btn.textContent='Saving…';
+  try {
+    const resp = await zFetch('/api/cnc/downtime-log',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...zAuthHeader()},
+      body:JSON.stringify({
+        shift_date:    date,
+        shift:         shift,
+        machine_id:    machine,
+        start_time:    new Date(startVal).toISOString(),
+        end_time:      new Date(endVal).toISOString(),
+        duration_min:  parseFloat(dur.toFixed(2)),
+        type:          _currentType,
+        reason_code:   reason,
+        reason_detail: el('f-detail').value.trim(),
+        operator_name: operator,
+        action_to_take: el('f-action').value.trim(),
+        assigned_to:   el('f-assignee').value.trim(),
+        assigned_email: el('f-email').value.trim()
+      })
+    });
+    const sev=resp?.severity||'MINOR';
+    const msgs={MINOR:'📝 Minor event logged.',SECOND_LEVEL:'⚠️ Second-level event logged.',MAJOR:'🚨 MAJOR event — email alert sent!'};
+    showToast(msgs[sev]||'✅ Logged.','ok');
+    ['f-end','f-detail','f-action','f-assignee','f-email'].forEach(id=>el(id).value='');
+    el('sev-dur').textContent='Select start & end time'; el('sev-badge').textContent='—';
+    el('sev-badge').className='sev-badge sev-minor'; el('f-reason').value='';
+    setTimeout(()=>loadShiftData(),800);
+  } catch(e){ showToast('Error: '+(e.message||'failed'),'err'); }
+  btn.disabled=false; btn.textContent='⛔ Log Downtime Event';
+}
+
+// ── Render events ─────────────────────────────────────────────────
+function renderEvents() {
+  const tbody    = el('events-tbody');
+  const filShift = el('fil-shift').value;
+  let rows = _allEvents;
+  if (filShift) rows = rows.filter(r=>r.shift===filShift);
+  if (_sevFilter!=='all') rows=rows.filter(r=>(r.severity||'').toUpperCase()===_sevFilter);
+  if (!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty-msg">No downtime events — log using the form</td></tr>'; return; }
+  tbody.innerHTML = rows.map(ev=>{
+    const dur   = parseFloat(ev.duration_min)||0;
+    const sev   = (ev.severity||(dur<1?'MINOR':dur<10?'SECOND_LEVEL':'MAJOR')).toUpperCase();
+    const durCls= sev==='MAJOR'?'dur-major':sev==='SECOND_LEVEL'?'dur-second':'dur-minor';
+    const icon  = sev==='MAJOR'?'🚨':sev==='SECOND_LEVEL'?'⚠️':'📝';
+    const typCls= (ev.type||'').toUpperCase()==='PLANNED'?'type-planned':'type-unplanned';
+    const startT= ev.start_time?new Date(ev.start_time).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}):'—';
+    const reason= (ev.reason_code||'—').slice(0,22);
+    const action= (ev.action_to_take||'—').slice(0,18);
+    return `<tr>
+      <td>${String(ev.shift_date||'').slice(0,10)} <span style="color:var(--muted)">Sh.${ev.shift||'?'}</span></td>
+      <td>${startT}</td>
+      <td><span class="dur-pill ${durCls}">${icon} ${dur.toFixed(1)}m</span></td>
+      <td><span class="${typCls}">${(ev.type||'—').toUpperCase()}</span></td>
+      <td title="${ev.reason_detail||''}">${reason}</td>
+      <td>${ev.assigned_to||'—'}</td>
+      <td title="${ev.action_to_take||''}">${action}</td>
+      <td><button class="del-btn" onclick="deleteEvent(${ev.id})">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteEvent(id) {
+  if (!confirm('Delete this downtime event?')) return;
+  try {
+    await zFetch('/api/cnc/downtime-log/'+id,{method:'DELETE',headers:zAuthHeader()});
+    showToast('Event deleted','ok');
+    setTimeout(()=>loadShiftData(),800);
+  } catch(e){showToast('Delete failed','err');}
+}
+
+// ── Pareto ────────────────────────────────────────────────────────
+function buildPareto() {
+  const ctx=el('pareto-chart').getContext('2d');
+  const agg={};
+  _allEvents.forEach(ev=>{
+    const r=ev.reason_code||'Unknown';
+    agg[r]=(agg[r]||0)+(parseFloat(ev.duration_min)||0);
+  });
+  const sorted=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(_paretoChart)_paretoChart.destroy();
+  if(!sorted.length){
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    ctx.fillStyle='rgba(255,255,255,.15)'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('No downtime events logged yet',ctx.canvas.width/2,55);
+    return;
+  }
+  _paretoChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:sorted.map(([k])=>k.length>22?k.slice(0,22)+'…':k),
+      datasets:[{label:'Downtime (min)',data:sorted.map(([,v])=>parseFloat(v.toFixed(1))),
+        backgroundColor:sorted.map((_,i)=>i===0?'rgba(255,68,68,.75)':i<3?'rgba(255,179,0,.65)':'rgba(0,212,255,.5)'),
+        borderRadius:5,borderWidth:0}]
+    },
+    options:{
+      responsive:true,indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} min`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:10}}},
+              y:{grid:{display:false},ticks:{color:'#bbb',font:{size:10}}}}
+    }
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function el(id){return document.getElementById(id);}
+function showToast(msg,type){
+  const t=el('toast'); t.textContent=msg; t.className='toast show '+(type||'ok');
+  clearTimeout(t._tid); t._tid=setTimeout(()=>{t.className='toast';},4000);
+}
+</script>
+</body>
+</html>

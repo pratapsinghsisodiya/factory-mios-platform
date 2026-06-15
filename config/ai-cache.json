@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "description": "Facto-Bot AI self-learning cache — successful question→SQL patterns",
+  "patterns": [
+    {
+      "key": "test oee today",
+      "sql": "SELECT oee FROM oee_results LIMIT 1",
+      "engine": "test",
+      "hits": 1,
+      "learned_at": "2026-06-01T10:54:00.723Z"
+    }
+  ]
+}

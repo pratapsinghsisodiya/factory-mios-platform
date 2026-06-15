@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+/* ── Header bar ── */
+.vw-header{display:flex;align-items:center;gap:16px;padding:14px 22px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:rgba(0,0,0,.25);backdrop-filter:blur(4px);position:sticky;top:0;z-index:10;}
+.vw-logo{font-size:22px;flex-shrink:0;}
+.vw-title{font-size:17px;font-weight:800;color:var(--text);}
+.vw-meta{font-size:10px;color:var(--muted);}
+.vw-clock{font-size:12px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums;margin-left:auto;}
+.vw-actions{display:flex;gap:7px;align-items:center;}
+.vw-btn{padding:6px 13px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.vw-btn.back{background:rgba(255,255,255,.05);border-color:var(--border);color:var(--muted);}
+.vw-btn.back:hover{color:var(--text);}
+.vw-btn.edit{background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.2);color:var(--green);}
+.vw-btn.edit:hover{background:rgba(0,255,136,.18);}
+.vw-btn.refresh{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.2);color:var(--cyan);}
+.vw-btn.refresh:hover{background:rgba(0,212,255,.18);}
+.vw-refresh-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Body / Grid ── */
+.vw-body{padding:18px 22px 60px;}
+.vw-grid{display:grid;gap:14px;}
+.vw-grid.col2{grid-template-columns:repeat(2,1fr);}
+.vw-grid.col3{grid-template-columns:repeat(3,1fr);}
+.vw-grid.col4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:900px){.vw-grid.col3,.vw-grid.col4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.vw-grid{grid-template-columns:1fr!important}}
+
+/* ── Widget cards ── */
+.vw-widget{border-radius:14px;padding:16px;min-height:120px;border:1px solid var(--border);background:var(--card);position:relative;overflow:hidden;transition:border-color .3s;}
+.vw-widget:hover{border-color:rgba(0,212,255,.25);}
+.vw-widget.span2{grid-column:span 2;}
+.vw-widget.chart-card{min-height:220px;}
+.vw-widget-label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+.vw-val{font-size:32px;font-weight:800;line-height:1;}
+.vw-sub{font-size:11px;color:var(--muted);margin-top:5px;}
+.vw-state-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;}
+.vw-bar-row{margin-top:8px;}
+.vw-bar-bg{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:3px;}
+.vw-bar-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+.vw-canvas-wrap{position:relative;height:160px;margin-top:8px;}
+/* skeleton */
+.skel{background:rgba(255,255,255,.07);border-radius:8px;animation:sk 1.4s ease-in-out infinite;}
+@keyframes sk{0%,100%{opacity:.4}50%{opacity:.9}}
+/* accent glow strip at top */
+.vw-widget::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent-bar,rgba(0,212,255,.4));border-radius:14px 14px 0 0;}
+
+/* ── Not found ── */
+.vw-not-found{text-align:center;padding:80px 20px;color:var(--muted);}
+/* ── Refresh countdown ── */
+.vw-refresh-row{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);}
+.vw-countdown{font-variant-numeric:tabular-nums;color:var(--cyan);}
+</style>
+</head>
+<body>
+<div id="z-nav"></div>
+<div id="vw-root">
+  <div style="text-align:center;padding:80px 20px;color:var(--muted)">
+    <div style="font-size:32px;margin-bottom:12px;animation:spin 1s linear infinite">⟳</div>
+    <div>Loading dashboard…</div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<style>@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}</style>
+<script src="/_shared.js"></script>
+<script>
+(function() {
+  'use strict';
+  var MACHINE     = 'MACHINE001';
+  var REFRESH_SEC = 30;   // auto-refresh interval
+  var slug = window.location.pathname.replace(/^\/view\/?/, '').replace(/\/$/, '');
+  var _refreshTimer, _countdown;
+  var _dash = null;
+
+  // ── Widget definitions — same fetch logic as builder ─────────────
+  var WIDGET_DATA = {
+    'oee-live': {
+      title: 'OEE Live', icon: '🎯',
+      fetch: function() {
+        var sh = zCurrentShift(), dt = zOEEDate(sh);
+        return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(function(d) {
+          return { val: fmtNum(d&&d.oee,1)+'%', sub: 'Availability · Performance · Quality', color: oeeColor(d&&d.oee||0), pct: d&&d.oee||0 };
+        });
+      }
+    },
+    'parts-count': {
+      title: 'Parts This Shift', icon: '⚙',
+      fetch: function() {
+        return zFetch('/api/cnc/live?machine='+MACHINE).then(function(d) {
+          var m = d&&d.machine;
+          return { val: fmtInt(m&&(m.part_count||m.parts_made)||0), sub: zShiftInfo().shift+' Shift · running count', color: 'var(--green)' };
+        });
+      }
+    },
+    'spindle-speed': {
+      title: 'Spindle Speed', icon: '◎',
+      fetch: function() {
+        return zFetch('/api/cnc/live?machine='+MACHINE).then(function(d) {
+          var m = d&&d.machine;
+          return { val: fmtInt(m&&m.spindle_speed||0)+' RPM', sub: 'Program: '+(m&&m.program_no||'--'), color: 'var(--blue)' };
+        });
+      }
+    },
+    'downtime-today': {
+      title: 'Downtime Today', icon: '⊠',
+      fetch: function() {
+        return zFetch('/api/cnc/live?machine='+MACHINE).then(function(d) {
+          var m = d&&d.machine;
+          return { val: fmtHM((m&&m.idle_time_sec)||0), sub: 'Cumulative idle time', color: 'var(--amber)' };
+        });
+      }
+    },
+    'machine-state': {
+      title: 'Machine State', icon: '◉',
+      fetch: function() {
+        return zFetch('/api/cnc/live?machine='+MACHINE).then(function(d) {
+          var m = d&&d.machine; var s = (m&&m.machine_state)||'--';
+          return { val: s, sub: 'Program: '+(m&&m.program_no||'--')+' · '+((m&&m.is_running)?'Running':'Stopped'), color: stateColor(s), isState: true, state: s };
+        });
+      }
+    },
+    'quality-rate': {
+      title: 'Quality Rate', icon: '✓',
+      fetch: function() {
+        var sh = zCurrentShift(), dt = zOEEDate(sh);
+        return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(function(d) {
+          return { val: fmtNum(d&&d.quality,1)+'%', sub: 'Good parts / Total produced', color: oeeColor(d&&d.quality||0), pct: d&&d.quality||0 };
+        });
+      }
+    },
+    'availability': {
+      title: 'Availability', icon: '▦',
+      fetch: function() {
+        var sh = zCurrentShift(), dt = zOEEDate(sh);
+        return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(function(d) {
+          return { val: fmtNum(d&&d.availability,1)+'%', sub: 'Uptime this shift', color: oeeColor(d&&d.availability||0), pct: d&&d.availability||0 };
+        });
+      }
+    },
+    'shift-info': {
+      title: 'Shift Progress', icon: '⏱',
+      fetch: function() {
+        return Promise.resolve((function() {
+          var si = zShiftInfo();
+          var pct = si.elapsed / (si.elapsed + si.remaining) * 100;
+          return { val: 'Shift '+si.shift, sub: fmtHM(si.elapsed)+' elapsed · '+fmtHM(si.remaining)+' remaining', color: 'var(--cyan)', pct: Math.round(pct) };
+        })());
+      }
+    },
+    'oee-trend': {
+      title: '7-Day OEE Trend', icon: '📈', isChart: true,
+      fetch: function() {
+        return zFetch('/api/cnc/trend?machine='+MACHINE+'&days=7').then(function(d) {
+          return { data: d&&(d.trend||d.data)||[], isChart: true };
+        });
+      }
+    }
+  };
+
+  function renderDataSourceWidget(container, widget, idx) {
+    var title = widget.title || widget.source_id || 'Data Source';
+    container.innerHTML = '<div class="vw-widget-label">🔌 &nbsp;'+escH(title)+'</div><div class="vw-val skel" id="vwv-'+idx+'" style="height:40px;width:70%"> </div><div class="vw-sub" id="vws-'+idx+'">Loading source…</div>';
+    var qs = new URLSearchParams();
+    if (widget.valueField) qs.set('valueField', widget.valueField);
+    if (widget.labelField) qs.set('labelField', widget.labelField);
+    if (widget.timeField) qs.set('timeField', widget.timeField);
+    qs.set('limit', widget.widget_kind === 'kpi' ? '1' : '20');
+    zFetch('/api/data-sources/' + encodeURIComponent(widget.source_id) + '/data?' + qs.toString())
+      .then(function(d) {
+        var valEl = document.getElementById('vwv-'+idx);
+        var subEl = document.getElementById('vws-'+idx);
+        var rows = d && d.rows ? d.rows : [];
+        if (widget.widget_kind === 'table') {
+          if (valEl) { valEl.classList.remove('skel'); valEl.style.fontSize='11px'; valEl.style.lineHeight='1.6'; valEl.textContent = rows.slice(0,4).map(function(r){ return JSON.stringify(r); }).join(' | ') || '--'; }
+        } else if (widget.widget_kind === 'chart') {
+          if (valEl) { valEl.classList.remove('skel'); valEl.style.fontSize='18px'; valEl.textContent = (d.mapped||[]).slice(0,8).map(function(r){ return r.label !== undefined ? r.label + ':' + r.value : r.value; }).join('  ') || '--'; }
+        } else {
+          var first = (d.mapped && d.mapped[0]) || {};
+          var raw = rows[0] || {};
+          var v = first.value !== undefined ? first.value : (widget.valueField ? raw[widget.valueField] : Object.values(raw)[0]);
+          if (valEl) { valEl.textContent = v === undefined ? '--' : String(v); valEl.style.color='var(--cyan)'; valEl.classList.remove('skel'); }
+        }
+        if (subEl) subEl.textContent = (d.source && d.source.name ? d.source.name : widget.source_id) + (d.cached ? ' · cached' : ' · live');
+        container.closest('.vw-widget').style.setProperty('--accent-bar', 'rgba(0,212,255,.45)');
+      })
+      .catch(function(){
+        var subEl = document.getElementById('vws-'+idx);
+        if (subEl) subEl.textContent = 'Source failed';
+      });
+  }
+
+  // ── Render a single widget into a .vw-widget div ─────────────────
+  function renderWidget(container, type, idx) {
+    if (type && typeof type === 'object' && type.type === 'data-source') {
+      renderDataSourceWidget(container, type, idx);
+      return;
+    }
+    var def = WIDGET_DATA[type] || buildKpiDef(type);
+    if (!def) {
+      container.innerHTML = '<div class="vw-widget-label">'+escH(type)+'</div><div class="vw-val skel" style="width:80px;height:36px"> </div>';
+      return;
+    }
+    container.innerHTML =
+      '<div class="vw-widget-label">'+escH(def.icon||'📋')+' &nbsp;'+escH(def.title)+'</div>'+
+      (def.isChart
+        ? '<div class="vw-canvas-wrap"><canvas id="vwc-'+idx+'"></canvas></div>'
+        : '<div class="vw-val skel" id="vwv-'+idx+'" style="height:40px;width:70%"> </div>'+
+          '<div class="vw-bar-row" id="vwb-'+idx+'"></div>'+
+          '<div class="vw-sub" id="vws-'+idx+'"> </div>'
+      );
+
+    def.fetch().then(function(r) {
+      if (!r) return;
+      if (r.isChart) {
+        renderChart('vwc-'+idx, r.data);
+        return;
+      }
+      var valEl = document.getElementById('vwv-'+idx);
+      var subEl = document.getElementById('vws-'+idx);
+      var barEl = document.getElementById('vwb-'+idx);
+      if (valEl) { valEl.textContent = r.val||'--'; valEl.style.color = r.color||'var(--cyan)'; valEl.classList.remove('skel'); }
+      if (subEl) { subEl.textContent = r.sub||''; }
+      if (barEl && r.pct !== undefined) {
+        var pct = Math.min(100, Math.max(0, parseFloat(r.pct)||0));
+        var bc  = r.color||'var(--cyan)';
+        barEl.innerHTML = '<div class="vw-bar-bg"><div class="vw-bar-fill" style="width:'+pct+'%;background:'+bc+'"></div></div>';
+      }
+      if (r.isState) {
+        var dot = document.createElement('span');
+        dot.className = 'vw-state-dot';
+        dot.style.background = r.color||'var(--muted)';
+        if (valEl) valEl.insertBefore(dot, valEl.firstChild);
+      }
+      // apply accent bar color
+      container.closest('.vw-widget').style.setProperty('--accent-bar', (r.color||'rgba(0,212,255,.4)')+'88');
+    }).catch(function(){});
+  }
+
+  // ── Chart rendering (OEE trend) ───────────────────────────────────
+  function renderChart(canvasId, data) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas || !data || !data.length) return;
+    var labels = data.map(function(r){ return r.date||r.shift_date||r.period||''; });
+    var vals   = data.map(function(r){ return parseFloat(r.oee||r.value||0); });
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim() || '#00d4ff';
+    try {
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'OEE %',
+            data: vals,
+            borderColor: accent,
+            backgroundColor: accent+'22',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: accent
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color:'#8899aa', font:{size:9} }, grid: { color:'rgba(255,255,255,.04)' } },
+            y: { min: 0, max: 100, ticks: { color:'#8899aa', font:{size:9} }, grid: { color:'rgba(255,255,255,.04)' } }
+          }
+        }
+      });
+    } catch(e) {}
+  }
+
+  // ── KPI widget factory (for kpi:xxx types saved from builder) ─────
+  function buildKpiDef(type) {
+    if (!type || !type.startsWith('kpi:')) return null;
+    return {
+      title: type.replace('kpi:',''),
+      icon: '🔢',
+      fetch: function() {
+        return zFetch('/api/cnc/live?machine='+MACHINE).then(function(d){
+          return { val: '--', sub: type, color: 'var(--cyan)' };
+        });
+      }
+    };
+  }
+
+  // ── Countdown timer ──────────────────────────────────────────────
+  function startCountdown() {
+    var sec = REFRESH_SEC;
+    clearInterval(_countdown);
+    _countdown = setInterval(function() {
+      sec--;
+      var el = document.getElementById('vw-countdown-num');
+      if (el) el.textContent = sec + 's';
+      if (sec <= 0) {
+        clearInterval(_countdown);
+        refreshAllWidgets();
+      }
+    }, 1000);
+  }
+
+  function refreshAllWidgets() {
+    var cards = document.querySelectorAll('.vw-widget[data-idx]');
+    cards.forEach(function(card) {
+      var idx  = Number(card.getAttribute('data-idx'));
+      var widget = (_dash && _dash.widgets || []).find(function(w){ return Number(w.zone) === idx; });
+      renderWidget(card.querySelector('.vw-widget-inner'), widget && widget.type === 'data-source' ? widget : card.getAttribute('data-type'), idx);
+    });
+    startCountdown();
+  }
+
+  // ── Main render ──────────────────────────────────────────────────
+  function render(dash) {
+    _dash = dash;
+    var t = dash.theme || {};
+    // Apply theme
+    if (t.bgColor || t.bgImage) {
+      document.body.style.background = t.bgImage
+        ? 'url('+t.bgImage+') center/cover fixed'
+        : t.bgColor;
+    }
+    if (t.accentColor) {
+      document.documentElement.style.setProperty('--cyan', t.accentColor);
+    }
+
+    var cols    = parseInt(dash.columns) || 3;
+    var widgets = dash.widgets || [];
+    var dt = new Date(dash.published_at).toLocaleString('en-IN',{
+      timeZone:'Asia/Kolkata', day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    // Build sorted zone array
+    var zones = [];
+    // If the dashboard has a max zone index, create that many slots
+    var maxZone = 0;
+    widgets.forEach(function(w){ if (Number(w.zone) > maxZone) maxZone = Number(w.zone); });
+    var totalZones = Math.max(maxZone + 1, cols * Math.ceil(widgets.length / cols));
+    for (var i = 0; i < totalZones; i++) {
+      var w = widgets.find(function(x){ return Number(x.zone) === i; });
+      zones.push(w || null);
+    }
+
+    // Build grid HTML
+    var gridCards = zones.map(function(w, idx) {
+      if (!w) {
+        return '<div class="vw-widget" style="opacity:.15;border-style:dashed"></div>';
+      }
+      return '<div class="vw-widget" data-type="'+escH(w.type)+'" data-idx="'+idx+'" style="animation:fadeInUp .3s '+(idx*0.05)+'s both ease forwards;opacity:0">'+
+        '<div class="vw-widget-inner">'+
+          '<div class="vw-widget-label" style="opacity:.5">'+escH((WIDGET_DATA[w.type]&&WIDGET_DATA[w.type].icon)||'📋')+' Loading…</div>'+
+          '<div class="vw-val skel" style="height:38px;width:60%;margin-top:4px"> </div>'+
+          '<div class="skel" style="height:10px;width:90%;margin-top:8px;border-radius:4px"> </div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    var root = document.getElementById('vw-root');
+    root.innerHTML =
+      '<div class="vw-header">'+
+        '<div class="vw-logo">'+(t.icon||'📊')+'</div>'+
+        '<div>'+
+          '<div class="vw-title">'+escH(dash.name)+'</div>'+
+          (dash.description ? '<div class="vw-meta">'+escH(dash.description)+'</div>' : '')+
+          '<div class="vw-meta">Last saved: '+dt+' &nbsp;·&nbsp; '+widgets.length+' widget'+(widgets.length!==1?'s':'')+'</div>'+
+        '</div>'+
+        '<div class="vw-clock" id="vw-live-clock">--:--:--</div>'+
+        '<div class="vw-actions">'+
+          '<div class="vw-refresh-row">'+
+            '<div class="vw-refresh-dot"></div>'+
+            '<span>Auto-refresh in <span class="vw-countdown" id="vw-countdown-num">'+REFRESH_SEC+'s</span></span>'+
+          '</div>'+
+          '<a href="/dashboard-builder?load='+encodeURIComponent(slug)+'" class="vw-btn edit">✏ Edit</a>'+
+          '<button class="vw-btn refresh" onclick="location.reload()">⟳ Refresh</button>'+
+          '<a href="/dashboard-builder" class="vw-btn back">← Builder</a>'+
+        '</div>'+
+      '</div>'+
+      '<div class="vw-body">'+
+        '<div class="vw-grid col'+cols+'" id="vw-grid">'+gridCards+'</div>'+
+      '</div>';
+
+    // Start live clock
+    (function tick() {
+      var el = document.getElementById('vw-live-clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      setTimeout(tick, 1000);
+    })();
+
+    // Fetch real data for each widget
+    document.querySelectorAll('.vw-widget[data-type]').forEach(function(card) {
+      var idx  = Number(card.getAttribute('data-idx'));
+      var widget = widgets.find(function(w){ return Number(w.zone) === idx; });
+      renderWidget(card.querySelector('.vw-widget-inner'), widget && widget.type === 'data-source' ? widget : card.getAttribute('data-type'), idx);
+    });
+
+    startCountdown();
+  }
+
+  function renderNotFound() {
+    document.getElementById('vw-root').innerHTML =
+      '<div class="vw-not-found">'+
+        '<div style="font-size:56px;opacity:.3;margin-bottom:16px">📋</div>'+
+        '<div style="font-size:18px;font-weight:700;margin-bottom:8px">Dashboard not found</div>'+
+        '<div style="font-size:13px;margin-bottom:20px">No dashboard with slug: <code>'+escH(slug)+'</code></div>'+
+        '<a href="/dashboard-builder" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);border-radius:9px;padding:9px 18px;color:var(--cyan);font-size:13px;text-decoration:none">← Back to Builder</a>'+
+      '</div>';
+  }
+
+  function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  if (!slug) { renderNotFound(); return; }
+
+  fetch('/api/dashboards/list')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var list = (data && data.dashboards) ? data.dashboards : [];
+      var dash = list.find(function(d){ return d.slug === slug; });
+      if (dash) render(dash); else renderNotFound();
+    })
+    .catch(function(){ renderNotFound(); });
+
+  window.addEventListener('DOMContentLoaded', function() {
+    if (typeof zRenderNav === 'function') zRenderNav('z-nav');
+    if (typeof zCheckAuth  === 'function') zCheckAuth();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,460 @@
+{
+  "title": "CNC OEE \u2014 Industrial Machine 001",
+  "configuration": {
+    "description": "Real-time OEE monitoring for MACHINE-001-Industrial CNC",
+    "filters": {},
+    "entityAliases": {
+      "c7877dd2-1cb8-4194-b413-3d962348f554": {
+        "id": "c7877dd2-1cb8-4194-b413-3d962348f554",
+        "alias": "MACHINE-001-Industrial CNC",
+        "filter": {
+          "type": "entityName",
+          "resolveMultiple": false,
+          "entityNameFilter": "MACHINE-001-Industrial CNC",
+          "entityType": "DEVICE"
+        }
+      }
+    },
+    "timewindow": {
+      "displayValue": "Last 30 minutes",
+      "selectedTab": 0,
+      "realtime": {
+        "realtimeType": 1,
+        "interval": 5000,
+        "timewindowMs": 1800000,
+        "quickInterval": "CURRENT_HOUR"
+      },
+      "history": {
+        "historyType": 0,
+        "timewindowMs": 1800000,
+        "interval": 5000,
+        "fixedTimewindow": {
+          "startTimeMs": 0,
+          "endTimeMs": 0
+        }
+      },
+      "aggregation": {
+        "type": "NONE",
+        "limit": 200
+      }
+    },
+    "settings": {
+      "stateControllerId": "entity",
+      "showTitle": true,
+      "backgroundColor": "#0d1117",
+      "color": "rgba(255,255,255,.87)",
+      "padding": "8px",
+      "margin": "0px",
+      "dashboardCss": ""
+    },
+    "states": {
+      "realtime": {
+        "name": "\u26a1 Real-Time Monitor",
+        "root": true,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "8f80dc8f-f7de-499a-b94e-e04541051d95": {
+                "sizeX": 24,
+                "sizeY": 3,
+                "row": 0,
+                "col": 0
+              },
+              "6b8af12a-54b1-4f62-a88b-c2563588871c": {
+                "sizeX": 24,
+                "sizeY": 5,
+                "row": 3,
+                "col": 0
+              },
+              "27c75e03-fd19-46bf-9e3d-c9640050a28d": {
+                "sizeX": 24,
+                "sizeY": 6,
+                "row": 8,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 8,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      },
+      "oee": {
+        "name": "\ud83d\udcca OEE Dashboard",
+        "root": false,
+        "layouts": {
+          "main": {
+            "widgets": {
+              "939756a8-9b10-487b-a532-2f384761e1b4": {
+                "sizeX": 24,
+                "sizeY": 3,
+                "row": 0,
+                "col": 0
+              },
+              "a5776b96-3233-47ad-96cc-7bfa46dce01b": {
+                "sizeX": 24,
+                "sizeY": 7,
+                "row": 3,
+                "col": 0
+              }
+            },
+            "gridSettings": {
+              "backgroundColor": "#0d1117",
+              "backgroundSizeMode": "100%",
+              "autoFillHeight": true,
+              "mobileAutoFillHeight": false,
+              "mobileRowHeight": 70,
+              "columns": 24,
+              "margin": 8,
+              "outerMargin": true,
+              "backgroundImageUrl": null
+            }
+          }
+        }
+      }
+    },
+    "widgets": {
+      "8f80dc8f-f7de-499a-b94e-e04541051d95": {
+        "id": "8f80dc8f-f7de-499a-b94e-e04541051d95",
+        "bundleAlias": "cnc_oee_v3",
+        "typeAlias": "cnc_header",
+        "type": "latest",
+        "actionDescriptorsBySourceId": {},
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "name": "",
+              "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+              "filterId": null,
+              "dataKeys": [
+                {
+                  "name": "machine_state",
+                  "type": "timeseries",
+                  "label": "State",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "spindle_speed",
+                  "type": "timeseries",
+                  "label": "Spindle",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "part_count",
+                  "type": "timeseries",
+                  "label": "Parts",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "program_no",
+                  "type": "timeseries",
+                  "label": "Program",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                }
+              ]
+            }
+          ],
+          "showTitle": false,
+          "title": "",
+          "backgroundColor": "transparent",
+          "color": "rgba(255,255,255,.87)",
+          "titleStyle": {},
+          "actions": {}
+        }
+      },
+      "6b8af12a-54b1-4f62-a88b-c2563588871c": {
+        "id": "6b8af12a-54b1-4f62-a88b-c2563588871c",
+        "bundleAlias": "cnc_oee_v3",
+        "typeAlias": "cnc_kpi_grid",
+        "type": "latest",
+        "actionDescriptorsBySourceId": {},
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "name": "",
+              "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+              "filterId": null,
+              "dataKeys": [
+                {
+                  "name": "machine_state",
+                  "type": "timeseries",
+                  "label": "State",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "spindle_speed",
+                  "type": "timeseries",
+                  "label": "Spindle",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "feed_rate",
+                  "type": "timeseries",
+                  "label": "Feed",
+                  "color": "#ffb300",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "part_count",
+                  "type": "timeseries",
+                  "label": "Parts",
+                  "color": "#3b82f6",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "last_cycle_time_sec",
+                  "type": "timeseries",
+                  "label": "Cycle",
+                  "color": "#a78bfa",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "alarm_active",
+                  "type": "timeseries",
+                  "label": "Alarm",
+                  "color": "#ff5252",
+                  "settings": {},
+                  "_hash": 0.5
+                }
+              ]
+            }
+          ],
+          "showTitle": false,
+          "title": "",
+          "backgroundColor": "transparent",
+          "color": "rgba(255,255,255,.87)",
+          "titleStyle": {},
+          "actions": {}
+        }
+      },
+      "27c75e03-fd19-46bf-9e3d-c9640050a28d": {
+        "id": "27c75e03-fd19-46bf-9e3d-c9640050a28d",
+        "bundleAlias": "cnc_oee_v3",
+        "typeAlias": "cnc_status_prod",
+        "type": "latest",
+        "actionDescriptorsBySourceId": {},
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "name": "",
+              "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+              "filterId": null,
+              "dataKeys": [
+                {
+                  "name": "is_running",
+                  "type": "timeseries",
+                  "label": "Running",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "auto_mode",
+                  "type": "timeseries",
+                  "label": "Auto",
+                  "color": "#3b82f6",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "alarm_active",
+                  "type": "timeseries",
+                  "label": "Alarm",
+                  "color": "#ff1744",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "motion_status",
+                  "type": "timeseries",
+                  "label": "Motion",
+                  "color": "#ffb300",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "emergency",
+                  "type": "timeseries",
+                  "label": "Emergency",
+                  "color": "#ff1744",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "parts_today",
+                  "type": "timeseries",
+                  "label": "Parts",
+                  "color": "#3b82f6",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "target_today",
+                  "type": "timeseries",
+                  "label": "Target",
+                  "color": "#64748b",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "part_count",
+                  "type": "timeseries",
+                  "label": "Count",
+                  "color": "#3b82f6",
+                  "settings": {},
+                  "_hash": 0.5
+                }
+              ]
+            }
+          ],
+          "showTitle": false,
+          "title": "",
+          "backgroundColor": "transparent",
+          "color": "rgba(255,255,255,.87)",
+          "titleStyle": {},
+          "actions": {}
+        }
+      },
+      "939756a8-9b10-487b-a532-2f384761e1b4": {
+        "id": "939756a8-9b10-487b-a532-2f384761e1b4",
+        "bundleAlias": "cnc_oee_v3",
+        "typeAlias": "cnc_header",
+        "type": "latest",
+        "actionDescriptorsBySourceId": {},
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "name": "",
+              "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+              "filterId": null,
+              "dataKeys": [
+                {
+                  "name": "machine_state",
+                  "type": "timeseries",
+                  "label": "State",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "spindle_speed",
+                  "type": "timeseries",
+                  "label": "Spindle",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "part_count",
+                  "type": "timeseries",
+                  "label": "Parts",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "program_no",
+                  "type": "timeseries",
+                  "label": "Program",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                }
+              ]
+            }
+          ],
+          "showTitle": false,
+          "title": "",
+          "backgroundColor": "transparent",
+          "color": "rgba(255,255,255,.87)",
+          "titleStyle": {},
+          "actions": {}
+        }
+      },
+      "a5776b96-3233-47ad-96cc-7bfa46dce01b": {
+        "id": "a5776b96-3233-47ad-96cc-7bfa46dce01b",
+        "bundleAlias": "cnc_oee_v3",
+        "typeAlias": "cnc_oee_gauges",
+        "type": "latest",
+        "actionDescriptorsBySourceId": {},
+        "config": {
+          "datasources": [
+            {
+              "type": "entity",
+              "name": "",
+              "entityAliasId": "c7877dd2-1cb8-4194-b413-3d962348f554",
+              "filterId": null,
+              "dataKeys": [
+                {
+                  "name": "oee_today",
+                  "type": "timeseries",
+                  "label": "OEE",
+                  "color": "#00e676",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "availability_today",
+                  "type": "timeseries",
+                  "label": "Avail",
+                  "color": "#3b82f6",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "performance_today",
+                  "type": "timeseries",
+                  "label": "Perf",
+                  "color": "#ffb300",
+                  "settings": {},
+                  "_hash": 0.5
+                },
+                {
+                  "name": "quality_today",
+                  "type": "timeseries",
+                  "label": "Qual",
+                  "color": "#a78bfa",
+                  "settings": {},
+                  "_hash": 0.5
+                }
+              ]
+            }
+          ],
+          "showTitle": false,
+          "title": "",
+          "backgroundColor": "transparent",
+          "color": "rgba(255,255,255,.87)",
+          "titleStyle": {},
+          "actions": {}
+        }
+      }
+    }
+  }
+}

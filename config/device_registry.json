@@ -1,0 +1,176 @@
+{
+  "_comment": "OEE Intelligence Platform — Master Device Registry (GCP-schema-ready)",
+  "_version": "2.0.0",
+  "tenant_id": "factory-mios",
+  "tenant_name": "Factory-MIOS",
+  "gcp": {
+    "project_id": "",
+    "pubsub_topic_prefix": "oee",
+    "data_sink": "local",
+    "comment": "data_sink options: local | gcp | both — change to activate GCP publishing"
+  },
+  "plants": [
+    {
+      "plant_id": "plant_001",
+      "unique_db_schema": "plant_001",
+      "plant_name": "Plant 1 — Assembly",
+      "company_name": "Factory-MIOS Manufacturing",
+      "location": "Pune, Maharashtra",
+      "gps": { "lat": 18.5204, "lng": 73.8567 },
+      "timezone": "Asia/Kolkata",
+      "active": true,
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "oee_target": 85,
+      "users": ["admin", "operator1", "supervisor1"],
+      "protocol": "MQTT",
+      "broker": "mqtt://localhost:1883",
+      "node_red_flow": "flow_plant_001",
+      "shifts": [
+        { "name": "Shift A", "label": "Morning", "start": "06:00", "end": "14:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift B", "label": "Afternoon", "start": "14:00", "end": "22:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift C", "label": "Night", "start": "22:00", "end": "06:00", "planned_min": 480, "break_min": 30 }
+      ],
+      "devices": [
+        { "device_id": "M1-ASSEMBLY", "name": "Assembly Machine 1", "type": "CNC", "model": "Haas VF-2", "protocol": "MQTT", "topic": "plant001/machine/M1", "active": true },
+        { "device_id": "M2-PRESS", "name": "Hydraulic Press 2", "type": "Press", "model": "REXROTH HP-200", "protocol": "MQTT", "topic": "plant001/machine/M2", "active": true },
+        { "device_id": "M3-WELD", "name": "Welding Station 3", "type": "Welding", "model": "Lincoln PowerWave", "protocol": "MQTT", "topic": "plant001/machine/M3", "active": true },
+        { "device_id": "M4-CONV", "name": "Conveyor Line 4", "type": "Conveyor", "model": "Bosch Rexroth VarioFlow", "protocol": "MQTT", "topic": "plant001/machine/M4", "active": true },
+        { "device_id": "M5-INSPECT", "name": "Inspection Station 5", "type": "CMM", "model": "Hexagon Romer Arm", "protocol": "MQTT", "topic": "plant001/machine/M5", "active": true }
+      ],
+      "energy_meters": [
+        { "id": "EM1", "name": "Main Incomer", "panel": "MCC-A" },
+        { "id": "EM2", "name": "Production Line 1", "panel": "MCC-B" },
+        { "id": "EM3", "name": "Production Line 2", "panel": "MCC-C" },
+        { "id": "EM4", "name": "HVAC & Utilities", "panel": "MCC-D" },
+        { "id": "EM5", "name": "Compressor Room", "panel": "MCC-E" }
+      ]
+    },
+    {
+      "plant_id": "plant_002",
+      "unique_db_schema": "plant_002",
+      "plant_name": "Plant 2 — Fabrication",
+      "company_name": "Factory-MIOS Manufacturing",
+      "location": "Chakan, Pune",
+      "gps": { "lat": 18.7613, "lng": 73.8664 },
+      "timezone": "Asia/Kolkata",
+      "active": true,
+      "created_at": "2026-01-15T00:00:00.000Z",
+      "oee_target": 82,
+      "users": ["admin", "operator2"],
+      "protocol": "OPC-UA",
+      "broker": "opc.tcp://192.168.1.100:4840",
+      "shifts": [
+        { "name": "Shift A", "label": "Morning", "start": "06:00", "end": "14:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift B", "label": "Afternoon", "start": "14:00", "end": "22:00", "planned_min": 480, "break_min": 30 }
+      ],
+      "devices": [
+        { "device_id": "FAB-M1", "name": "Laser Cutter 1", "type": "Laser", "model": "TRUMPF TruLaser 3030", "protocol": "OPC-UA", "active": true },
+        { "device_id": "FAB-M2", "name": "Bending Machine", "type": "Bender", "model": "Amada HFE3i", "protocol": "OPC-UA", "active": true },
+        { "device_id": "FAB-M3", "name": "Deburring Station", "type": "Deburring", "model": "Lissmac SBM-L 1500", "protocol": "OPC-UA", "active": false }
+      ],
+      "energy_meters": [
+        { "id": "EM1", "name": "Main Incomer", "panel": "MCC-A" },
+        { "id": "EM2", "name": "Laser Systems", "panel": "MCC-B" },
+        { "id": "EM3", "name": "Compressors", "panel": "MCC-C" },
+        { "id": "EM4", "name": "HVAC", "panel": "MCC-D" },
+        { "id": "EM5", "name": "Office & Lighting", "panel": "MCC-E" }
+      ]
+    },
+    {
+      "plant_id": "plant_003",
+      "unique_db_schema": "plant_003",
+      "plant_name": "Plant 3 — Paint Shop",
+      "company_name": "Factory-MIOS Manufacturing",
+      "location": "Talegaon, Pune",
+      "gps": { "lat": 18.7266, "lng": 73.6753 },
+      "timezone": "Asia/Kolkata",
+      "active": true,
+      "created_at": "2026-02-01T00:00:00.000Z",
+      "oee_target": 80,
+      "users": ["admin"],
+      "protocol": "MQTT",
+      "broker": "mqtt://192.168.2.10:1883",
+      "shifts": [
+        { "name": "Shift A", "label": "Morning", "start": "07:00", "end": "15:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift B", "label": "Evening", "start": "15:00", "end": "23:00", "planned_min": 480, "break_min": 30 }
+      ],
+      "devices": [
+        { "device_id": "PAINT-M1", "name": "Pre-Treatment Line", "type": "Chemical", "model": "Dürr EcoCScombine", "protocol": "MQTT", "active": true },
+        { "device_id": "PAINT-M2", "name": "E-Coat Tank", "type": "E-Coat", "model": "Dürr EcoRP E133i", "protocol": "MQTT", "active": true },
+        { "device_id": "PAINT-M3", "name": "Oven Line", "type": "Oven", "model": "Dürr EcoTAC", "protocol": "MQTT", "active": true },
+        { "device_id": "PAINT-M4", "name": "Top Coat Booth", "type": "Spray", "model": "ABB IRB 5400", "protocol": "MQTT", "active": true },
+        { "device_id": "PAINT-M5", "name": "Inspection & QC", "type": "Inspection", "model": "Isra SMASH", "protocol": "MQTT", "active": true }
+      ],
+      "energy_meters": [
+        { "id": "EM1", "name": "Oven Heaters", "panel": "MCC-A" },
+        { "id": "EM2", "name": "Spray Robots", "panel": "MCC-B" },
+        { "id": "EM3", "name": "Exhaust & Filters", "panel": "MCC-C" },
+        { "id": "EM4", "name": "Chemical Pumps", "panel": "MCC-D" },
+        { "id": "EM5", "name": "Lighting & HVAC", "panel": "MCC-E" }
+      ]
+    },
+    {
+      "plant_id": "plant_004",
+      "unique_db_schema": "plant_004",
+      "plant_name": "Plant 4 — Machining",
+      "company_name": "Factory-MIOS Manufacturing",
+      "location": "Bhosari, Pune",
+      "gps": { "lat": 18.6437, "lng": 73.8479 },
+      "timezone": "Asia/Kolkata",
+      "active": true,
+      "created_at": "2026-02-15T00:00:00.000Z",
+      "oee_target": 88,
+      "users": ["admin"],
+      "protocol": "EtherNet/IP",
+      "broker": "enip://192.168.3.5",
+      "shifts": [
+        { "name": "Shift A", "label": "Morning", "start": "06:00", "end": "14:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift B", "label": "Afternoon", "start": "14:00", "end": "22:00", "planned_min": 480, "break_min": 30 },
+        { "name": "Shift C", "label": "Night", "start": "22:00", "end": "06:00", "planned_min": 480, "break_min": 30 }
+      ],
+      "devices": [
+        { "device_id": "MACH-M1", "name": "VMC-1 (Allen-Bradley)", "type": "VMC", "model": "Rockwell ControlLogix 5580", "protocol": "EtherNet/IP", "active": true },
+        { "device_id": "MACH-M2", "name": "VMC-2 (Allen-Bradley)", "type": "VMC", "model": "Rockwell CompactLogix 5380", "protocol": "EtherNet/IP", "active": true },
+        { "device_id": "MACH-M3", "name": "HMC-1", "type": "HMC", "model": "Mazak HCN-6800", "protocol": "EtherNet/IP", "active": true },
+        { "device_id": "MACH-M4", "name": "Turning Center", "type": "Lathe", "model": "Mazak QTN-300M", "protocol": "EtherNet/IP", "active": true },
+        { "device_id": "MACH-M5", "name": "CMM (Coordinate)", "type": "CMM", "model": "Zeiss Contura G2", "protocol": "EtherNet/IP", "active": false }
+      ],
+      "energy_meters": [
+        { "id": "EM1", "name": "Main Incomer", "panel": "MCC-A" },
+        { "id": "EM2", "name": "VMC Lines", "panel": "MCC-B" },
+        { "id": "EM3", "name": "HMC", "panel": "MCC-C" },
+        { "id": "EM4", "name": "Coolant Systems", "panel": "MCC-D" },
+        { "id": "EM5", "name": "Compressed Air", "panel": "MCC-E" }
+      ]
+    },
+    {
+      "plant_id": "plant_005",
+      "unique_db_schema": "plant_005",
+      "plant_name": "Plant 5 — Warehouse & Dispatch",
+      "company_name": "Factory-MIOS Manufacturing",
+      "location": "Ranjangaon, Pune",
+      "gps": { "lat": 18.7200, "lng": 74.1800 },
+      "timezone": "Asia/Kolkata",
+      "active": false,
+      "created_at": "2026-03-01T00:00:00.000Z",
+      "oee_target": 78,
+      "users": ["admin"],
+      "protocol": "MQTT",
+      "broker": "mqtt://192.168.4.10:1883",
+      "shifts": [
+        { "name": "Shift A", "label": "Day", "start": "08:00", "end": "20:00", "planned_min": 720, "break_min": 60 }
+      ],
+      "devices": [
+        { "device_id": "WH-M1", "name": "AGV System", "type": "AGV", "model": "KUKA KMR iiwa", "protocol": "MQTT", "active": false },
+        { "device_id": "WH-M2", "name": "Palletiser", "type": "Robot", "model": "Industrial CNC M-410iB", "protocol": "MQTT", "active": false }
+      ],
+      "energy_meters": [
+        { "id": "EM1", "name": "Main Incomer", "panel": "MCC-A" },
+        { "id": "EM2", "name": "AGV Charging", "panel": "MCC-B" },
+        { "id": "EM3", "name": "Lighting", "panel": "MCC-C" },
+        { "id": "EM4", "name": "HVAC", "panel": "MCC-D" },
+        { "id": "EM5", "name": "Office Block", "panel": "MCC-E" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+name: Deploy OEE Dashboard to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: SSH Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            echo "=== Pulling latest code ==="
+            cd /opt/oee-dashboard-app
+            git pull origin main
+
+            echo "=== Installing dependencies ==="
+            npm install --production
+
+            echo "=== Restarting dashboard ==="
+            pm2 restart oee-dashboard || pm2 start server.js --name oee-dashboard
+            pm2 save
+
+            echo "=== Deploy complete ==="
+            pm2 status oee-dashboard

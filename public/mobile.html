@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="OEE"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#1B3A5C"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <title>OEE Monitor · Factory-MIOS</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#0F172A; --card:#1E293B; --card2:#253347; --border:#334155;
+    --text:#F1F5F9; --muted:#94A3B8; --accent:#60A5FA; --green:#4ADE80;
+    --red:#F87171; --amber:#FBBF24; --teal:#34D399;
+    --radius:12px;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:14px;overflow-x:hidden;}
+
+  /* TOP HEADER */
+  .hdr{position:sticky;top:0;z-index:100;background:#0F172ACC;backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);padding:12px 16px;
+    display:flex;align-items:center;justify-content:space-between;}
+  .hdr-left{display:flex;align-items:center;gap:10px;}
+  .hdr-logo{font-size:20px;font-weight:900;letter-spacing:.04em;}
+  .hdr-logo span{color:var(--accent);}
+  .hdr-sub{font-size:11px;color:var(--muted);}
+  .hdr-right{text-align:right;}
+  .hdr-clock{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .hdr-date{font-size:11px;color:var(--muted);}
+
+  /* STATUS PILL */
+  .status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+    border-radius:20px;font-size:12px;font-weight:700;background:var(--card);}
+  .pulse{width:8px;height:8px;border-radius:50%;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.4);}}
+  .running .pulse{background:var(--green);}
+  .stopped .pulse{background:var(--red);}
+  .idle .pulse{background:var(--amber);}
+
+  /* PAGE BODY */
+  .body{padding:12px 12px 80px;}
+
+  /* SHIFT BADGE */
+  .shift-bar{background:var(--card);border-radius:var(--radius);padding:10px 14px;
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+    border:1px solid var(--border);}
+  .shift-name{font-size:13px;font-weight:700;}
+  .shift-info{font-size:11px;color:var(--muted);}
+
+  /* OEE GAUGE CARD */
+  .oee-card{background:var(--card);border-radius:var(--radius);padding:16px;
+    margin-bottom:10px;border:1px solid var(--border);}
+  .oee-title{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px;}
+  .oee-row{display:flex;align-items:center;gap:16px;}
+  .oee-big{font-size:60px;font-weight:900;line-height:1;}
+  .oee-big span{font-size:24px;font-weight:400;}
+  .oee-bars{flex:1;display:flex;flex-direction:column;gap:8px;}
+  .oee-bar-row{display:flex;flex-direction:column;gap:3px;}
+  .oee-bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+  .oee-bar-label strong{color:var(--text);font-weight:700;}
+  .bar-track{background:#1E3A5F;border-radius:4px;height:7px;overflow:hidden;}
+  .bar-fill{height:7px;border-radius:4px;transition:width .6s ease;}
+
+  /* KPI GRID */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+  .kpi{background:var(--card);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border);}
+  .kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+  .kpi-val{font-size:26px;font-weight:800;line-height:1;}
+  .kpi-unit{font-size:12px;font-weight:400;color:var(--muted);margin-left:2px;}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .g{color:var(--green);} .r{color:var(--red);} .a{color:var(--amber);} .b{color:var(--accent);}
+
+  /* MACHINE STATE BANNER */
+  .state-card{border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;
+    display:flex;align-items:center;gap:12px;border:1px solid var(--border);}
+  .state-icon{font-size:28px;line-height:1;}
+  .state-txt{flex:1;}
+  .state-name{font-size:16px;font-weight:700;}
+  .state-detail{font-size:12px;color:var(--muted);margin-top:2px;}
+
+  /* PROGRAMS TABLE */
+  .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--muted);margin:14px 0 8px;padding-left:2px;}
+  .prog-card{background:var(--card);border-radius:var(--radius);overflow:hidden;
+    border:1px solid var(--border);margin-bottom:10px;}
+  .prog-row{display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);}
+  .prog-row:last-child{border-bottom:none;}
+  .prog-no{font-size:13px;font-weight:700;color:var(--accent);width:70px;flex-shrink:0;}
+  .prog-name{flex:1;font-size:12px;color:var(--text);}
+  .prog-parts{font-size:16px;font-weight:800;color:var(--green);margin-left:8px;}
+  .prog-cycle{font-size:11px;color:var(--muted);margin-left:6px;}
+
+  /* ALARM SECTION */
+  .alarm-card{background:#291515;border:1px solid #7F1D1D;border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+  .alarm-card.ok{background:#0D1F12;border-color:#14532D;}
+  .alarm-icon{font-size:22px;}
+  .alarm-txt{flex:1;}
+  .alarm-main{font-size:14px;font-weight:700;color:var(--red);}
+  .alarm-card.ok .alarm-main{color:var(--green);}
+  .alarm-sub{font-size:11px;color:var(--muted);}
+
+  /* DOWNTIME BAR */
+  .dt-card{background:var(--card);border-radius:var(--radius);padding:12px 14px;
+    margin-bottom:10px;border:1px solid var(--border);}
+  .dt-bar-wrap{display:flex;border-radius:6px;overflow:hidden;height:18px;margin:8px 0;}
+  .dt-run{background:var(--green);}
+  .dt-down{background:var(--red);}
+  .dt-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);}
+  .dt-dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;}
+
+  /* CYCLE TIME */
+  .cycle-card{background:var(--card);border-radius:var(--radius);padding:12px 14px;
+    margin-bottom:10px;border:1px solid var(--border);}
+  .cycle-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;
+    border-bottom:1px solid var(--border);}
+  .cycle-row:last-child{border-bottom:none;}
+  .cycle-label{font-size:12px;color:var(--muted);}
+  .cycle-val{font-size:14px;font-weight:700;}
+
+  /* BOTTOM NAV */
+  .bnav{position:fixed;bottom:0;left:0;right:0;background:#0F172ACC;
+    backdrop-filter:blur(12px);border-top:1px solid var(--border);
+    display:flex;z-index:100;}
+  .bnav-btn{flex:1;padding:10px 4px 14px;display:flex;flex-direction:column;
+    align-items:center;gap:4px;font-size:10px;color:var(--muted);
+    background:none;border:none;cursor:pointer;transition:color .2s;}
+  .bnav-btn.active{color:var(--accent);}
+  .bnav-icon{font-size:20px;line-height:1;}
+
+  /* TABS */
+  .tab{display:none;}
+  .tab.active{display:block;}
+
+  /* REFRESH HINT */
+  .refresh-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;
+    padding:6px 14px;font-size:12px;color:var(--muted);display:flex;align-items:center;
+    gap:6px;cursor:pointer;margin:0 auto 16px;}
+  .spin{animation:spin 1s linear infinite;}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+  /* OEE color helpers */
+  .c-green{color:var(--green);} .c-amber{color:var(--amber);} .c-red{color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-logo">OEE<span>.</span></div>
+      <div class="hdr-sub">Factory-MIOS</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-clock" id="clock">--:--</div>
+    <div class="hdr-date" id="hdr-date">—</div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body" id="body">
+
+  <!-- TAB: LIVE (default) -->
+  <div class="tab active" id="tab-live">
+    <div class="shift-bar">
+      <div>
+        <div class="shift-name" id="shift-name">Shift A</div>
+        <div class="shift-info" id="shift-info">07:00 – 19:00 IST</div>
+      </div>
+      <div id="state-pill" class="status-pill idle"><span class="pulse"></span><span id="state-text">—</span></div>
+    </div>
+
+    <!-- ALARM banner -->
+    <div class="alarm-card ok" id="alarm-banner">
+      <div class="alarm-icon">✅</div>
+      <div class="alarm-txt">
+        <div class="alarm-main">No Active Alarms</div>
+        <div class="alarm-sub" id="alarm-no-txt">Machine running normally</div>
+      </div>
+    </div>
+
+    <!-- OEE GAUGE -->
+    <div class="oee-card">
+      <div class="oee-title">Overall Equipment Effectiveness</div>
+      <div class="oee-row">
+        <div class="oee-big" id="oee-big" style="color:var(--amber)">—<span>%</span></div>
+        <div class="oee-bars">
+          <div class="oee-bar-row">
+            <div class="oee-bar-label"><span>Availability</span><strong id="avail-val">—%</strong></div>
+            <div class="bar-track"><div class="bar-fill" id="avail-bar" style="width:0%;background:var(--green)"></div></div>
+          </div>
+          <div class="oee-bar-row">
+            <div class="oee-bar-label"><span>Performance</span><strong id="perf-val">—%</strong></div>
+            <div class="bar-track"><div class="bar-fill" id="perf-bar" style="width:0%;background:var(--accent)"></div></div>
+          </div>
+          <div class="oee-bar-row">
+            <div class="oee-bar-label"><span>Quality</span><strong id="qual-val">—%</strong></div>
+            <div class="bar-track"><div class="bar-fill" id="qual-bar" style="width:0%;background:var(--teal)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI GRID -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Parts Made</div>
+        <div class="kpi-val g" id="kpi-parts">—</div>
+        <div class="kpi-sub" id="kpi-target">Target: —</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Cycle</div>
+        <div class="kpi-val b" id="kpi-cycle">—<span class="kpi-unit">s</span></div>
+        <div class="kpi-sub" id="kpi-cycle-tgt">Target: —s</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Downtime</div>
+        <div class="kpi-val r" id="kpi-down">—<span class="kpi-unit">min</span></div>
+        <div class="kpi-sub" id="kpi-down-pct">— of shift</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Alarms</div>
+        <div class="kpi-val" id="kpi-alarms">—</div>
+        <div class="kpi-sub" id="kpi-spindle">Spindle: —</div>
+      </div>
+    </div>
+
+    <!-- TIME BAR -->
+    <div class="dt-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Shift Time Usage</span>
+        <span style="font-size:11px;color:var(--muted);" id="dt-total">720 min shift</span>
+      </div>
+      <div class="dt-bar-wrap" id="dt-bar">
+        <div class="dt-run" style="width:50%"></div>
+        <div class="dt-down" style="width:50%"></div>
+      </div>
+      <div class="dt-legend">
+        <span><span class="dt-dot" style="background:var(--green)"></span><span id="run-leg">Running: —</span></span>
+        <span><span class="dt-dot" style="background:var(--red)"></span><span id="dt-leg">Downtime: —</span></span>
+      </div>
+    </div>
+
+    <!-- CYCLE STATS -->
+    <div class="cycle-card">
+      <div class="section-title">Cycle Time Details</div>
+      <div class="cycle-row">
+        <span class="cycle-label">Average Cycle</span>
+        <span class="cycle-val b" id="cycle-avg">—</span>
+      </div>
+      <div class="cycle-row">
+        <span class="cycle-label">Best Cycle</span>
+        <span class="cycle-val g" id="cycle-best">—</span>
+      </div>
+      <div class="cycle-row">
+        <span class="cycle-label">Worst Cycle</span>
+        <span class="cycle-val r" id="cycle-worst">—</span>
+      </div>
+      <div class="cycle-row">
+        <span class="cycle-label">Target Cycle</span>
+        <span class="cycle-val" id="cycle-target">—</span>
+      </div>
+    </div>
+
+    <!-- LIVE MACHINE PARAMS -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Spindle Speed</div>
+        <div class="kpi-val b" id="live-spindle">—<span class="kpi-unit">rpm</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Feed Rate</div>
+        <div class="kpi-val" id="live-feed">—<span class="kpi-unit">mm/min</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Program</div>
+        <div class="kpi-val b" style="font-size:18px;" id="live-prog">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Rejects</div>
+        <div class="kpi-val r" id="live-rej">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: PRODUCTION -->
+  <div class="tab" id="tab-prod">
+    <div class="section-title">Shift Production Summary</div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Total Parts</div>
+        <div class="kpi-val g" id="p-parts">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Good Parts</div>
+        <div class="kpi-val g" id="p-good">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Rejections</div>
+        <div class="kpi-val r" id="p-rej">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Reject Rate</div>
+        <div class="kpi-val a" id="p-rej-rate">—<span class="kpi-unit">%</span></div>
+      </div>
+    </div>
+    <div class="section-title">Programs Run This Shift</div>
+    <div class="prog-card" id="prog-list"><div style="padding:20px;text-align:center;color:var(--muted);">Loading…</div></div>
+  </div>
+
+  <!-- TAB: ALERTS -->
+  <div class="tab" id="tab-alerts">
+    <div class="section-title">Machine Status</div>
+    <div id="alert-state-card" class="state-card" style="background:var(--card);">
+      <div class="state-icon" id="alert-icon">⚙️</div>
+      <div class="state-txt">
+        <div class="state-name" id="alert-state">—</div>
+        <div class="state-detail" id="alert-detail">Loading machine data…</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Alarm Active</div>
+        <div class="kpi-val r" id="a-alarm">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Alarm Code</div>
+        <div class="kpi-val" id="a-alarm-no" style="font-size:18px;">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Run Status</div>
+        <div class="kpi-val b" id="a-run-status" style="font-size:16px;">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Auto Mode</div>
+        <div class="kpi-val g" id="a-auto-mode">—</div>
+      </div>
+    </div>
+    <div class="section-title">Total Alarms This Shift</div>
+    <div class="kpi" style="margin-bottom:10px;">
+      <div class="kpi-label">Alarm Count</div>
+      <div class="kpi-val r" id="a-alarm-count">—</div>
+      <div class="kpi-sub" id="a-alarm-dur">Total alarm duration: —</div>
+    </div>
+    <div style="margin-top:4px;text-align:center;">
+      <button class="refresh-btn" onclick="loadAll()">
+        <span id="refresh-spin" style="font-size:14px;">↻</span> Refresh now
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB: SETTINGS / OPEN DESKTOP -->
+  <div class="tab" id="tab-more">
+    <div class="section-title">Quick Actions</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="/" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+        padding:14px 16px;display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;">
+        <span style="font-size:22px;">🖥️</span>
+        <div><div style="font-weight:700;">Full Desktop Dashboard</div><div style="font-size:11px;color:var(--muted);">Open complete dashboard in browser</div></div>
+      </a>
+      <a href="/reports" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+        padding:14px 16px;display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;">
+        <span style="font-size:22px;">📊</span>
+        <div><div style="font-weight:700;">Reports</div><div style="font-size:11px;color:var(--muted);">Hourly, shift and daily production reports</div></div>
+      </a>
+      <a href="/downtime-log" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+        padding:14px 16px;display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;">
+        <span style="font-size:22px;">⚠️</span>
+        <div><div style="font-weight:700;">Downtime Log</div><div style="font-size:11px;color:var(--muted);">Log and review downtime events</div></div>
+      </a>
+      <a href="/alerts" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+        padding:14px 16px;display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;">
+        <span style="font-size:22px;">🔔</span>
+        <div><div style="font-weight:700;">Alerts &amp; Email Settings</div><div style="font-size:11px;color:var(--muted);">Configure SMTP and alert rules</div></div>
+      </a>
+    </div>
+
+    <div class="section-title" style="margin-top:20px;">Install as App</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;">
+      <div style="font-weight:700;margin-bottom:6px;">📲 Add to Home Screen</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+        <strong style="color:var(--text);">Android (Chrome):</strong> Tap ⋮ → "Add to Home screen"<br/>
+        <strong style="color:var(--text);">iPhone (Safari):</strong> Tap Share ⬆ → "Add to Home Screen"<br/>
+        Once installed, opens full-screen like a native app.
+      </div>
+      <div id="install-btn-wrap" style="display:none;margin-top:10px;">
+        <button onclick="installPWA()" style="background:var(--accent);color:#0F172A;border:none;
+          border-radius:8px;padding:10px 20px;font-weight:700;font-size:14px;cursor:pointer;width:100%;">
+          Install App Now
+        </button>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:16px;">Email Report Test</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+        Shift reports auto-send at <strong style="color:var(--text);">07:05</strong> (Shift B end) and <strong style="color:var(--text);">19:05</strong> (Shift A end). Test now:
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="sendTestReport('A')" style="flex:1;background:var(--card2);border:1px solid var(--border);
+          border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;">
+          📧 Send Shift A Report
+        </button>
+        <button onclick="sendTestReport('B')" style="flex:1;background:var(--card2);border:1px solid var(--border);
+          border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;">
+          📧 Send Shift B Report
+        </button>
+      </div>
+      <div id="report-status" style="margin-top:8px;font-size:12px;color:var(--muted);min-height:18px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bnav-btn active" onclick="switchTab('live',this)">
+    <span class="bnav-icon">📡</span>Live
+  </button>
+  <button class="bnav-btn" onclick="switchTab('prod',this)">
+    <span class="bnav-icon">🏭</span>Production
+  </button>
+  <button class="bnav-btn" onclick="switchTab('alerts',this)">
+    <span class="bnav-icon">🔔</span>Alerts
+  </button>
+  <button class="bnav-btn" onclick="switchTab('more',this)">
+    <span class="bnav-icon">⚙️</span>More
+  </button>
+</nav>
+
+<script>
+const MACHINE = 'MACHINE001';
+let deferredInstall = null;
+
+// ── Clock ──────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-IN', { timeZone:'Asia/Kolkata', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  const d = now.toLocaleDateString('en-IN', { timeZone:'Asia/Kolkata', weekday:'short', day:'numeric', month:'short' });
+  document.getElementById('clock').textContent = t;
+  document.getElementById('hdr-date').textContent = d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Tab switching ──────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── OEE color ─────────────────────────────────────────────────────
+function oeeColor(v) {
+  return v >= 75 ? 'var(--green)' : v >= 50 ? 'var(--amber)' : 'var(--red)';
+}
+
+// ── Current shift ─────────────────────────────────────────────────
+function currentShift() {
+  const h = parseInt(new Intl.DateTimeFormat('en-IN',{hour:'numeric',hour12:false,timeZone:'Asia/Kolkata'}).format(new Date()));
+  return h >= 7 && h < 19 ? 'A' : 'B';
+}
+
+// ── Load live data ─────────────────────────────────────────────────
+async function loadLive() {
+  try {
+    const r = await fetch('/api/cnc/live?machine=' + MACHINE);
+    const d = await r.json();
+    if (!d.ok) return;
+
+    const m  = d.machine         || {};
+    const cs = d.cycle_stats     || {};
+    const sd = d.shift_downtime  || {};
+
+    const shift = currentShift();
+    document.getElementById('shift-name').textContent = 'Shift ' + shift;
+    document.getElementById('shift-info').textContent = shift === 'A' ? '07:00 – 19:00 IST' : '19:00 – 07:00 IST';
+
+    // State pill
+    const state  = (m.machine_state || '—').toUpperCase();
+    const isRun  = ['RUNNING','AUTO','BUSY'].includes(state);
+    const isAlm  = state === 'ALARM';
+    const pill   = document.getElementById('state-pill');
+    const stTxt  = document.getElementById('state-text');
+    pill.className = 'status-pill ' + (isRun ? 'running' : isAlm ? 'stopped' : 'idle');
+    stTxt.textContent = m.machine_state || '—';
+
+    // Alarm banner
+    const alarmBanner = document.getElementById('alarm-banner');
+    if (m.alarm_active) {
+      alarmBanner.className = 'alarm-card';
+      alarmBanner.querySelector('.alarm-main').textContent = '⚠ ALARM ACTIVE';
+      document.getElementById('alarm-no-txt').textContent = 'Code: ' + (m.alarm_no || '—');
+    } else {
+      alarmBanner.className = 'alarm-card ok';
+      alarmBanner.querySelector('.alarm-main').textContent = 'No Active Alarms';
+      document.getElementById('alarm-no-txt').textContent = 'Machine running normally';
+    }
+
+    // Live params
+    document.getElementById('live-spindle').innerHTML = Math.round(m.spindle_speed||0) + '<span class="kpi-unit">rpm</span>';
+    document.getElementById('live-feed').innerHTML    = Math.round(m.feed_rate||0) + '<span class="kpi-unit">mm/min</span>';
+    document.getElementById('live-prog').textContent  = m.program_no || '—';
+
+    // Cycle stats
+    document.getElementById('kpi-cycle').innerHTML = (cs.avg || '—') + '<span class="kpi-unit">s</span>';
+    document.getElementById('kpi-cycle-tgt').textContent = 'Target: 44s';
+    document.getElementById('cycle-avg').textContent   = (cs.avg   || '—') + 's';
+    document.getElementById('cycle-best').textContent  = (cs.best  || '—') + 's';
+    document.getElementById('cycle-worst').textContent = (cs.worst || '—') + 's';
+    document.getElementById('cycle-target').textContent = '44s';
+
+    // Downtime bar
+    const runMin = Math.round((sd.running_sec||0)/60);
+    const dtMin  = Math.round((sd.downtime_sec||0)/60);
+    const totMin = Math.max(runMin + dtMin, 1);
+    const runPct = Math.round(runMin / 720 * 100);
+    const dtPct  = Math.round(dtMin  / 720 * 100);
+    document.getElementById('dt-bar').innerHTML =
+      `<div class="dt-run" style="width:${runPct}%"></div><div class="dt-down" style="width:${dtPct}%"></div>`;
+    document.getElementById('run-leg').textContent = 'Running: ' + runMin + ' min';
+    document.getElementById('dt-leg').textContent  = 'Downtime: ' + dtMin + ' min';
+    document.getElementById('kpi-down').innerHTML  = dtMin + '<span class="kpi-unit">min</span>';
+    document.getElementById('kpi-down-pct').textContent = dtPct + '% of shift';
+
+    // Alerts tab
+    document.getElementById('alert-state').textContent  = m.machine_state || '—';
+    document.getElementById('alert-detail').textContent = 'Program: ' + (m.program_no||'—') + ' | Parts: ' + (m.part_count||0);
+    document.getElementById('a-alarm').textContent      = m.alarm_active ? 'YES' : 'No';
+    document.getElementById('a-alarm').style.color      = m.alarm_active ? 'var(--red)' : 'var(--green)';
+    document.getElementById('a-alarm-no').textContent   = m.alarm_no || '—';
+    document.getElementById('a-run-status').textContent = m.run_status || '—';
+    document.getElementById('a-auto-mode').textContent  = m.auto_mode ? 'ON' : 'OFF';
+
+  } catch(e) { console.warn('Live fetch error:', e); }
+}
+
+// ── Load OEE data ──────────────────────────────────────────────────
+async function loadOEE() {
+  try {
+    const r = await fetch('/api/oee/current?machine=' + MACHINE);
+    const d = await r.json();
+    if (!d.ok) return;
+
+    const oee   = parseFloat(d.oee   || 0).toFixed(1);
+    const avail = parseFloat(d.availability || 0).toFixed(1);
+    const perf  = parseFloat(d.performance  || 0).toFixed(1);
+    const qual  = parseFloat(d.quality      || 0).toFixed(1);
+
+    document.getElementById('oee-big').innerHTML      = oee + '<span>%</span>';
+    document.getElementById('oee-big').style.color    = oeeColor(oee);
+    document.getElementById('avail-val').textContent  = avail + '%';
+    document.getElementById('perf-val').textContent   = perf  + '%';
+    document.getElementById('qual-val').textContent   = qual  + '%';
+    document.getElementById('avail-bar').style.width  = Math.min(100, avail) + '%';
+    document.getElementById('perf-bar').style.width   = Math.min(100, perf)  + '%';
+    document.getElementById('qual-bar').style.width   = Math.min(100, qual)  + '%';
+
+    const parts  = d.parts_produced  || d.total_parts || 0;
+    const target = d.target_parts    || d.target || '—';
+    const rej    = d.rejection_count || 0;
+    const alarms = d.alarm_count     || 0;
+
+    document.getElementById('kpi-parts').textContent     = parts;
+    document.getElementById('kpi-target').textContent    = 'Target: ' + target;
+    document.getElementById('kpi-alarms').textContent    = alarms;
+    document.getElementById('kpi-alarms').style.color    = alarms > 0 ? 'var(--red)' : 'var(--green)';
+    document.getElementById('a-alarm-count').textContent = alarms;
+
+    // Production tab
+    document.getElementById('p-parts').textContent    = parts;
+    document.getElementById('p-good').textContent     = (parseInt(parts) - parseInt(rej)) || parts;
+    document.getElementById('p-rej').textContent      = rej;
+    document.getElementById('p-rej-rate').innerHTML   = (parts > 0 ? (rej/parts*100).toFixed(1) : '0') + '<span class="kpi-unit">%</span>';
+    document.getElementById('live-rej').textContent   = rej;
+
+    // Cycle from OEE data
+    if (d.avg_cycle_sec) {
+      document.getElementById('kpi-cycle').innerHTML       = parseFloat(d.avg_cycle_sec).toFixed(1) + '<span class="kpi-unit">s</span>';
+      document.getElementById('cycle-avg').textContent     = parseFloat(d.avg_cycle_sec).toFixed(1) + 's';
+      document.getElementById('cycle-target').textContent  = parseFloat(d.target_cycle_sec||44).toFixed(0) + 's';
+    }
+  } catch(e) { console.warn('OEE fetch error:', e); }
+}
+
+// ── Load programs ──────────────────────────────────────────────────
+async function loadPrograms() {
+  try {
+    const shift = currentShift();
+    const date  = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Kolkata' }).format(new Date());
+    const r = await fetch(`/api/reports/shift?machine=${MACHINE}&date=${date}&shift=${shift}`);
+    const d = await r.json();
+
+    // Try to build program list from report data or fall back to current program
+    const liveR = await fetch('/api/cnc/live?machine=' + MACHINE);
+    const liveD = await liveR.json();
+    const currProg = liveD?.machine?.program_no || '—';
+    const parts    = liveD?.machine?.part_count  || 0;
+
+    const progEl = document.getElementById('prog-list');
+    if (currProg && currProg !== '—') {
+      progEl.innerHTML = `<div class="prog-row">
+        <div class="prog-no">${currProg}</div>
+        <div class="prog-name">Current program</div>
+        <div class="prog-parts">${parts}</div>
+        <div class="prog-cycle">—</div>
+      </div>`;
+    } else {
+      progEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);">No program data yet this shift</div>';
+    }
+  } catch(e) { console.warn('Programs fetch error:', e); }
+}
+
+// ── Load all ───────────────────────────────────────────────────────
+async function loadAll() {
+  const spin = document.getElementById('refresh-spin');
+  spin.classList.add('spin');
+  await Promise.allSettled([loadLive(), loadOEE(), loadPrograms()]);
+  spin.classList.remove('spin');
+}
+
+// ── Send test report ───────────────────────────────────────────────
+async function sendTestReport(shift) {
+  const el = document.getElementById('report-status');
+  el.style.color = 'var(--muted)';
+  el.textContent = 'Sending Shift ' + shift + ' report…';
+  try {
+    const r = await fetch('/api/shift-report/send-now?shift=' + shift);
+    const d = await r.json();
+    if (d.ok) {
+      el.style.color = 'var(--green)';
+      el.textContent = '✅ Report sent! OEE: ' + parseFloat(d.oee||0).toFixed(1) + '%, Parts: ' + (d.parts||0);
+    } else {
+      el.style.color = 'var(--red)';
+      el.textContent = '❌ ' + (d.error || 'Failed');
+    }
+  } catch(e) {
+    el.style.color = 'var(--red)';
+    el.textContent = '❌ ' + e.message;
+  }
+}
+
+// ── PWA install ────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-btn-wrap').style.display = 'block';
+});
+function installPWA() {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(() => { deferredInstall = null; });
+  }
+}
+
+// ── Service Worker ─────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW error:', e));
+}
+
+// ── Auto refresh every 30s ─────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

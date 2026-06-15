@@ -1,0 +1,128 @@
+name: factory-mios-platform
+
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      TZ: ${TZ:-Asia/Kolkata}
+      PGHOST: pgbouncer
+      PGPORT: 6432
+      PGDATABASE: ${POSTGRES_DB:-cnc_db}
+      PGUSER: ${POSTGRES_USER:-cnc_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change-this-db-password}
+      PGPOOL_MAX: ${PGPOOL_MAX:-10}
+      PGPOOL_IDLE_TIMEOUT_MS: ${PGPOOL_IDLE_TIMEOUT_MS:-30000}
+      PGPOOL_CONNECTION_TIMEOUT_MS: ${PGPOOL_CONNECTION_TIMEOUT_MS:-5000}
+      NODE_RED_URL: ${NODE_RED_URL:-http://host.docker.internal:1880/api/live}
+      DATA_IMPORT_DIR: /app/imports
+      DATA_SOURCE_PREVIEW_ROWS: ${DATA_SOURCE_PREVIEW_ROWS:-100}
+      DATA_SOURCE_SQL_TIMEOUT_MS: ${DATA_SOURCE_SQL_TIMEOUT_MS:-10000}
+      DATA_SOURCE_MQTT_TIMEOUT_MS: ${DATA_SOURCE_MQTT_TIMEOUT_MS:-10000}
+    expose:
+      - "3000"
+    volumes:
+      # Bind mounts avoid EACCES on Windows Docker Desktop (named volumes often root-only)
+      - ./config:/app/config
+      - ./imports:/app/imports
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    build:
+      context: ./deploy/pgbouncer
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-cnc_db}
+      DB_USER: ${POSTGRES_USER:-cnc_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change-this-db-password}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-1000}
+      DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-50}
+      RESERVE_POOL_SIZE: ${PGBOUNCER_RESERVE_POOL_SIZE:-10}
+    expose:
+      - "6432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  db:
+    image: timescale/timescaledb:latest-pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cnc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-cnc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-db-password}
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/db/init:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "shared_preload_libraries=timescaledb", "-c", "max_connections=200"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nodered:
+    image: nodered/node-red:latest
+    profiles: ["iot"]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      - "${NODE_RED_PORT:-1880}:1880"
+    volumes:
+      - nodered_data:/data
+
+  adminer:
+    image: adminer:latest
+    profiles: ["tools"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+
+volumes:
+  postgres_data:
+  nodered_data:

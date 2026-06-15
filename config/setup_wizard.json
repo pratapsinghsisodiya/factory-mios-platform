@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "completed": false,
+  "frozen": false,
+  "frozen_at": null,
+  "frozen_by": null,
+  "ingest_api_key": "8b1ffe91f67c03d7951f92d672c3bfbd701bf1d64faa386f",
+  "superadmin": {
+    "username": "testadmin",
+    "created_at": "2026-06-08T05:04:30.648Z"
+  },
+  "plants": [
+    {
+      "plant_id": "trident",
+      "plant_name": "Trident",
+      "machines": [
+        {
+          "machine_id": "LOOM01",
+          "machine_name": "LOOM",
+          "tags": [],
+          "poll_interval_sec": 30,
+          "connectivity": {
+            "status": "pending"
+          }
+        }
+      ],
+      "data_sources": []
+    }
+  ],
+  "data_sources": [],
+  "metric_relations": [],
+  "dashboards": [],
+  "standard_queries": {
+    "oee_shift": {
+      "name": "OEE by shift",
+      "description": "Availability ?? Performance ?? Quality for current shift window.",
+      "sql": "SELECT\n  time_bucket('5 minutes', time) AS bucket,\n  AVG(CASE WHEN point_key = 'availability_pct' THEN value_num END) AS availability_pct,\n  AVG(CASE WHEN point_key = 'performance_pct' THEN value_num END) AS performance_pct,\n  AVG(CASE WHEN point_key = 'quality_pct' THEN value_num END) AS quality_pct,\n  (\n    COALESCE(AVG(CASE WHEN point_key = 'availability_pct' THEN value_num END), 0) *\n    COALESCE(AVG(CASE WHEN point_key = 'performance_pct' THEN value_num END), 0) *\n    COALESCE(AVG(CASE WHEN point_key = 'quality_pct' THEN value_num END), 0) / 10000\n  ) AS oee_pct\nFROM \"{{schema}}\".\"{{machine_table}}\"\nWHERE time >= NOW() - INTERVAL '12 hours'\n  AND point_key IN ('availability_pct','performance_pct','quality_pct')\nGROUP BY 1\nORDER BY 1 DESC\nLIMIT 200"
+    },
+    "parts_counter_delta": {
+      "name": "Parts produced (counter delta)",
+      "description": "Shift parts from counter tag using max-min.",
+      "sql": "SELECT\n  MAX(CASE WHEN point_key = 'parts_count' THEN value_num END) -\n  MIN(CASE WHEN point_key = 'parts_count' THEN value_num END) AS parts_produced\nFROM \"{{schema}}\".\"{{machine_table}}\"\nWHERE time >= NOW() - INTERVAL '12 hours'"
+    },
+    "latest_points": {
+      "name": "Latest tag values",
+      "description": "Most recent value per data point.",
+      "sql": "SELECT DISTINCT ON (point_key)\n  point_key, time, value_num, value_text, unit\nFROM \"{{schema}}\".\"{{machine_table}}\"\nORDER BY point_key, time DESC"
+    }
+  }
+}

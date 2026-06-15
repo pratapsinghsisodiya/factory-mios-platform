@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Program Master — MACHINE-001</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+.page{padding:20px 24px 60px;}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+.stat-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;font-weight:700;}
+.stat-card .num{font-size:28px;font-weight:800;}
+.stat-card .sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.search-input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:13px;outline:none;width:260px;}
+.search-input:focus{border-color:var(--cyan);}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.section-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.btn-primary{padding:9px 18px;background:var(--cyan);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;transition:opacity .2s;}
+.btn-primary:hover{opacity:.85;}
+.btn-edit{padding:5px 10px;background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.25);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px;}
+.btn-edit:hover{background:rgba(0,212,255,.25);}
+.btn-danger{padding:5px 10px;background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-danger:hover{background:rgba(255,68,68,.3);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid rgba(26,47,85,.4);vertical-align:middle;}
+tr:hover td{background:rgba(0,212,255,.03);}
+tr:last-child td{border-bottom:none;}
+.prog-no{font-family:monospace;font-size:13px;color:var(--cyan);font-weight:700;}
+.material-pill{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(170,68,255,.12);color:#cc88ff;}
+.cycle-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;}
+.cycle-fast{background:rgba(0,255,136,.1);color:var(--green);}
+.cycle-ok{background:rgba(0,212,255,.1);color:var(--cyan);}
+.cycle-slow{background:rgba(255,179,0,.1);color:var(--amber);}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:900;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:min(560px,95vw);max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:16px;font-weight:800;color:var(--cyan);margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.f-group{display:flex;flex-direction:column;gap:5px;}
+.f-group label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;}
+.f-group input,.f-group select,.f-group textarea{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;}
+.f-group input:focus,.f-group select:focus,.f-group textarea:focus{border-color:var(--cyan);}
+.f-full{grid-column:span 2;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.btn-cancel{padding:10px 22px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+@media(max-width:700px){.stats-row{grid-template-columns:1fr;}.form-grid{grid-template-columns:1fr;}.f-full{grid-column:span 1;}.search-input{width:100%;}}
+</style>
+</head>
+<body>
+<header class="z-header">
+  <a href="/" class="z-logo">
+    <div class="z-logo-icon">Z</div>
+    <div><div class="z-logo-name">FACTORY-MIOS</div><div class="z-logo-sub">MACHINE-001</div></div>
+  </a>
+  <div class="z-hdr-right">
+    <span id="z-clock" style="font-size:14px;font-variant-numeric:tabular-nums;color:var(--muted);"></span>
+    <button class="btn-primary" onclick="openAddModal()">+ Add Program</button>
+  </div>
+</header>
+<nav class="z-nav" id="z-nav"></nav>
+
+<div class="page">
+  <div class="stats-row">
+    <div class="stat-card"><div class="lbl">Total Programs</div><div class="num" id="statTotal" style="color:var(--cyan)">--</div><div class="sub">Registered programs</div></div>
+    <div class="stat-card"><div class="lbl">Avg Cycle Time</div><div class="num" id="statAvg" style="color:var(--amber)">-- sec</div><div class="sub">Target average</div></div>
+    <div class="stat-card"><div class="lbl">Last Updated</div><div class="num" style="font-size:18px;" id="statUpdated" style="color:var(--green)">--</div><div class="sub">Most recent change</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">
+      <span>Program / Part Master</span>
+      <span id="tableCount" style="font-size:11px;"></span>
+    </div>
+    <div class="toolbar">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search program, part name, part number..." oninput="filterTable()"/>
+      <select id="matFilter" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:12px;outline:none;" onchange="filterTable()">
+        <option value="">All Materials</option>
+        <option value="STEEL">Steel</option>
+        <option value="SS">Stainless Steel</option>
+        <option value="ALUM">Aluminium</option>
+        <option value="CI">Cast Iron</option>
+        <option value="BRASS">Brass</option>
+        <option value="OTHER">Other</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Program No</th><th>Part Name</th><th>Part Number</th><th>Target Cycle (sec)</th><th>Material</th><th>Description</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="progTable"><tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><div>Loading programs...</div></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add/Edit Program Modal -->
+<div class="modal-overlay" id="progModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add Program</h2>
+    <input type="hidden" id="f-id"/>
+    <div class="form-grid">
+      <div class="f-group"><label>Program No *</label><input type="text" id="f-prog" placeholder="e.g. O0001"/></div>
+      <div class="f-group"><label>Part Name *</label><input type="text" id="f-name" placeholder="e.g. Flange Housing"/></div>
+      <div class="f-group"><label>Part Number</label><input type="text" id="f-partno" placeholder="e.g. SA-FL-001"/></div>
+      <div class="f-group"><label>Target Cycle (sec)</label><input type="number" id="f-cycle" min="1" placeholder="e.g. 45"/></div>
+      <div class="f-group"><label>Material</label>
+        <select id="f-material">
+          <option value="">-- Select Material --</option>
+          <option value="STEEL">Steel</option>
+          <option value="SS">Stainless Steel</option>
+          <option value="ALUM">Aluminium</option>
+          <option value="CI">Cast Iron</option>
+          <option value="BRASS">Brass</option>
+          <option value="COPPER">Copper</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="f-group"><label>Machine</label><input type="text" id="f-machine" value="MACHINE-001" readonly/></div>
+      <div class="f-group f-full"><label>Description</label><textarea id="f-desc" rows="2" placeholder="Brief description of the part/operation..."></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="saveBtn" onclick="saveProgram()">Save Program</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MACHINE = 'MACHINE001';
+let allPrograms = [];
+let filteredPrograms = [];
+let editingId = null;
+
+async function loadPrograms() {
+  try {
+    const data = await zFetch('/api/cnc/programs?machine=' + MACHINE);
+    allPrograms = Array.isArray(data) ? data : (data.data || data.programs || data.rows || []);
+    filteredPrograms = [...allPrograms];
+    renderStats();
+    renderTable();
+  } catch(e) {
+    zToast('Failed to load programs', 'error');
+  }
+}
+
+function renderStats() {
+  document.getElementById('statTotal').textContent = allPrograms.length;
+  const cycles = allPrograms.map(p => parseFloat(p.target_cycle_sec)).filter(v => v > 0);
+  const avg = cycles.length > 0 ? (cycles.reduce((a, b) => a + b, 0) / cycles.length).toFixed(1) : '--';
+  document.getElementById('statAvg').textContent = avg + ' sec';
+  // Last updated
+  const sorted = [...allPrograms].sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0));
+  if (sorted.length > 0 && (sorted[0].updated_at || sorted[0].created_at)) {
+    const d = new Date(sorted[0].updated_at || sorted[0].created_at);
+    document.getElementById('statUpdated').textContent = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  } else {
+    document.getElementById('statUpdated').textContent = '--';
+  }
+}
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const mat = document.getElementById('matFilter').value;
+  filteredPrograms = allPrograms.filter(p => {
+    const matchQ = !q || (p.program_no||'').toLowerCase().includes(q) || (p.part_name||'').toLowerCase().includes(q) || (p.part_number||'').toLowerCase().includes(q);
+    const matchM = !mat || (p.material||'') === mat;
+    return matchQ && matchM;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  document.getElementById('tableCount').textContent = filteredPrograms.length + ' of ' + allPrograms.length + ' programs';
+  const tbody = document.getElementById('progTable');
+  if (!filteredPrograms.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">📋</div><div>No programs found</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = filteredPrograms.map(p => {
+    const ct = parseFloat(p.target_cycle_sec);
+    let cycleCls = 'cycle-ok', cycleStr = ct > 0 ? ct + ' sec' : '--';
+    if (ct > 0) { if (ct < 30) cycleCls = 'cycle-fast'; else if (ct > 60) cycleCls = 'cycle-slow'; }
+    return `<tr>
+      <td><span class="prog-no">${p.program_no || '--'}</span></td>
+      <td style="font-weight:600;">${p.part_name || '--'}</td>
+      <td style="color:var(--muted);font-family:monospace;">${p.part_number || '--'}</td>
+      <td><span class="cycle-badge ${cycleCls}">${cycleStr}</span></td>
+      <td>${p.material ? `<span class="material-pill">${p.material}</span>` : '--'}</td>
+      <td style="color:var(--muted);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.description || '--'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-edit" onclick="openEditModal(${p.id})">Edit</button>
+        <button class="btn-danger" onclick="delProgram(${p.id})">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add Program';
+  document.getElementById('saveBtn').textContent = 'Save Program';
+  document.getElementById('f-id').value = '';
+  ['f-prog','f-name','f-partno','f-cycle','f-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-material').value = '';
+  document.getElementById('progModal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const p = allPrograms.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit Program';
+  document.getElementById('saveBtn').textContent = 'Update Program';
+  document.getElementById('f-id').value = id;
+  document.getElementById('f-prog').value = p.program_no || '';
+  document.getElementById('f-name').value = p.part_name || '';
+  document.getElementById('f-partno').value = p.part_number || '';
+  document.getElementById('f-cycle').value = p.target_cycle_sec || '';
+  document.getElementById('f-material').value = p.material || '';
+  document.getElementById('f-desc').value = p.description || '';
+  document.getElementById('progModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('progModal').classList.remove('open'); }
+
+async function saveProgram() {
+  const body = {
+    program_no: document.getElementById('f-prog').value.trim(),
+    part_name: document.getElementById('f-name').value.trim(),
+    part_number: document.getElementById('f-partno').value.trim() || null,
+    target_cycle_sec: parseFloat(document.getElementById('f-cycle').value) || null,
+    material: document.getElementById('f-material').value || null,
+    description: document.getElementById('f-desc').value.trim() || null
+  };
+  if (!body.program_no || !body.part_name) { zToast('Program No and Part Name are required', 'error'); return; }
+  try {
+    let r;
+    if (editingId) {
+      r = await zFetch('/api/cnc/programs/' + editingId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await zFetch('/api/cnc/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    if (r && (r.ok || r.id || r.success)) {
+      zToast(editingId ? 'Program updated' : 'Program added', 'success');
+      closeModal();
+      loadPrograms();
+    } else {
+      zToast('Error: ' + (r.error || 'Save failed'), 'error');
+    }
+  } catch(e) { zToast('Network error', 'error'); }
+}
+
+async function delProgram(id) {
+  if (!confirm('Delete this program? This cannot be undone.')) return;
+  try {
+    await zFetch('/api/cnc/programs/' + id, { method: 'DELETE' });
+    zToast('Program deleted', 'success');
+    loadPrograms();
+  } catch(e) { zToast('Delete failed', 'error'); }
+}
+
+loadPrograms();
+</script>
+<script src="/_shared.js"></script>
+</body>
+</html>

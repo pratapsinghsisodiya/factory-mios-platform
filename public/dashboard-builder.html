@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard Builder — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+.page{max-width:1700px;margin:0 auto;padding:16px 24px 60px;}
+/* Top bar */
+.db-topbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.db-title{font-size:20px;font-weight:800;color:var(--text);}
+.db-tabs{display:flex;gap:4px;margin-left:auto;}
+.db-tab{padding:8px 16px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;color:var(--muted);border:1px solid transparent;transition:all .2s;}
+.db-tab:hover{color:var(--text);border-color:var(--border);}
+.db-tab.active{background:var(--card);border-color:var(--border);color:var(--text);}
+.pub-btn{background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;border-radius:9px;padding:8px 18px;color:#0a0e1a;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s;}
+.pub-btn:hover{transform:scale(1.04);box-shadow:0 0 20px rgba(0,212,255,.3);}
+/* Panes */
+.pane{display:none;}
+.pane.active{display:block;}
+/* Builder pane layout */
+.builder-layout{display:grid;grid-template-columns:260px 1fr;gap:14px;min-height:600px;}
+/* Widget palette */
+.widget-palette{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;}
+.palette-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+.widget-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:grab;margin-bottom:8px;background:rgba(255,255,255,.02);transition:all .2s;user-select:none;}
+.widget-item:hover{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04);transform:translateX(3px);}
+.widget-item:active{cursor:grabbing;}
+.wi-icon{font-size:18px;flex-shrink:0;}
+.wi-name{font-size:12px;font-weight:600;color:var(--text);}
+.wi-desc{font-size:10px;color:var(--muted);}
+.save-dash-btn{width:100%;padding:9px;border-radius:9px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.2);color:var(--green);font-size:12px;font-weight:700;cursor:pointer;margin-top:12px;transition:all .2s;}
+.save-dash-btn:hover{background:rgba(0,255,136,.2);}
+/* Canvas */
+.builder-canvas{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;min-height:600px;position:relative;}
+.canvas-title-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.dash-name-input{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:14px;font-weight:700;width:300px;outline:none;}
+.dash-name-input:focus{border-color:rgba(0,212,255,.4);}
+.canvas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;min-height:500px;}
+.canvas-grid.col2{grid-template-columns:repeat(2,1fr);}
+.canvas-grid.col4{grid-template-columns:repeat(4,1fr);}
+.drop-zone{border:2px dashed rgba(255,255,255,.08);border-radius:12px;min-height:140px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;transition:all .3s;position:relative;cursor:pointer;}
+.drop-zone.has-widget{border-style:solid;border-color:var(--border);background:rgba(255,255,255,.02);}
+.drop-zone.drag-over{border-color:var(--cyan);background:rgba(0,212,255,.06);}
+.zone-placeholder{text-align:center;pointer-events:none;}
+.zone-placeholder-icon{font-size:24px;opacity:.3;margin-bottom:4px;}
+.widget-in-zone{width:100%;height:100%;padding:12px;}
+.wiz-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.wiz-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.wiz-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;}
+.wiz-remove:hover{color:var(--red);}
+.wiz-value{font-size:28px;font-weight:800;color:var(--cyan);}
+.wiz-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.col-sel{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:7px;padding:5px 8px;color:var(--text);font-size:11px;outline:none;}
+/* Query pane */
+.query-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+.query-textarea{width:100%;height:180px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;padding:12px;color:#00ff88;font-family:monospace;font-size:12px;outline:none;resize:vertical;line-height:1.6;box-sizing:border-box;}
+.query-textarea:focus{border-color:rgba(0,212,255,.3);}
+.run-btn{background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.25);border-radius:8px;padding:8px 18px;color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;margin-top:10px;transition:all .2s;}
+.run-btn:hover{background:rgba(0,212,255,.22);}
+.preset-list{display:flex;flex-direction:column;gap:8px;}
+.preset-item{padding:9px 12px;border:1px solid var(--border);border-radius:9px;cursor:pointer;font-size:12px;color:var(--muted);transition:all .2s;display:flex;align-items:center;gap:8px;}
+.preset-item:hover{border-color:rgba(0,212,255,.3);color:var(--text);background:rgba(0,212,255,.04);}
+.result-table-wrap{overflow-x:auto;margin-top:12px;max-height:300px;overflow-y:auto;}
+.result-table-wrap::-webkit-scrollbar{height:4px;width:4px;}
+.result-table-wrap::-webkit-scrollbar-thumb{background:var(--border);}
+.r-table{border-collapse:collapse;font-size:11px;width:100%;}
+.r-table th{padding:7px 10px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03);position:sticky;top:0;}
+.r-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);}
+/* Published pane */
+.pub-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.pub-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;transition:all .2s;}
+.pub-card:hover{border-color:rgba(0,212,255,.25);transform:translateY(-2px);}
+.pub-card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.pub-card-meta{font-size:10px;color:var(--muted);margin-bottom:12px;}
+.pub-card-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.pub-tag{padding:2px 8px;border-radius:6px;font-size:10px;background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2);}
+.pub-card-actions{display:flex;gap:8px;}
+.view-btn{flex:1;padding:7px;border-radius:8px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.view-btn:hover{background:rgba(0,212,255,.2);}
+.del-btn{padding:7px 12px;border-radius:8px;background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.15);color:var(--red);font-size:11px;cursor:pointer;transition:all .2s;}
+.del-btn:hover{background:rgba(255,68,68,.18);}
+/* Publish modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:460px;max-width:95vw;}
+.modal-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;}
+.form-row{margin-bottom:12px;}
+.form-lbl{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+.form-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;}
+.form-inp:focus{border-color:rgba(0,212,255,.4);}
+.pub-url{font-family:monospace;font-size:12px;color:var(--green);background:#0a0e1a;border:1px solid rgba(0,255,136,.15);border-radius:8px;padding:10px;margin-top:8px;word-break:break-all;}
+.copy-url-btn{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.2);border-radius:7px;padding:6px 14px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;margin-top:8px;transition:all .2s;}
+.copy-url-btn:hover{background:rgba(0,255,136,.2);}
+@media(max-width:1100px){.builder-layout{grid-template-columns:1fr}.query-layout{grid-template-columns:1fr}.pub-list{grid-template-columns:repeat(2,1fr)}.canvas-grid{grid-template-columns:repeat(2,1fr)}}
+.theme-swatch{height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all .2s;}
+.theme-swatch:hover,.theme-swatch.active{border-color:var(--cyan);}
+.widget-item.span-full{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04);}
+.wiz-span-btn{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);cursor:pointer;margin-left:2px;}
+.wiz-span-btn.active,.wiz-span-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.2);color:var(--cyan);}
+</style>
+</head>
+<body>
+<div id="z-nav"></div>
+<div class="page">
+
+  <!-- Top bar -->
+  <div class="db-topbar">
+    <div>
+      <div class="db-title">🧩 Dashboard Builder</div>
+      <div style="font-size:11px;color:var(--muted)">Create custom dashboards from live DB data</div>
+    </div>
+    <div class="db-tabs">
+      <div class="db-tab active" onclick="showPane('builder',this)">🔧 Builder</div>
+      <div class="db-tab" onclick="showPane('query',this)">🔍 Query</div>
+      <div class="db-tab" onclick="showPane('published',this)">🌐 Published</div>
+    </div>
+    <button class="pub-btn" onclick="openPublishModal()">⤴ Publish Dashboard</button>
+  </div>
+
+  <!-- ── Builder pane ── -->
+  <div class="pane active" id="pane-builder">
+    <div class="builder-layout">
+      <!-- Palette -->
+      <div class="widget-palette">
+        <div class="palette-title">Widget Library</div>
+        <div class="widget-item" draggable="true" data-type="oee-live">
+          <span class="wi-icon">🎯</span><div><div class="wi-name">OEE Live</div><div class="wi-desc">Real-time OEE %</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="parts-count">
+          <span class="wi-icon">⚙</span><div><div class="wi-name">Parts Count</div><div class="wi-desc">Shift production total</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="spindle-speed">
+          <span class="wi-icon">◎</span><div><div class="wi-name">Spindle Speed</div><div class="wi-desc">Live RPM gauge</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="downtime-today">
+          <span class="wi-icon">⊠</span><div><div class="wi-name">Downtime Today</div><div class="wi-desc">Hours/minutes</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="machine-state">
+          <span class="wi-icon">◉</span><div><div class="wi-name">Machine State</div><div class="wi-desc">RUNNING/STOPPED/ALARM</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="quality-rate">
+          <span class="wi-icon">✓</span><div><div class="wi-name">Quality Rate</div><div class="wi-desc">Rejection %</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="oee-trend">
+          <span class="wi-icon">📈</span><div><div class="wi-name">OEE Trend Chart</div><div class="wi-desc">7-day line chart</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="shift-info">
+          <span class="wi-icon">⏱</span><div><div class="wi-name">Shift Timer</div><div class="wi-desc">Current shift progress</div></div>
+        </div>
+        <div class="widget-item" draggable="true" data-type="availability">
+          <span class="wi-icon">▦</span><div><div class="wi-name">Availability</div><div class="wi-desc">Uptime %</div></div>
+        </div>
+
+        <!-- ── My KPIs section (populated from /api/kpi) ── -->
+        <div id="my-kpi-section" style="margin-top:14px;display:none">
+          <div class="palette-title" style="display:flex;align-items:center;justify-content:space-between;">
+            My KPIs
+            <span id="kpi-badge" style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(0,255,136,.15);color:var(--green);font-weight:700">0</span>
+          </div>
+          <div id="my-kpi-list"></div>
+          <a href="/widgets" target="_blank" style="display:block;text-align:center;font-size:10px;color:var(--muted);margin-top:6px;text-decoration:none;padding:4px;">+ Build more KPIs ↗</a>
+        </div>
+
+        <!-- ── Data Sources ── -->
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+          <div class="palette-title">🔌 Data Sources</div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;line-height:1.4">Map JSON, MQTT, Excel/CSV, or SQL fields into dashboard widgets.</div>
+          <select class="col-sel" id="ds-source" style="width:100%;margin-bottom:6px" onchange="loadSourceFields()">
+            <option value="">Loading sources…</option>
+          </select>
+          <select class="col-sel" id="ds-widget-kind" style="width:100%;margin-bottom:6px">
+            <option value="kpi">KPI card</option>
+            <option value="table">Table preview</option>
+            <option value="chart">Simple chart/list</option>
+          </select>
+          <input class="form-inp" id="ds-title" placeholder="Widget title" style="font-size:11px;padding:6px 8px;margin-bottom:6px;"/>
+          <select class="col-sel" id="ds-value-field" style="width:100%;margin-bottom:6px"><option value="">Value field</option></select>
+          <select class="col-sel" id="ds-label-field" style="width:100%;margin-bottom:6px"><option value="">Label field</option></select>
+          <select class="col-sel" id="ds-time-field" style="width:100%;margin-bottom:6px"><option value="">Time field (optional)</option></select>
+          <button class="save-dash-btn" style="margin-top:4px" onclick="addDataSourceWidget()">＋ Add Data Widget</button>
+          <a href="/api/data-sources/types" target="_blank" style="display:block;text-align:center;font-size:10px;color:var(--muted);margin-top:6px;text-decoration:none;padding:4px;">Connector API ↗</a>
+        </div>
+
+        <!-- ── Theme & Style ── -->
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+          <div class="palette-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleThemePanel()">
+            🎨 Theme &amp; Style
+            <span id="theme-toggle-icon" style="font-size:9px;color:var(--muted)">▼</span>
+          </div>
+          <div id="theme-panel" style="display:none">
+            <!-- Preset themes -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Preset Theme</div>
+            <div id="theme-presets" style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;">
+              <div class="theme-swatch active" data-theme="dark"    style="background:linear-gradient(135deg,#0a1628,#0d2040)" onclick="applyPreset('dark',this)"    title="Dark"></div>
+              <div class="theme-swatch"        data-theme="ocean"   style="background:linear-gradient(135deg,#051220,#0d3060)" onclick="applyPreset('ocean',this)"   title="Ocean"></div>
+              <div class="theme-swatch"        data-theme="forest"  style="background:linear-gradient(135deg,#0a2015,#103828)" onclick="applyPreset('forest',this)"  title="Forest"></div>
+              <div class="theme-swatch"        data-theme="purple"  style="background:linear-gradient(135deg,#1a0a28,#2d1060)" onclick="applyPreset('purple',this)"  title="Purple"></div>
+              <div class="theme-swatch"        data-theme="ember"   style="background:linear-gradient(135deg,#201008,#502010)" onclick="applyPreset('ember',this)"   title="Ember"></div>
+              <div class="theme-swatch"        data-theme="slate"   style="background:linear-gradient(135deg,#0d0f1a,#1a1d2e)" onclick="applyPreset('slate',this)"   title="Slate"></div>
+            </div>
+            <!-- Background color -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Background Color</div>
+            <input type="color" id="theme-bg-color" value="#0a1628" style="width:100%;height:32px;border-radius:7px;border:1px solid var(--border);cursor:pointer;margin-bottom:8px;" oninput="updateTheme()"/>
+            <!-- Background image URL -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Background Image URL</div>
+            <input type="text" id="theme-bg-image" placeholder="https://…/image.jpg" class="form-inp" style="font-size:11px;padding:6px 8px;margin-bottom:8px;" oninput="updateTheme()"/>
+            <!-- Accent color -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Accent Color</div>
+            <input type="color" id="theme-accent" value="#00d4ff" style="width:100%;height:32px;border-radius:7px;border:1px solid var(--border);cursor:pointer;margin-bottom:8px;" oninput="updateTheme()"/>
+            <!-- Logo URL -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Logo URL</div>
+            <input type="text" id="theme-logo" placeholder="https://…/logo.png" class="form-inp" style="font-size:11px;padding:6px 8px;margin-bottom:8px;" oninput="updateTheme()"/>
+            <!-- Dashboard icon emoji -->
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Dashboard Icon</div>
+            <input type="text" id="theme-icon" value="📊" maxlength="4" class="form-inp" style="font-size:18px;padding:4px 8px;width:60px;margin-bottom:8px;" oninput="updateTheme()"/>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="palette-title">Layout</div>
+          <select class="col-sel" style="width:100%" onchange="setColumns(this.value)">
+            <option value="2">2 Columns</option>
+            <option value="3" selected>3 Columns</option>
+            <option value="4">4 Columns</option>
+          </select>
+        </div>
+
+        <button class="save-dash-btn" onclick="saveDashboard()">💾 Save Dashboard</button>
+      </div>
+
+      <!-- Canvas -->
+      <div class="builder-canvas">
+        <div class="canvas-title-row">
+          <input class="dash-name-input" id="dash-name" value="My Custom Dashboard" placeholder="Dashboard name…"/>
+          <button style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.2);border-radius:8px;padding:7px 12px;color:var(--red);font-size:11px;cursor:pointer" onclick="clearCanvas()">✕ Clear</button>
+        </div>
+        <div class="canvas-grid" id="canvas-grid">
+          <!-- 9 drop zones (3x3) -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Query pane ── -->
+  <div class="pane" id="pane-query">
+    <div class="query-layout">
+      <div class="card">
+        <div class="card-title">📝 SQL Query Editor</div>
+        <textarea class="query-textarea" id="sql-input" spellcheck="false">SELECT
+  time_bucket('1 hour', time) AS hour,
+  machine_id,
+  AVG(spindle_speed) AS avg_spindle,
+  AVG(feed_rate) AS avg_feed,
+  COUNT(*) AS readings
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '24 hours'
+GROUP BY hour, machine_id
+ORDER BY hour DESC
+LIMIT 24;</textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <button class="run-btn" onclick="runQuery()">▶ Run Query</button>
+          <span id="query-status" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div class="result-table-wrap" id="result-wrap" style="display:none">
+          <table class="r-table" id="result-table"></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚡ Preset Queries</div>
+        <div class="preset-list">
+          <div class="preset-item" onclick="loadPreset('oee_today')">🎯 <div><div style="font-size:12px;color:var(--text)">OEE Summary Today</div><div style="font-size:10px;color:var(--muted)">Availability, Performance, Quality</div></div></div>
+          <div class="preset-item" onclick="loadPreset('parts_hourly')">⚙ <div><div style="font-size:12px;color:var(--text)">Parts by Hour (24h)</div><div style="font-size:10px;color:var(--muted)">Hourly production count</div></div></div>
+          <div class="preset-item" onclick="loadPreset('downtime_reasons')">⊠ <div><div style="font-size:12px;color:var(--text)">Top Downtime Reasons</div><div style="font-size:10px;color:var(--muted)">Pareto analysis this week</div></div></div>
+          <div class="preset-item" onclick="loadPreset('spindle_trend')">📈 <div><div style="font-size:12px;color:var(--text)">Spindle Speed Trend (1h)</div><div style="font-size:10px;color:var(--muted)">1-minute averages</div></div></div>
+          <div class="preset-item" onclick="loadPreset('shift_compare')">⚖ <div><div style="font-size:12px;color:var(--text)">Shift A vs B Comparison</div><div style="font-size:10px;color:var(--muted)">Last 7 days</div></div></div>
+          <div class="preset-item" onclick="loadPreset('rejection_types')">✗ <div><div style="font-size:12px;color:var(--text)">Rejection Types This Month</div><div style="font-size:10px;color:var(--muted)">Quality breakdown</div></div></div>
+          <div class="preset-item" onclick="loadPreset('alarm_freq')">🔔 <div><div style="font-size:12px;color:var(--text)">Alarm Frequency</div><div style="font-size:10px;color:var(--muted)">Most common alarms</div></div></div>
+          <div class="preset-item" onclick="loadPreset('idle_analysis')">⏸ <div><div style="font-size:12px;color:var(--text)">Idle Time Analysis</div><div style="font-size:10px;color:var(--muted)">When machine sits idle</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Published pane ── -->
+  <div class="pane" id="pane-published">
+    <div class="pub-list" id="pub-list">
+      <!-- populated by loadPublishedPane() -->
+      <div id="pub-empty" style="display:none;grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)">
+        <div style="font-size:48px;opacity:.3;margin-bottom:12px">📋</div>
+        <div style="font-size:14px;font-weight:600">No published dashboards yet</div>
+        <div style="font-size:12px;margin-top:6px">Build a dashboard and hit Publish ⤴</div>
+      </div>
+      <div class="pub-card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:140px" onclick="showPane('builder',document.querySelector('.db-tab'))">
+        <div style="text-align:center;color:var(--muted)">
+          <div style="font-size:32px;margin-bottom:8px">+</div>
+          <div style="font-size:13px">Create New Dashboard</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Publish modal -->
+<div class="modal-overlay" id="publish-modal" style="display:none" onclick="if(event.target===this)closePublishModal()">
+  <div class="modal-box">
+    <div class="modal-title">Publish Dashboard <button class="modal-close" onclick="closePublishModal()">✕</button></div>
+    <div class="form-row"><div class="form-lbl">Dashboard Name</div><input class="form-inp" id="pub-name" type="text"/></div>
+    <div class="form-row"><div class="form-lbl">Description (optional)</div><input class="form-inp" id="pub-desc" type="text" placeholder="What does this dashboard show?"/></div>
+    <div class="form-row"><div class="form-lbl">Visibility</div>
+      <select class="form-inp" id="pub-vis"><option value="all">All users</option><option value="manager">Manager+</option><option value="supervisor">Supervisor+</option><option value="admin">Admins only</option></select>
+    </div>
+    <div class="form-row"><div class="form-lbl">Auto-refresh interval</div>
+      <select class="form-inp"><option>10 seconds</option><option selected>30 seconds</option><option>1 minute</option><option>5 minutes</option></select>
+    </div>
+    <div id="pub-url-section" style="display:none">
+      <div class="form-lbl">Published URL</div>
+      <div class="pub-url" id="pub-url-display"></div>
+      <button class="copy-url-btn" onclick="copyPubUrl()">⎘ Copy URL</button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button style="background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:9px;padding:9px 18px;color:var(--muted);font-size:12px;cursor:pointer" onclick="closePublishModal()">Cancel</button>
+      <button class="pub-btn" onclick="doPublish()">⤴ Publish</button>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+const MACHINE = 'MACHINE001';
+const PRESETS = {
+  oee_today: `SELECT
+  machine_id,
+  ROUND(AVG(CASE WHEN machine_state='RUNNING' THEN 1 ELSE 0 END)*100, 1) AS availability_pct,
+  COUNT(*) AS total_readings
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '12 hours'
+GROUP BY machine_id;`,
+  parts_hourly: `SELECT
+  time_bucket('1 hour', time) AS hour,
+  MAX(parts_made) - MIN(parts_made) AS parts_in_hour
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '24 hours'
+GROUP BY hour ORDER BY hour DESC LIMIT 24;`,
+  downtime_reasons: `SELECT
+  reason, COUNT(*) AS occurrences,
+  ROUND(SUM(duration_min)) AS total_min
+FROM cnc_downtime_log
+WHERE machine_id = 'MACHINE001'
+  AND logged_at > NOW() - INTERVAL '7 days'
+GROUP BY reason ORDER BY total_min DESC LIMIT 10;`,
+  spindle_trend: `SELECT
+  time_bucket('1 minute', time) AS t,
+  ROUND(AVG(spindle_speed)::numeric, 0) AS avg_rpm
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '1 hour'
+GROUP BY t ORDER BY t DESC LIMIT 60;`,
+  shift_compare: `SELECT
+  CASE WHEN EXTRACT(HOUR FROM time AT TIME ZONE 'Asia/Kolkata') >= 7
+            AND EXTRACT(HOUR FROM time AT TIME ZONE 'Asia/Kolkata') < 19
+       THEN 'Shift A' ELSE 'Shift B' END AS shift,
+  ROUND(COUNT(CASE WHEN machine_state='RUNNING' THEN 1 END)::numeric / COUNT(*)::numeric * 100, 1) AS availability_pct,
+  COUNT(*) AS readings
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '7 days'
+GROUP BY shift;`,
+  rejection_types: `SELECT
+  rejection_type, SUM(qty) AS total_rejected
+FROM cnc_rejection_log
+WHERE machine_id = 'MACHINE001'
+  AND logged_at > NOW() - INTERVAL '30 days'
+GROUP BY rejection_type ORDER BY total_rejected DESC;`,
+  alarm_freq: `SELECT
+  message AS alarm_message, COUNT(*) AS frequency,
+  MAX(time) AS last_occurred
+FROM cnc_alarms
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '30 days'
+GROUP BY message ORDER BY frequency DESC LIMIT 10;`,
+  idle_analysis: `SELECT
+  time_bucket('1 hour', time) AS hour,
+  ROUND(AVG(idle_time_sec)/60, 1) AS avg_idle_min
+FROM cnc_data
+WHERE machine_id = 'MACHINE001'
+  AND time > NOW() - INTERVAL '24 hours'
+GROUP BY hour ORDER BY hour DESC LIMIT 24;`
+};
+
+// ─ Widget definitions ─
+// All /api/cnc/live responses nest machine data under d.machine
+// OEE comes from /api/cnc/oee separately
+const WIDGET_DATA = {
+  'oee-live':     { title:'OEE Live', fetch: () => { const sh=zCurrentShift(),dt=zOEEDate(sh); return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(d=>({ val: fmtNum(d&&d.oee,1)+'%', sub:'Overall Equipment Effectiveness', color:oeeColor(d&&d.oee||0) })); } },
+  'parts-count':  { title:'Parts This Shift', fetch: () => zFetch('/api/cnc/live?machine='+MACHINE).then(d=>{ const m=d&&d.machine; return { val: fmtInt(m&&(m.part_count||m.parts_made)||0), sub: zShiftInfo().shift + ' Shift', color:'var(--green)' }; }) },
+  'spindle-speed':{ title:'Spindle Speed', fetch: () => zFetch('/api/cnc/live?machine='+MACHINE).then(d=>{ const m=d&&d.machine; return { val: fmtInt(m&&m.spindle_speed||0)+' RPM', sub: (m&&m.auto_mode)||'--', color:'var(--blue)' }; }) },
+  'downtime-today':{ title:'Downtime Today', fetch: () => zFetch('/api/cnc/live?machine='+MACHINE).then(d=>{ const m=d&&d.machine; return { val: fmtHM((m&&m.idle_time_sec)||0), sub:'Idle accumulation', color:'var(--amber)' }; }) },
+  'machine-state':{ title:'Machine State', fetch: () => zFetch('/api/cnc/live?machine='+MACHINE).then(d=>{ const m=d&&d.machine; const s=(m&&m.machine_state)||'--'; return { val: s, sub:(m&&m.run_status)||'--', color:stateColor(s) }; }) },
+  'quality-rate': { title:'Quality Rate', fetch: () => { const sh=zCurrentShift(),dt=zOEEDate(sh); return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(d=>({ val: fmtNum(d&&d.quality,1)+'%', sub:'Accepted / Total', color:'var(--purple)' })); } },
+  'availability':  { title:'Availability', fetch: () => { const sh=zCurrentShift(),dt=zOEEDate(sh); return zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+sh+'&date='+dt).then(d=>({ val: fmtNum(d&&d.availability,1)+'%', sub:'Uptime this shift', color:'var(--green)' })); } },
+  'shift-info':   { title:'Shift Progress', fetch: () => Promise.resolve((() => { const si=zShiftInfo(); return { val: 'Shift '+si.shift, sub: fmtHM(si.elapsed)+' elapsed · '+fmtHM(si.remaining)+' left', color:'var(--cyan)' }; })()) },
+  'oee-trend':    { title:'7-Day OEE Trend', fetch: () => zFetch('/api/cnc/trend?machine='+MACHINE+'&days=7').then(d=>({ isChart: true, data: d&&(d.trend||d.data)||[] })) }
+};
+
+// ─ Canvas ─
+let zoneWidgets = {};
+const NUM_ZONES = 9;
+var currentColumns = 3;
+
+function buildCanvas() {
+  const grid = document.getElementById('canvas-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < NUM_ZONES; i++) {
+    const z = document.createElement('div');
+    z.className = 'drop-zone';
+    z.dataset.idx = i;
+    z.innerHTML = '<div class="zone-placeholder"><div class="zone-placeholder-icon">⊕</div><div>Drop widget here</div></div>';
+    z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag-over'); });
+    z.addEventListener('dragleave', () => z.classList.remove('drag-over'));
+    z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('drag-over'); const type = e.dataTransfer.getData('widget-type'); if (type) placeWidget(i, type); });
+    z.addEventListener('click', () => { if (!zoneWidgets[i]) { /* click to add */ } });
+    grid.appendChild(z);
+    if (zoneWidgets[i]) renderZoneWidget(i, zoneWidgets[i]);
+  }
+}
+
+function setColumns(n) {
+  currentColumns = parseInt(n) || 3;
+  const g = document.getElementById('canvas-grid');
+  g.className = 'canvas-grid' + (n==='2'?' col2':n==='4'?' col4':'');
+}
+
+// ── KPI palette icons ───────────────────────────────────────────
+const KPI_ICONS = { kpi_card:'🔢', gauge:'🎯', sparkline:'📉', line_chart:'📈', bar_chart:'📊', donut:'🍩', heatmap:'🌡', default:'📋' };
+
+// Store custom KPI metadata keyed by "kpi:{id}" so renderZoneWidget can look it up
+var kpiCache = {}; // { 'kpi:my-kpi-id': {title, icon, device_id, param_field, ...} }
+var dataSources = [];
+var sourceFields = {};
+
+// ── Theme state ──────────────────────────────────────────────────
+var currentTheme = { preset: 'dark', bgColor: '#0a1628', bgImage: '', accentColor: '#00d4ff', logoUrl: '', icon: '📊' };
+
+const THEME_PRESETS = {
+  dark:   { bgColor: '#0a1628', accentColor: '#00d4ff' },
+  ocean:  { bgColor: '#051220', accentColor: '#4488ff' },
+  forest: { bgColor: '#0a2015', accentColor: '#00ff88' },
+  purple: { bgColor: '#1a0a28', accentColor: '#aa44ff' },
+  ember:  { bgColor: '#201008', accentColor: '#ff8800' },
+  slate:  { bgColor: '#0d0f1a', accentColor: '#8899bb' },
+};
+
+function toggleThemePanel() {
+  var p = document.getElementById('theme-panel');
+  var i = document.getElementById('theme-toggle-icon');
+  var open = p.style.display !== 'none';
+  p.style.display = open ? 'none' : 'block';
+  if (i) i.textContent = open ? '▼' : '▲';
+}
+
+function applyPreset(name, el) {
+  var p = THEME_PRESETS[name];
+  if (!p) return;
+  currentTheme.preset    = name;
+  currentTheme.bgColor   = p.bgColor;
+  currentTheme.accentColor = p.accentColor;
+  document.getElementById('theme-bg-color').value = p.bgColor;
+  document.getElementById('theme-accent').value   = p.accentColor;
+  document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  applyThemeToCanvas();
+}
+
+function updateTheme() {
+  currentTheme.bgColor     = document.getElementById('theme-bg-color').value;
+  currentTheme.bgImage     = document.getElementById('theme-bg-image').value.trim();
+  currentTheme.accentColor = document.getElementById('theme-accent').value;
+  currentTheme.logoUrl     = document.getElementById('theme-logo').value.trim();
+  currentTheme.icon        = document.getElementById('theme-icon').value.trim() || '📊';
+  applyThemeToCanvas();
+}
+
+function applyThemeToCanvas() {
+  var canvas = document.querySelector('.builder-canvas');
+  if (!canvas) return;
+  var bg = currentTheme.bgImage
+    ? 'url(' + currentTheme.bgImage + ') center/cover no-repeat'
+    : currentTheme.bgColor;
+  canvas.style.background   = bg;
+  canvas.style.borderColor  = currentTheme.accentColor + '44';
+  // Update accent CSS variable for this canvas
+  canvas.style.setProperty('--canvas-accent', currentTheme.accentColor);
+}
+
+function getThemeData() {
+  return {
+    preset:       currentTheme.preset,
+    bgColor:      currentTheme.bgColor,
+    bgImage:      currentTheme.bgImage,
+    accentColor:  currentTheme.accentColor,
+    logoUrl:      currentTheme.logoUrl,
+    icon:         currentTheme.icon,
+  };
+}
+
+// Load saved KPIs from the API and populate the palette
+function loadMyKPIs() {
+  fetch('/api/kpi', { headers: zAuthHeader ? zAuthHeader() : {} })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var kpis = (data && data.kpis) ? data.kpis : [];
+      var section = document.getElementById('my-kpi-section');
+      var list    = document.getElementById('my-kpi-list');
+      var badge   = document.getElementById('kpi-badge');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!kpis.length) {
+        list.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0">No saved KPIs yet.<br>Create them in KPI Builder.</div>';
+        if (section) section.style.display = 'block';
+        return;
+      }
+      if (section) section.style.display = 'block';
+      if (badge)   badge.textContent = kpis.length;
+      kpis.forEach(function(k) {
+        var typeKey = 'kpi:' + k.id;
+        var icon    = KPI_ICONS[k.widget_type] || KPI_ICONS.default;
+        var desc    = [k.device_id, k.param_field, k.aggregation ? k.aggregation.toUpperCase() : ''].filter(Boolean).join(' · ');
+        // Cache the KPI for renderZoneWidget
+        kpiCache[typeKey] = { title: k.name, icon: icon, device_id: k.device_id, param_field: k.param_field, kpi: k };
+        // Add to WIDGET_DATA so renderZoneWidget can fetch live value
+        WIDGET_DATA[typeKey] = {
+          title: k.name,
+          fetch: (function(kpi) {
+            return function() {
+              // Fetch live value from /api/cnc/live and extract the right field
+              return zFetch('/api/cnc/live?machine=' + (kpi.device_id || MACHINE)).then(function(d) {
+                var m = d && d.machine;
+                var field = kpi.param_field || '';
+                var val = m && m[field] !== undefined ? m[field] : '--';
+                return { val: val + (kpi.unit ? ' ' + kpi.unit : ''), sub: kpi.name + ' · ' + (kpi.widget_type||'kpi'), color: 'var(--cyan)' };
+              });
+            };
+          })(k)
+        };
+        // Build draggable palette item
+        var item = document.createElement('div');
+        item.className = 'widget-item';
+        item.draggable = true;
+        item.dataset.type = typeKey;
+        item.innerHTML = '<span class="wi-icon">' + icon + '</span><div><div class="wi-name">' + escH(k.name) + '</div><div class="wi-desc">' + escH(desc || k.widget_type || 'Custom KPI') + '</div></div>';
+        item.addEventListener('dragstart', function(e) {
+          e.dataTransfer.setData('widget-type', item.dataset.type);
+        });
+        list.appendChild(item);
+      });
+    })
+    .catch(function(){ /* silent */ });
+}
+
+// Drag from palette (built-in widgets)
+document.querySelectorAll('.widget-item').forEach(function(el) {
+  el.addEventListener('dragstart', function(e) {
+    e.dataTransfer.setData('widget-type', el.dataset.type);
+  });
+});
+
+function placeWidget(idx, type) {
+  zoneWidgets[idx] = type;
+  renderZoneWidget(idx, type);
+}
+
+function firstEmptyZone() {
+  for (var i = 0; i < NUM_ZONES; i++) if (!zoneWidgets[i]) return i;
+  return null;
+}
+
+function loadDataSources() {
+  return zFetch('/api/data-sources')
+    .then(function(d) {
+      dataSources = d && d.sources ? d.sources : [];
+      var sel = document.getElementById('ds-source');
+      if (!sel) return;
+      if (!dataSources.length) {
+        sel.innerHTML = '<option value="">No sources configured</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">Select data source…</option>' + dataSources.map(function(src) {
+        return '<option value="'+escH(src.id)+'">'+escH(src.name || src.id)+' · '+escH(src.type)+'</option>';
+      }).join('');
+    })
+    .catch(function(){
+      var sel = document.getElementById('ds-source');
+      if (sel) sel.innerHTML = '<option value="">Unable to load sources</option>';
+    });
+}
+
+function setFieldOptions(fields) {
+  ['ds-value-field','ds-label-field','ds-time-field'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var label = id === 'ds-value-field' ? 'Value field' : id === 'ds-label-field' ? 'Label field' : 'Time field (optional)';
+    el.innerHTML = '<option value="">'+label+'</option>' + (fields||[]).map(function(f) {
+      return '<option value="'+escH(f.name)+'">'+escH(f.name)+' · '+escH(f.type||'field')+'</option>';
+    }).join('');
+  });
+}
+
+function loadSourceFields() {
+  var id = document.getElementById('ds-source').value;
+  if (!id) { setFieldOptions([]); return; }
+  if (sourceFields[id]) { setFieldOptions(sourceFields[id]); return; }
+  setFieldOptions([]);
+  zFetch('/api/data-sources/' + encodeURIComponent(id) + '/data?limit=5')
+    .then(function(d) {
+      sourceFields[id] = d && d.fields ? d.fields : [];
+      setFieldOptions(sourceFields[id]);
+    })
+    .catch(function(){ zToast('Could not preview data source fields', 'warning'); });
+}
+
+function addDataSourceWidget() {
+  var id = document.getElementById('ds-source').value;
+  if (!id) { zToast('Select a data source first', 'warning'); return; }
+  var src = dataSources.find(function(s){ return s.id === id; }) || { id: id, name: id };
+  var idx = firstEmptyZone();
+  if (idx === null) { zToast('No empty dashboard zone available', 'warning'); return; }
+  var valueField = document.getElementById('ds-value-field').value;
+  var labelField = document.getElementById('ds-label-field').value;
+  var timeField = document.getElementById('ds-time-field').value;
+  var kind = document.getElementById('ds-widget-kind').value || 'kpi';
+  var title = document.getElementById('ds-title').value.trim() || src.name || id;
+  var widget = {
+    type: 'data-source',
+    source_id: id,
+    widget_kind: kind,
+    title: title,
+    valueField: valueField,
+    labelField: labelField,
+    timeField: timeField
+  };
+  zoneWidgets[idx] = widget;
+  renderZoneWidget(idx, widget);
+}
+
+function renderZoneWidget(idx, type) {
+  const zone = document.querySelector('[data-idx="' + idx + '"]');
+  if (!zone) return;
+  zone.classList.add('has-widget');
+  if (type && typeof type === 'object' && type.type === 'data-source') {
+    renderDataSourceWidget(idx, type);
+    return;
+  }
+  const def = WIDGET_DATA[type];
+  if (!def) {
+    // Unknown type — show a placeholder
+    zone.innerHTML = '<div class="widget-in-zone"><div class="wiz-header"><div class="wiz-title">' + escH(String(type)) + '</div><button class="wiz-remove" onclick="removeWidget(' + idx + ')">✕</button></div><div class="wiz-value" style="color:var(--muted)">--</div></div>';
+    return;
+  }
+  zone.innerHTML = '<div class="widget-in-zone"><div class="wiz-header"><div class="wiz-title">' + def.title + '</div><button class="wiz-remove" onclick="removeWidget(' + idx + ')">✕</button></div><div id="wz-val-'+idx+'" class="wiz-value skeleton">--</div><div id="wz-sub-'+idx+'" class="wiz-sub skeleton"> </div></div>';
+  def.fetch().then(function(r) {
+    if (!r) return;
+    const valEl = document.getElementById('wz-val-'+idx);
+    const subEl = document.getElementById('wz-sub-'+idx);
+    if (valEl) { valEl.textContent = r.val || '--'; valEl.style.color = r.color || 'var(--cyan)'; valEl.classList.remove('skeleton'); }
+    if (subEl) { subEl.textContent = r.sub || ''; subEl.classList.remove('skeleton'); }
+  }).catch(function(){});
+}
+
+function renderDataSourceWidget(idx, widget) {
+  const zone = document.querySelector('[data-idx="' + idx + '"]');
+  const title = widget.title || widget.source_id || 'Data Source';
+  zone.innerHTML = '<div class="widget-in-zone"><div class="wiz-header"><div class="wiz-title">' + escH(title) + '</div><button class="wiz-remove" onclick="removeWidget(' + idx + ')">✕</button></div><div id="wz-val-'+idx+'" class="wiz-value skeleton">--</div><div id="wz-sub-'+idx+'" class="wiz-sub skeleton">Loading source…</div></div>';
+  var qs = new URLSearchParams();
+  if (widget.valueField) qs.set('valueField', widget.valueField);
+  if (widget.labelField) qs.set('labelField', widget.labelField);
+  if (widget.timeField) qs.set('timeField', widget.timeField);
+  qs.set('limit', widget.widget_kind === 'kpi' ? '1' : '20');
+  zFetch('/api/data-sources/' + encodeURIComponent(widget.source_id) + '/data?' + qs.toString())
+    .then(function(d) {
+      var valEl = document.getElementById('wz-val-'+idx);
+      var subEl = document.getElementById('wz-sub-'+idx);
+      var rows = d && d.rows ? d.rows : [];
+      if (widget.widget_kind === 'table') {
+        if (valEl) { valEl.classList.remove('skeleton'); valEl.style.fontSize='12px'; valEl.style.lineHeight='1.6'; valEl.textContent = rows.slice(0,3).map(function(r){ return JSON.stringify(r); }).join(' | ') || '--'; }
+      } else if (widget.widget_kind === 'chart') {
+        if (valEl) { valEl.classList.remove('skeleton'); valEl.style.fontSize='18px'; valEl.textContent = (d.mapped||[]).slice(0,8).map(function(r){ return r.label !== undefined ? r.label + ':' + r.value : r.value; }).join('  '); }
+      } else {
+        var first = (d.mapped && d.mapped[0]) || {};
+        var raw = rows[0] || {};
+        var v = first.value !== undefined ? first.value : (widget.valueField ? raw[widget.valueField] : Object.values(raw)[0]);
+        if (valEl) { valEl.textContent = v === undefined ? '--' : String(v); valEl.style.color='var(--cyan)'; valEl.classList.remove('skeleton'); }
+      }
+      if (subEl) { subEl.textContent = (d.source && d.source.name ? d.source.name : widget.source_id) + (d.cached ? ' · cached' : ' · live'); subEl.classList.remove('skeleton'); }
+    })
+    .catch(function() {
+      var subEl = document.getElementById('wz-sub-'+idx);
+      if (subEl) { subEl.textContent = 'Source preview failed'; subEl.classList.remove('skeleton'); }
+    });
+}
+
+function removeWidget(idx) {
+  delete zoneWidgets[idx];
+  const zone = document.querySelector('[data-idx="' + idx + '"]');
+  if (zone) { zone.className = 'drop-zone'; zone.innerHTML = '<div class="zone-placeholder"><div class="zone-placeholder-icon">⊕</div><div>Drop widget here</div></div>'; }
+}
+
+function clearCanvas() {
+  zoneWidgets = {};
+  buildCanvas();
+}
+
+function saveDashboard() {
+  var name = document.getElementById('dash-name').value.trim() || 'My Dashboard';
+  var count = Object.keys(zoneWidgets).length;
+  if (!count) { zToast('Add at least one widget first', 'warning'); return; }
+  var widgetList = Object.entries(zoneWidgets).map(function([idx, w]) {
+    if (typeof w === 'string') {
+      var def2 = WIDGET_DATA[w];
+      return { zone: Number(idx), type: w, title: def2 ? def2.title : w };
+    }
+    return Object.assign({}, w, { zone: Number(idx), title: w.title || w.type || 'Widget' });
+  });
+  zFetch('/api/dashboards/publish', {
+    method: 'POST',
+    body: JSON.stringify({ name: name, description: '', visibility: 'draft', widgets: widgetList, theme: getThemeData(), columns: currentColumns })
+  }).then(function(d) {
+    if (d && d.ok) {
+      zToast('✅ Dashboard "' + name + '" saved (' + count + ' widgets)', 'success');
+      loadPublishedPane(); // refresh the Published tab
+    } else {
+      zToast('Save failed', 'err');
+    }
+  }).catch(function(){ zToast('Save failed', 'err'); });
+}
+
+// ─ Pane switching ─
+function showPane(name, tab) {
+  document.querySelectorAll('.pane').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('pane-' + name).classList.add('active');
+  document.querySelectorAll('.db-tab').forEach(function(t){ t.classList.remove('active'); });
+  if (tab) tab.classList.add('active');
+}
+
+// ─ Query runner ─
+function loadPreset(key) {
+  document.getElementById('sql-input').value = PRESETS[key] || '';
+}
+
+function runQuery() {
+  const sql = document.getElementById('sql-input').value.trim();
+  if (!sql) { zToast('Write a SQL query first', 'warning'); return; }
+  document.getElementById('query-status').textContent = 'Running…';
+  document.getElementById('result-wrap').style.display = 'none';
+  // Try /api/report with a raw query (if endpoint supports it), else show demo
+  zFetch('/api/report?type=custom&q=' + encodeURIComponent(sql.slice(0, 200))).then(function(d) {
+    document.getElementById('query-status').textContent = '';
+    showResults(d && (d.rows || d.data) ? (d.rows || d.data) : generateDemoResults(sql));
+  }).catch(function() {
+    document.getElementById('query-status').textContent = '';
+    showResults(generateDemoResults(sql));
+  });
+}
+
+function generateDemoResults(sql) {
+  // Return sensible demo data based on keyword detection
+  if (sql.includes('spindle_speed')) return [{ hour:'10:00',avg_rpm:'1,204' },{ hour:'09:00',avg_rpm:'1,198' },{ hour:'08:00',avg_rpm:'1,210' }];
+  if (sql.includes('parts_made') || sql.includes('parts_in_hour')) return [{ hour:'10:00',parts_in_hour:'9' },{ hour:'09:00',parts_in_hour:'11' },{ hour:'08:00',parts_in_hour:'8' }];
+  if (sql.includes('machine_state') || sql.includes('availability')) return [{ machine_id:'MACHINE001',availability_pct:'87.4',total_readings:'4320' }];
+  return [{ result:'Query executed (demo mode)', note:'Connect DB to see live results' }];
+}
+
+function showResults(rows) {
+  if (!rows || !rows.length) { document.getElementById('query-status').textContent = 'No rows returned'; return; }
+  const keys = Object.keys(rows[0]);
+  let html = '<thead><tr>' + keys.map(function(k){ return '<th>'+k+'</th>'; }).join('') + '</tr></thead><tbody>';
+  html += rows.map(function(r){ return '<tr>' + keys.map(function(k){ return '<td>'+escH(String(r[k]??'--'))+'</td>'; }).join('') + '</tr>'; }).join('');
+  html += '</tbody>';
+  const tbl = document.getElementById('result-table');
+  tbl.innerHTML = html;
+  document.getElementById('result-wrap').style.display = 'block';
+  document.getElementById('query-status').textContent = rows.length + ' rows';
+}
+
+// ─ Publish ─
+function openPublishModal() {
+  document.getElementById('pub-name').value = document.getElementById('dash-name').value || 'My Dashboard';
+  document.getElementById('pub-url-section').style.display = 'none';
+  document.getElementById('publish-modal').style.display = 'flex';
+}
+function closePublishModal() { document.getElementById('publish-modal').style.display = 'none'; }
+
+function doPublish() {
+  const name = document.getElementById('pub-name').value.trim();
+  const desc = document.getElementById('pub-desc').value.trim();
+  const vis  = document.getElementById('pub-vis').value;
+  if (!name) { zToast('Enter a dashboard name', 'warning'); return; }
+  const widgetCount = Object.keys(zoneWidgets).length;
+  if (!widgetCount) { zToast('Add at least one widget before publishing', 'warning'); return; }
+
+  // Collect widget list for storage — handle both string types and objects
+  const widgetList = Object.entries(zoneWidgets).map(function([idx, w]) {
+    if (typeof w === 'string') {
+      const def = WIDGET_DATA[w];
+      return { zone: Number(idx), type: w, title: def ? def.title : w };
+    }
+    return Object.assign({}, w, { zone: Number(idx), title: w.title || w.type || 'Widget' });
+  });
+
+  zFetch('/api/dashboards/publish', {
+    method: 'POST',
+    body: JSON.stringify({ name: name, description: desc, visibility: vis, widgets: widgetList, theme: getThemeData(), columns: currentColumns })
+  }).then(function(d) {
+    if (!d || !d.ok) { zToast('Publish failed', 'err'); return; }
+    const url = window.location.origin + d.dashboard.url;
+    document.getElementById('pub-url-display').textContent = url;
+    document.getElementById('pub-url-section').style.display = 'block';
+    zToast('"' + name + '" published successfully!', 'success');
+    loadPublishedPane(); // refresh the published list
+  }).catch(function() { zToast('Publish failed — server unreachable', 'err'); });
+}
+
+function copyPubUrl() {
+  const url = document.getElementById('pub-url-display').textContent;
+  navigator.clipboard.writeText(url).then(function(){ zToast('URL copied!', 'success'); }).catch(function(){});
+}
+
+function viewDash(slug) {
+  window.open('/view/' + slug, '_blank');
+}
+
+function editDash(slug) {
+  // Navigate to builder with ?load=<slug> — the auto-load block will restore it
+  window.location.href = '/dashboard-builder?load=' + encodeURIComponent(slug);
+}
+
+function deleteDash(slug) {
+  if (!confirm('Remove published dashboard "' + slug + '"?')) return;
+  zFetch('/api/dashboards/' + slug, { method: 'DELETE' }).then(function() {
+    zToast('Dashboard removed', 'success');
+    loadPublishedPane();
+  });
+}
+
+// ─ Load Published pane from server ─
+function loadPublishedPane() {
+  fetch('/api/dashboards/list').then(function(r){ return r.json(); }).then(function(data) {
+    const list = (data && data.dashboards) ? data.dashboards : [];
+    const container = document.getElementById('pub-list');
+    const emptyMsg  = document.getElementById('pub-empty');
+    // Remove existing dashboard cards (keep the "+ Create" card)
+    Array.from(container.querySelectorAll('.pub-card[data-slug]')).forEach(function(el){ el.remove(); });
+    if (!list.length) {
+      emptyMsg.style.display = 'block';
+    } else {
+      emptyMsg.style.display = 'none';
+      const addCard = container.querySelector('.pub-card[style*="dashed"]');
+      list.forEach(function(d) {
+        const dt = new Date(d.published_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+        const wCount = (d.widgets || []).length;
+        const tags = (d.widgets || []).slice(0,3).map(function(w){
+          return '<span class="pub-tag">' + escH(w.title || w.type || 'Widget') + '</span>';
+        }).join('');
+        const card = document.createElement('div');
+        card.className = 'pub-card';
+        card.dataset.slug = d.slug;
+        card.innerHTML =
+          '<div class="pub-card-title">' + escH(d.name) + '</div>' +
+          '<div class="pub-card-meta">Published: ' + dt + ' &middot; ' + wCount + ' widget' + (wCount !== 1 ? 's' : '') + '</div>' +
+          (d.description ? '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">' + escH(d.description) + '</div>' : '') +
+          (tags ? '<div class="pub-card-tags">' + tags + '</div>' : '') +
+          '<div class="pub-card-actions">' +
+            '<div class="view-btn" onclick="viewDash(\'' + d.slug + '\')">👁 View</div>' +
+            '<button class="view-btn" onclick="editDash(\'' + d.slug + '\')" style="background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.2);color:var(--green)">✏ Edit</button>' +
+            '<button class="del-btn" onclick="deleteDash(\'' + d.slug + '\')">✕ Del</button>' +
+          '</div>';
+        if (addCard) container.insertBefore(card, addCard);
+        else container.appendChild(card);
+      });
+    }
+  }).catch(function(){});
+}
+
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+buildCanvas();
+loadPublishedPane();
+loadMyKPIs();
+loadDataSources();
+
+// ── Auto-load a saved dashboard when ?load=<slug> is in the URL ──
+(function() {
+  var slug = new URLSearchParams(window.location.search).get('load');
+  if (!slug) return;
+  fetch('/api/dashboards/list')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var list = (data && data.dashboards) ? data.dashboards : [];
+      var dash = list.find(function(d){ return d.slug === slug; });
+      if (!dash) return;
+      // Restore dashboard name
+      document.getElementById('dash-name').value = dash.name || 'My Dashboard';
+      // Restore theme
+      if (dash.theme) {
+        var t = dash.theme;
+        if (document.getElementById('theme-bg-color') && t.bgColor)
+          document.getElementById('theme-bg-color').value = t.bgColor;
+        if (document.getElementById('theme-bg-image') && t.bgImage)
+          document.getElementById('theme-bg-image').value = t.bgImage;
+        if (document.getElementById('theme-accent') && t.accentColor)
+          document.getElementById('theme-accent').value = t.accentColor;
+        if (document.getElementById('theme-logo') && t.logoUrl)
+          document.getElementById('theme-logo').value = t.logoUrl;
+        if (document.getElementById('theme-icon') && t.icon)
+          document.getElementById('theme-icon').value = t.icon;
+        // Restore current theme state
+        if (typeof currentTheme !== 'undefined') {
+          currentTheme.bgColor     = t.bgColor     || currentTheme.bgColor;
+          currentTheme.bgImage     = t.bgImage     || '';
+          currentTheme.accentColor = t.accentColor || currentTheme.accentColor;
+          currentTheme.logoUrl     = t.logoUrl     || '';
+          currentTheme.icon        = t.icon        || '📊';
+          if (typeof applyThemeToCanvas === 'function') applyThemeToCanvas();
+        }
+      }
+      // Restore columns layout
+      if (dash.columns) {
+        var colSel = document.querySelector('select[onchange="setColumns(this.value)"]');
+        if (colSel) {
+          colSel.value = String(dash.columns);
+          setColumns(String(dash.columns));
+        }
+      }
+      // Restore widgets into zones
+      (dash.widgets || []).forEach(function(w) {
+        var idx  = Number(w.zone);
+        var type = w.type || 'oee-live';
+        zoneWidgets[idx] = type === 'data-source' ? w : type;
+        renderZoneWidget(idx, zoneWidgets[idx]);
+      });
+      // Switch to builder pane and show success
+      showPane('builder', document.querySelector('.db-tab'));
+      zToast('✅ Loaded for editing: ' + dash.name, 'success');
+    })
+    .catch(function(){});
+})();
+</script>
+</body>
+</html>

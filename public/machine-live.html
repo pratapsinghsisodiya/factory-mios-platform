@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Machine Live · Factory-MIOS</title>
+  <link rel="stylesheet" href="/_shared.css"/>
+  <script src="/js/chart.min.js"></script>
+  <style>
+    .machine-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:14px 20px; margin-bottom:16px; flex-wrap:wrap; gap:10px;
+    }
+    .machine-bar-left  { display:flex; align-items:center; gap:12px; }
+    .machine-bar-right { font-size:.78rem; color:var(--muted); }
+    .machine-name { font-size:1.1rem; font-weight:700; }
+
+    .status-hero {
+      border-radius:var(--radius-lg); border:1px solid var(--border);
+      padding:28px 32px; margin-bottom:20px;
+      display:flex; align-items:center; gap:24px;
+      background:var(--card); transition:background .4s,border-color .4s;
+    }
+    .status-hero-icon { font-size:3.5rem; line-height:1; }
+    .status-hero-main { flex:1; }
+    .status-hero-state { font-size:2rem; font-weight:900; letter-spacing:.04em; }
+    .status-hero-sub   { font-size:.9rem; color:var(--muted); margin-top:6px; }
+    .status-hero-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+    .status-hero-cycle { font-size:1.8rem; font-weight:800; }
+
+    .params-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+    .param-tile {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:16px 20px;
+    }
+    .param-tile-label { font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:6px; }
+    .param-tile-value { font-size:1.8rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; }
+    .param-tile-unit  { font-size:.8rem; color:var(--muted); margin-top:4px; }
+    .param-tile-badge { margin-top:8px; }
+
+    .oee-gauges { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .oee-gauge {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:20px; display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .oee-gauge-label { font-size:.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .oee-gauge-val   { font-size:1.5rem; font-weight:800; }
+
+    .cycle-progress { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:20px; }
+    .cycle-bar-wrap { position:relative; height:18px; background:rgba(255,255,255,.06); border-radius:9px; overflow:hidden; }
+    .cycle-bar-fill { height:100%; border-radius:9px; background:linear-gradient(90deg,var(--green),var(--cyan)); transition:width .4s ease; }
+    .cycle-ideal-marker {
+      position:absolute; top:0; bottom:0; width:2px;
+      background:var(--amber); opacity:.7;
+      transform:translateX(-50%);
+    }
+
+    .charts-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+
+    /* OEE Formula Breakdown */
+    .oee-formula-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+      padding:20px; margin-bottom:20px;
+    }
+    .formula-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px; }
+    .fb { background:rgba(255,255,255,.03); border-radius:10px; padding:14px 16px; border:1px solid var(--border); }
+    .fb-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:4px; }
+    .fb-expr { font-size:.72rem; color:var(--muted); font-family:'Consolas',monospace; margin-bottom:8px; line-height:1.4; }
+    .fb-calc { font-size:.82rem; color:var(--fg); font-weight:600; margin-bottom:6px; font-family:'Consolas',monospace; }
+    .fb-result { font-size:1.6rem; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:6px; }
+    .fb-note { font-size:.7rem; color:var(--muted); line-height:1.5; }
+    .fb-rule { font-size:.7rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); color:var(--muted); line-height:1.6; }
+    .fb-rule span.ok  { color:var(--green); }
+    .fb-rule span.bad { color:var(--red); }
+    .oee-eq-bar {
+      background:rgba(255,255,255,.03); border-radius:10px; padding:12px 20px;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap; border:1px solid var(--border);
+    }
+    .oee-eq-bar .eq-label { font-size:.78rem; color:var(--muted); }
+    .oee-eq-bar .eq-val   { font-size:1.1rem; font-weight:800; font-variant-numeric:tabular-nums; }
+    .oee-eq-bar .eq-op    { font-size:1.1rem; color:var(--muted); }
+    .oee-eq-bar .eq-oee   { font-size:1.5rem; font-weight:900; margin-left:8px; }
+    @media (max-width:800px) { .formula-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:500px) { .formula-grid { grid-template-columns:1fr; } }
+
+    @media (max-width:900px) {
+      .oee-gauges { grid-template-columns:repeat(2,1fr); }
+    }
+    @media (max-width:800px) {
+      .params-grid { grid-template-columns:repeat(2,1fr); }
+      .charts-2col { grid-template-columns:1fr; }
+      .status-hero { flex-direction:column; }
+    }
+    @media (max-width:500px) {
+      .params-grid, .oee-gauges { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="z-nav"></nav>
+  <main class="z-page">
+
+    <!-- Machine Bar -->
+    <div class="machine-bar">
+      <div class="machine-bar-left">
+        <div class="nav-logo" id="ml-machine-logo" style="width:38px;height:38px;font-size:.85rem">CNC</div>
+        <div>
+          <div class="machine-name" id="ml-machine-name">MACHINE-001</div>
+          <div style="font-size:.78rem;color:var(--muted)" id="ml-machine-subtitle">Loading…</div>
+        </div>
+        <span class="state-chip state-running" id="machine-state-chip">
+          <span class="pulse-dot"></span>
+          <span id="machine-state-text">LOADING</span>
+        </span>
+      </div>
+      <div class="machine-bar-right">
+        Updated: <span id="last-updated">--:--:--</span>
+      </div>
+    </div>
+
+    <!-- Status Hero -->
+    <div class="status-hero" id="status-hero">
+      <div class="status-hero-icon" id="hero-icon">◎</div>
+      <div class="status-hero-main">
+        <div class="status-hero-state" id="hero-state" style="color:var(--muted)">CONNECTING...</div>
+        <div class="status-hero-sub" id="hero-sub">Waiting for machine data...</div>
+      </div>
+      <div class="status-hero-right">
+        <div class="status-hero-cycle" id="hero-cycle" style="color:var(--cyan)">--</div>
+        <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Last Cycle (s)</div>
+        <span class="z-badge danger" id="hero-alarm" style="display:none">⚠ ALARM ACTIVE</span>
+      </div>
+    </div>
+
+    <!-- 6 Parameter Tiles -->
+    <div class="params-grid">
+      <div class="param-tile">
+        <div class="param-tile-label">Spindle Speed</div>
+        <div class="param-tile-value val-cyan" id="pt-spindle">--</div>
+        <div class="param-tile-unit">RPM</div>
+      </div>
+      <div class="param-tile">
+        <div class="param-tile-label">Feed Rate</div>
+        <div class="param-tile-value val-green" id="pt-feed">--</div>
+        <div class="param-tile-unit">mm/min</div>
+      </div>
+      <div class="param-tile">
+        <div class="param-tile-label">Parts Count</div>
+        <div class="param-tile-value" id="pt-parts" style="color:var(--fg)">--</div>
+        <div class="param-tile-unit">This shift</div>
+      </div>
+      <div class="param-tile" id="idle-tile">
+        <div class="param-tile-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Downtime <span id="dt-shift-label" style="font-size:.7em;color:var(--cyan);font-weight:700">(SHIFT A)</span></span>
+          <span id="dt-pct-badge" style="font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(255,68,68,.12);color:var(--red);display:none;"></span>
+        </div>
+        <div class="param-tile-value val-amber" id="pt-idle">--</div>
+        <div class="param-tile-unit" id="pt-idle-unit">loading…</div>
+        <div class="param-tile-badge" id="idle-badge-wrap"></div>
+        <div id="dt-daily-split" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);display:none">
+          <div style="display:flex;justify-content:space-between;gap:6px">
+            <span>A: <strong id="dt-split-a" style="color:var(--amber)">--</strong></span>
+            <span style="color:var(--border)">|</span>
+            <span>B: <strong id="dt-split-b" style="color:var(--amber)">--</strong></span>
+          </div>
+          <div style="margin-top:2px;font-size:.67rem">Today — both shifts</div>
+        </div>
+      </div>
+      <div class="param-tile">
+        <div class="param-tile-label">Last Cycle</div>
+        <div class="param-tile-value val-cyan" id="pt-cycle">--</div>
+        <div class="param-tile-unit">seconds</div>
+      </div>
+      <div class="param-tile" id="prog-tile">
+        <div class="param-tile-label">Program / Mode</div>
+        <div class="param-tile-value" id="pt-prog" style="color:var(--fg)">--</div>
+        <div class="param-tile-unit" id="pt-prog-sub">--</div>
+      </div>
+    </div>
+
+    <!-- OEE Gauges -->
+    <div class="oee-gauges">
+      <div class="oee-gauge">
+        <div class="oee-gauge-label">OEE</div>
+        <div id="gauge-oee-donut"></div>
+        <div class="oee-gauge-val" id="gauge-oee" style="color:var(--cyan)">--%</div>
+        <span class="z-badge muted" id="gauge-oee-grade">--</span>
+      </div>
+      <div class="oee-gauge">
+        <div class="oee-gauge-label">Availability</div>
+        <div id="gauge-avail-donut"></div>
+        <div class="oee-gauge-val" id="gauge-avail" style="color:var(--green)">--%</div>
+        <div style="font-size:.75rem;color:var(--muted)" id="gauge-avail-sub">Running / Available</div>
+      </div>
+      <div class="oee-gauge">
+        <div class="oee-gauge-label">Performance</div>
+        <div id="gauge-perf-donut"></div>
+        <div class="oee-gauge-val" id="gauge-perf" style="color:var(--amber)">--%</div>
+        <div style="font-size:.75rem;color:var(--muted)" id="gauge-perf-sub">Ideal vs Actual</div>
+      </div>
+      <div class="oee-gauge">
+        <div class="oee-gauge-label">Quality</div>
+        <div id="gauge-qual-donut"></div>
+        <div class="oee-gauge-val" id="gauge-qual" style="color:var(--purple)">--%</div>
+        <div style="font-size:.75rem;color:var(--muted)" id="gauge-qual-sub">Good / Total Parts</div>
+      </div>
+    </div>
+
+    <!-- OEE Formula Breakdown -->
+    <div class="oee-formula-card">
+      <div class="z-card-header" style="margin-bottom:14px">
+        <span class="z-card-title">📐 OEE Formula Breakdown</span>
+        <span id="formula-shift-badge" class="z-badge muted">Shift -- · --</span>
+      </div>
+      <div class="formula-grid">
+
+        <!-- Availability -->
+        <div class="fb">
+          <div class="fb-title" style="color:var(--green)">Availability</div>
+          <div class="fb-expr">Running Min ÷ Available Min × 100</div>
+          <div class="fb-calc" id="fb-avail-calc">-- min ÷ 720 min × 100</div>
+          <div class="fb-result" id="fb-avail-result" style="color:var(--green)">--%</div>
+          <div class="fb-note" id="fb-avail-note">Running: -- min &nbsp;|&nbsp; Downtime: -- min</div>
+          <div class="fb-rule">
+            <span class="ok">✓ Idle between parts → still RUNNING</span><br>
+            <span class="ok">✓ Slow cycle → Performance drops, NOT Availability</span><br>
+            <span class="bad">✗ ALARM / Emergency → Downtime</span>
+          </div>
+        </div>
+
+        <!-- Performance -->
+        <div class="fb">
+          <div class="fb-title" style="color:var(--amber)">Performance</div>
+          <div class="fb-expr">Parts × Ideal Cycle ÷ Run Seconds × 100</div>
+          <div class="fb-calc" id="fb-perf-calc">-- pcs × --s ÷ -- sec × 100</div>
+          <div class="fb-result" id="fb-perf-result" style="color:var(--amber)">--%</div>
+          <div class="fb-note" id="fb-perf-note">Max possible: -- pcs &nbsp;|&nbsp; Ideal: -- pcs/hr</div>
+          <div class="fb-rule" id="fb-perf-rule">
+            <span class="ok">✓ Ideal cycle from program_master</span><br>
+            <span class="ok" id="fb-perf-rule-prog">✓ Lookup: dynamic from DB + avg cycle fallback</span><br>
+            <span class="ok">✓ Performance = Parts × Ideal ÷ Run Time × 100</span>
+          </div>
+        </div>
+
+        <!-- Quality -->
+        <div class="fb">
+          <div class="fb-title" style="color:var(--purple)">Quality</div>
+          <div class="fb-expr">Good Parts ÷ Total Parts × 100</div>
+          <div class="fb-calc" id="fb-qual-calc">-- good ÷ -- total × 100</div>
+          <div class="fb-result" id="fb-qual-result" style="color:var(--purple)">--%</div>
+          <div class="fb-note" id="fb-qual-note">Rejections: 0 &nbsp;|&nbsp; Source: Quality Entry log</div>
+          <div class="fb-rule">
+            <span class="ok">✓ No rejections logged = 100% quality</span><br>
+            <span class="bad">✗ Log rejections in Quality Entry page</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Master OEE equation with real numbers -->
+      <div class="oee-eq-bar">
+        <span class="eq-label">OEE =</span>
+        <span class="eq-val" id="fb-eq-avail" style="color:var(--green)">--%</span>
+        <span class="eq-op">×</span>
+        <span class="eq-val" id="fb-eq-perf" style="color:var(--amber)">--%</span>
+        <span class="eq-op">×</span>
+        <span class="eq-val" id="fb-eq-qual" style="color:var(--purple)">--%</span>
+        <span class="eq-op">÷ 10000</span>
+        <span class="eq-op">=</span>
+        <span class="eq-oee" id="fb-eq-oee" style="color:var(--cyan)">--%</span>
+        <span id="fb-eq-grade" class="z-badge muted" style="margin-left:auto">--</span>
+      </div>
+    </div>
+
+    <!-- Cycle Progress Bar -->
+    <div class="cycle-progress z-section">
+      <div class="z-card-header" style="margin-bottom:12px">
+        <span class="z-card-title">Cycle Time Progress</span>
+        <span id="cycle-range-label" style="font-size:.82rem;color:var(--muted)">Ideal: --s &nbsp;|&nbsp; Range: 0–--s</span>
+      </div>
+      <div class="cycle-bar-wrap">
+        <div class="cycle-bar-fill" id="cycle-bar" style="width:0%"></div>
+        <div class="cycle-ideal-marker" id="cycle-ideal" style="left:50%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:6px">
+        <span>0s</span>
+        <span id="cycle-bar-val" style="color:var(--cyan);font-weight:700">-- s</span>
+        <span id="cycle-bar-max">--s</span>
+      </div>
+    </div>
+
+    <!-- Trend Charts -->
+    <div class="charts-2col">
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Spindle Speed — 60 min</span>
+          <span class="live-dot">LIVE</span>
+        </div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="spindle-chart"></canvas>
+        </div>
+      </div>
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Feed Rate — 60 min</span>
+          <span class="live-dot">LIVE</span>
+        </div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="feed-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Alarms -->
+    <div class="z-card">
+      <div class="z-card-header">
+        <span class="z-card-title">Recent Alarms</span>
+        <span class="z-badge danger" id="alarm-count-badge" style="display:none">0 Active</span>
+      </div>
+      <div class="z-table-wrap">
+        <table class="z-table">
+          <thead>
+            <tr><th>Time (IST)</th><th>Alarm No</th><th>State</th><th>Program</th><th>Duration</th></tr>
+          </thead>
+          <tbody id="alarms-tbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No alarms recorded</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+  <div id="z-toasts"></div>
+  <script src="/_shared.js"></script>
+  <script>
+  const MACHINE = 'MACHINE001';
+  let programMap = {};          // keyed by program_no (int) → { target_cycle_sec, part_name }
+  let currentIdealCycle = 45;   // updated dynamically when program changes
+  let spindleChart, feedChart;
+
+  Chart.defaults.color = '#6b8cae';
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+
+  function cDef() {
+    return {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#0d1e35',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8f4fd',bodyColor:'#6b8cae'} }
+    };
+  }
+
+  function setupCharts() {
+    spindleChart = new Chart(document.getElementById('spindle-chart'), {
+      type:'line',
+      data:{ labels:[], datasets:[{label:'Spindle RPM',data:[],borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.4}] },
+      options:Object.assign(cDef(),{ scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:8}},y:{min:0,grid:{color:'rgba(255,255,255,.04)'}}} })
+    });
+    feedChart = new Chart(document.getElementById('feed-chart'), {
+      type:'line',
+      data:{ labels:[], datasets:[{label:'Feed mm/min',data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.4}] },
+      options:Object.assign(cDef(),{ scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{maxTicksLimit:8}},y:{min:0,grid:{color:'rgba(255,255,255,.04)'}}} })
+    });
+  }
+
+  function renderLive(m) {
+    if (!m) return;
+    const state = (m.machine_state||'IDLE').toUpperCase();
+    const color = stateColor(state);
+    const icons = {RUNNING:'⚙',STOPPED:'⏹',ALARM:'⚠',IDLE:'◎'};
+    const stateClsMap = {RUNNING:'state-running',STOPPED:'state-stopped',ALARM:'state-alarm',IDLE:'state-idle'};
+
+    // Machine bar
+    const chip = document.getElementById('machine-state-chip');
+    if (chip) { chip.className='state-chip '+(stateClsMap[state]||'state-idle'); }
+    zSet('machine-state-text', state);
+
+    // Hero
+    const hero = document.getElementById('status-hero');
+    if (hero) { hero.style.borderColor=color+'44'; hero.style.background=color+'0d'; }
+    const heroIcon = document.getElementById('hero-icon');
+    if (heroIcon) { heroIcon.textContent=icons[state]||'◎'; heroIcon.style.color=color; }
+    const heroState = document.getElementById('hero-state');
+    if (heroState) { heroState.textContent=state; heroState.style.color=color; }
+    const heroSub = document.getElementById('hero-sub');
+    if (heroSub) {
+      const prog = m.program_no ? 'Program O'+m.program_no : (m.auto_mode==='MDI'?'MDI Mode':'No program');
+      heroSub.textContent = prog + ' · Spindle: '+(m.spindle_speed!=null?fmtInt(m.spindle_speed):'--')+' RPM · Feed: '+(m.feed_rate!=null?fmtInt(m.feed_rate):'--')+' mm/min';
+    }
+    zSet('hero-cycle', m.last_cycle_time_sec!=null?fmtNum(m.last_cycle_time_sec,1):'--');
+    const alEl = document.getElementById('hero-alarm');
+    if (alEl) alEl.style.display = m.alarm_active?'':'none';
+
+    // Param tiles
+    zSet('pt-spindle', m.spindle_speed!=null?fmtInt(m.spindle_speed):'--');
+    zSet('pt-feed',    m.feed_rate!=null?fmtInt(m.feed_rate):'--');
+    zSet('pt-parts',   m.part_count!=null?fmtInt(m.part_count):'--');
+    zSet('pt-cycle',   m.last_cycle_time_sec!=null?fmtNum(m.last_cycle_time_sec,1):'--');
+
+    // ── Downtime tile — filled by renderDowntime(), not renderLive()
+    // (renderLive only updates the current-state badge)
+    const ibw = document.getElementById('idle-badge-wrap');
+    const curState = (m.machine_state||'').toUpperCase();
+    const isDown = !['RUNNING','AUTO','BUSY'].includes(curState) && curState !== '';
+    if (ibw) ibw.innerHTML = isDown
+      ? `<span class="z-badge warning">${curState || 'IDLE'}</span>`
+      : '';
+
+    // Program tile
+    const progEl = document.getElementById('pt-prog');
+    if (progEl) {
+      if (m.auto_mode==='MDI'&&m.program_no==null) {
+        progEl.textContent = 'MDI'; progEl.style.color='var(--purple)';
+      } else {
+        progEl.textContent = m.program_no?'O'+m.program_no:'--'; progEl.style.color='var(--fg)';
+      }
+    }
+    zSet('pt-prog-sub', m.auto_mode||'--');
+
+    // Cycle progress — dynamic ideal cycle from program_master
+    const progNo = parseInt(m.program_no) || 0;
+    const progData = programMap[progNo];
+    if (progData && progData.target_cycle_sec) {
+      currentIdealCycle = parseFloat(progData.target_cycle_sec);
+    }
+    const idealCycle = currentIdealCycle;
+    const cyc = parseFloat(m.last_cycle_time_sec)||0;
+    // Max = current cycle + 10s buffer (never less than idealCycle + 10s, never less than 30s)
+    const maxCycle = Math.max(cyc + 10, idealCycle + 10, 30);
+
+    // Update header label and end label
+    const rangeLabel = document.getElementById('cycle-range-label');
+    if (rangeLabel) rangeLabel.innerHTML = 'Ideal: <strong style="color:var(--cyan)">' + idealCycle + 's</strong> &nbsp;|&nbsp; Now: <strong style="color:var(--amber)">' + (cyc ? fmtNum(cyc,1) : '--') + 's</strong>' + (progData ? ' &nbsp;(O' + progNo + ')' : '');
+    const maxLabel = document.getElementById('cycle-bar-max');
+    if (maxLabel) maxLabel.textContent = Math.round(maxCycle) + 's';
+
+    // Update ideal marker at actual ratio on the bar
+    const markerEl = document.getElementById('cycle-ideal');
+    const markerPct = maxCycle > 0 ? Math.min(95, (idealCycle / maxCycle) * 100) : 50;
+    if (markerEl) markerEl.style.left = markerPct + '%';
+
+    const pct = Math.min(100, (cyc / maxCycle) * 100);
+    const cb = document.getElementById('cycle-bar');
+    if (cb) {
+      cb.style.width = pct + '%';
+      cb.style.background = cyc <= idealCycle
+        ? 'linear-gradient(90deg,var(--green),var(--cyan))'
+        : cyc <= idealCycle * 1.5
+          ? 'linear-gradient(90deg,var(--amber),var(--red))'
+          : 'var(--red)';
+    }
+    zSet('cycle-bar-val', cyc ? fmtNum(cyc, 1) + ' s' : '-- s');
+
+    // Last updated
+    zSet('last-updated', new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false}));
+  }
+
+  function renderOEEFormula(d) {
+    if (!d || !d.ok) return;
+
+    // Shift badge
+    const shiftBadge = document.getElementById('formula-shift-badge');
+    if (shiftBadge) {
+      const sLabel = 'Shift ' + (d.shift || '--') + ' · ' + (d.date || new Date().toLocaleDateString('en-IN', {timeZone:'Asia/Kolkata', day:'2-digit', month:'short'}));
+      shiftBadge.textContent = sLabel;
+      shiftBadge.className = 'z-badge ' + (d.shift === 'A' ? 'success' : 'info');
+    }
+
+    // ── Availability ──────────────────────────────────────────────
+    const runMin   = Math.round(parseFloat(d.running_min  || 0));
+    const downMin  = Math.round(parseFloat(d.downtime_min || 0));
+    const availMin = runMin + downMin || 720;
+    zSet('fb-avail-calc', runMin + ' min ÷ ' + availMin + ' min × 100');
+    zSet('fb-avail-note', 'Running: ' + runMin + ' min  |  Downtime: ' + downMin + ' min');
+    const faR = document.getElementById('fb-avail-result');
+    if (faR) { faR.textContent = fmtPct(d.availability); faR.style.color = oeeColor(d.availability); }
+    const feA = document.getElementById('fb-eq-avail');
+    if (feA) { feA.textContent = fmtPct(d.availability); feA.style.color = oeeColor(d.availability); }
+
+    // ── Performance ───────────────────────────────────────────────
+    const parts    = parseInt(d.parts_produced || 0);
+    // Priority: 1) d.target_cycle_time (from API dynamic lookup), 2) currentIdealCycle (from programMap), 3) fallback
+    const apiTargetCycle = parseFloat(d.target_cycle_time);
+    const idealCyc = (apiTargetCycle > 0 && apiTargetCycle !== 45)
+      ? apiTargetCycle
+      : (currentIdealCycle > 45 ? currentIdealCycle : (apiTargetCycle || currentIdealCycle || 45));
+    // Update currentIdealCycle globally so cycle bar uses the correct value too
+    if (idealCyc > 0) currentIdealCycle = idealCyc;
+    const runSec   = runMin * 60;
+    const maxTotal = runSec > 0 ? Math.round(runSec / idealCyc) : 0;
+    const maxPerHr = (3600 / idealCyc).toFixed(1);
+    const progLabel = d.program_no ? ('O' + String(d.program_no).padStart(4,'0')) : (currentIdealCycle > 45 ? 'auto-matched' : '----');
+    zSet('fb-perf-calc', parts + ' pcs × ' + idealCyc + 's ÷ ' + runSec + 's × 100');
+    zSet('fb-perf-note', 'Max possible: ' + maxTotal + ' pcs  |  Ideal: ' + maxPerHr + ' pcs/hr  (' + progLabel + ' = ' + idealCyc + 's)');
+    // Update the rule line to show which program was used
+    const ruleEl = document.getElementById('fb-perf-rule-prog');
+    if (ruleEl) {
+      if (d.program_no) {
+        ruleEl.textContent = '✓ Program O' + String(d.program_no).padStart(4,'0') + (d.part_name ? ' – ' + d.part_name : '') + ' → ideal = ' + idealCyc + 's';
+      } else if (currentIdealCycle > 45) {
+        ruleEl.textContent = '~ Matched by avg cycle (' + (d.avg_cycle_time||'--') + 's) → ideal = ' + idealCyc + 's';
+      } else {
+        ruleEl.textContent = '⚠ No program found — using default 45s (check program_master)';
+        ruleEl.style.color = 'var(--amber)';
+      }
+    }
+    const fpR = document.getElementById('fb-perf-result');
+    if (fpR) { fpR.textContent = fmtPct(d.performance); fpR.style.color = oeeColor(d.performance); }
+    const feP = document.getElementById('fb-eq-perf');
+    if (feP) { feP.textContent = fmtPct(d.performance); feP.style.color = oeeColor(d.performance); }
+
+    // ── Quality ───────────────────────────────────────────────────
+    const total = parseInt(d.parts_produced || 0);
+    const rej   = parseInt(d.rejection_count || 0);
+    const good  = total - rej;
+    zSet('fb-qual-calc', good + ' good ÷ ' + total + ' total × 100');
+    zSet('fb-qual-note', 'Rejections: ' + rej + '  |  Source: Quality Entry log');
+    const fqR = document.getElementById('fb-qual-result');
+    if (fqR) { fqR.textContent = fmtPct(d.quality); fqR.style.color = oeeColor(d.quality); }
+    const feQ = document.getElementById('fb-eq-qual');
+    if (feQ) { feQ.textContent = fmtPct(d.quality); feQ.style.color = oeeColor(d.quality); }
+
+    // ── Master OEE equation ───────────────────────────────────────
+    const fO = document.getElementById('fb-eq-oee');
+    if (fO) { fO.textContent = fmtPct(d.oee); fO.style.color = oeeColor(d.oee); }
+    const fG = document.getElementById('fb-eq-grade');
+    if (fG) { fG.textContent = oeeGrade(d.oee); fG.className = 'z-badge ' + (d.oee >= 85 ? 'success' : d.oee >= 65 ? 'warning' : 'danger'); }
+  }
+
+  function renderOEE(d) {
+    if (!d || !d.ok) return;
+    function updGauge(valId, donutId, gradeId, val, color) {
+      const el=document.getElementById(valId);
+      if(el){el.textContent=fmtPct(val);el.style.color=color;}
+      const dn=document.getElementById(donutId);
+      if(dn) dn.innerHTML=zDonut(val,color,72,6);
+      if(gradeId){const g=document.getElementById(gradeId);if(g){g.textContent=oeeGrade(val);g.className='z-badge '+(val>=85?'success':val>=65?'warning':'danger');}}
+    }
+    updGauge('gauge-oee',  'gauge-oee-donut',  'gauge-oee-grade', d.oee,         oeeColor(d.oee));
+    updGauge('gauge-avail','gauge-avail-donut', null,             d.availability, oeeColor(d.availability));
+    updGauge('gauge-perf', 'gauge-perf-donut',  null,             d.performance,  oeeColor(d.performance));
+    updGauge('gauge-qual', 'gauge-qual-donut',  null,             d.quality,      oeeColor(d.quality));
+    const qualSub = document.getElementById('gauge-qual-sub');
+    if (qualSub) {
+      const tot = parseInt(d.parts_produced||0);
+      const rej = parseInt(d.rejection_count||0);
+      qualSub.textContent = (tot - rej) + ' good / ' + tot + ' total';
+    }
+    renderOEEFormula(d);
+  }
+
+  function renderTrend(data) {
+    if (!data||!data.length) return;
+    const labels = data.map(r=>{ try{return new Date(r.bucket).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});}catch{return '';} });
+    if (spindleChart) { spindleChart.data.labels=labels; spindleChart.data.datasets[0].data=data.map(r=>parseFloat(r.spindle_speed)||0); spindleChart.update('none'); }
+    if (feedChart)    { feedChart.data.labels=labels;    feedChart.data.datasets[0].data=data.map(r=>parseFloat(r.feed_rate)||0);    feedChart.update('none'); }
+  }
+
+  function renderAlarms(rows) {
+    const tbody = document.getElementById('alarms-tbody');
+    if (!tbody) return;
+    if (!rows||!rows.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No alarms recorded</td></tr>'; return; }
+    const active = rows.filter(r=>r.alarm_active);
+    const badge = document.getElementById('alarm-count-badge');
+    if (badge) { badge.textContent=active.length+' Active'; badge.style.display=active.length>0?'':'none'; }
+    tbody.innerHTML = rows.slice(0,12).map(r=>`<tr>
+      <td style="font-size:.8rem">${fmtIST(r.time)}</td>
+      <td class="z-mono">${r.alarm_no||'--'}</td>
+      <td><span class="z-badge ${r.alarm_active?'danger':'muted'}">${r.alarm_active?'ACTIVE':'CLEARED'}</span></td>
+      <td>${r.program_no?'O'+r.program_no:'--'}</td>
+      <td>${r.duration_sec?fmtNum(r.duration_sec/60,1)+' min':'--'}</td>
+    </tr>`).join('');
+  }
+
+  // ── Render shift downtime tile from /api/cnc/live response ──────
+  function renderDowntime(shiftDowntime) {
+    if (!shiftDowntime) return;
+    const sec  = parseInt(shiftDowntime.downtime_sec) || 0;
+    const min  = Math.round(sec / 60);
+    const tot  = parseInt(shiftDowntime.total_sec)    || 0;
+    const pct  = tot > 0 ? Math.round(sec / tot * 100) : 0;
+
+    const el   = document.getElementById('pt-idle');
+    const unit = document.getElementById('pt-idle-unit');
+    const badge= document.getElementById('dt-pct-badge');
+
+    // Update shift label in tile header
+    const shiftLbl = document.getElementById('dt-shift-label');
+    if (shiftLbl) {
+      const cs = typeof zCurrentShift === 'function' ? zCurrentShift() : '?';
+      shiftLbl.textContent = '(SHIFT ' + cs + ')';
+    }
+
+    if (el) {
+      el.textContent  = fmtHM(min);   // e.g. "2h 14m"
+      el.style.color  = sec > 0 ? 'var(--red)' : 'var(--green)';
+    }
+    if (unit) {
+      const runMin = Math.round((parseInt(shiftDowntime.running_sec)||0)/60);
+      unit.textContent = `${min}m down · ${runMin}m running`;
+    }
+    if (badge) {
+      if (sec > 0) {
+        badge.textContent   = pct + '% DT';
+        badge.style.display = '';
+        badge.style.background = pct > 20
+          ? 'rgba(255,68,68,.18)' : 'rgba(255,179,0,.15)';
+        badge.style.color = pct > 20 ? 'var(--red)' : 'var(--amber)';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  function pollLive() {
+    zFetch('/api/cnc/live?machine='+MACHINE)
+      .then(d=>{
+        if (d && d.ok && d.machine)        renderLive(d.machine);
+        if (d && d.ok && d.shift_downtime) renderDowntime(d.shift_downtime);
+      })
+      .catch(()=>{});
+  }
+
+  function loadPrograms() {
+    zFetch('/api/cnc/programs?machine=' + MACHINE)
+      .then(d => {
+        if (d && (d.programs || d.data || d.rows)) {
+          const list = d.programs || d.data || d.rows || [];
+          programMap = {};
+          list.forEach(p => {
+            const key = parseInt(p.program_no);
+            if (!isNaN(key)) programMap[key] = p;
+          });
+        }
+      }).catch(() => {});
+  }
+
+  // Fetch both Shift A + B downtime for today and show daily split in the tile
+  function fetchDailyDowntimeSplit() {
+    // Compute IST calendar date for each shift
+    const nowIST = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Kolkata'}));
+    const pad = n => String(n).padStart(2,'0');
+    const fmtDate = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    const todayIST = fmtDate(nowIST);
+    // Shift B for "today" uses yesterday's date when it's before 07:00 IST
+    const bIST = new Date(nowIST);
+    if (nowIST.getHours() < 7) bIST.setDate(bIST.getDate() - 1);
+    const bDate = fmtDate(bIST);
+
+    Promise.all([
+      zFetch('/api/cnc/oee?machine='+MACHINE+'&shift=A&date='+todayIST).catch(()=>null),
+      zFetch('/api/cnc/oee?machine='+MACHINE+'&shift=B&date='+bDate).catch(()=>null)
+    ]).then(([dA, dB]) => {
+      const dtA = dA && dA.ok ? Math.round(parseFloat(dA.downtime_min||0)) : null;
+      const dtB = dB && dB.ok ? Math.round(parseFloat(dB.downtime_min||0)) : null;
+      const splitDiv = document.getElementById('dt-daily-split');
+      const elA = document.getElementById('dt-split-a');
+      const elB = document.getElementById('dt-split-b');
+      if (splitDiv) splitDiv.style.display = '';
+      if (elA) elA.textContent = dtA !== null ? fmtHM(dtA) : '--';
+      if (elB) elB.textContent = dtB !== null ? fmtHM(dtB) : '--';
+    });
+  }
+
+  function fetchAll() {
+    pollLive();
+    const shift = zCurrentShift();
+    const today = zOEEDate(shift); // handles Shift B crossing midnight
+    zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+today)
+      .then(d=>{ if(d&&d.ok) renderOEE(d); }).catch(()=>{});
+    zFetch('/api/cnc/trend?machine='+MACHINE+'&minutes=60')
+      .then(d=>{ if(d&&d.ok&&d.data) renderTrend(d.data); }).catch(()=>{});
+    zFetch('/api/cnc/alarms?machine='+MACHINE+'&limit=12')
+      .then(d=>{ const rows = d&&(d.alarms||d.data||d.rows); if(d&&d.ok&&rows) renderAlarms(rows); }).catch(()=>{});
+    fetchDailyDowntimeSplit();
+  }
+
+  // Load machine / plant / tenant info from DB and update the header bar
+  function loadMachineInfo() {
+    zFetch('/api/machine-info?machine_id=' + MACHINE)
+      .then(function(d) {
+        if (!d || !d.ok) return;
+        var nameEl     = document.getElementById('ml-machine-name');
+        var subEl      = document.getElementById('ml-machine-subtitle');
+        var logoEl     = document.getElementById('ml-machine-logo');
+        // Machine name: use DB name, fall back to machine_id
+        if (nameEl) nameEl.textContent = d.machine_name || d.machine_id || MACHINE;
+        // Logo abbreviation: first 3 chars of type
+        if (logoEl) logoEl.textContent = (d.machine_type || 'CNC').slice(0, 3).toUpperCase();
+        // Subtitle: Company · Location · Machine type
+        var parts = [];
+        if (d.tenant_name && d.tenant_name !== '—') parts.push(d.tenant_name);
+        if (d.plant_location && d.plant_location !== '—') parts.push(d.plant_location);
+        var machLabel = d.machine_description || d.machine_type || '';
+        if (machLabel) parts.push(machLabel);
+        if (subEl) subEl.textContent = parts.join(' · ') || MACHINE;
+      })
+      .catch(function() {});
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setupCharts();
+    zParticles();
+    loadMachineInfo();  // populate header bar from DB
+    loadPrograms();   // load program_master first so renderLive has ideal cycles
+    fetchAll();
+    setInterval(pollLive, 5000);
+    setInterval(fetchAll, 30000);
+    setInterval(loadPrograms, 300000); // refresh program list every 5 min
+    try {
+      const ws = new WebSocket('ws://'+location.host);
+      ws.onmessage = e=>{ try{ const d=JSON.parse(e.data); const m=d.machine||d; if(m&&m.machine_state) renderLive(m); }catch{} };
+      ws.onerror=()=>{};
+    } catch{}
+  });
+  </script>
+</body>
+</html>

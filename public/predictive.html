@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Predictive Analytics — OEE Dashboard</title>
+<link rel="stylesheet" href="/_shared.css">
+<script src="/_shared.js"></script>
+<script src="/js/chart.min.js"></script>
+<style>
+.page-header { display:flex; align-items:center; justify-content:space-between; padding:1.2rem 1.5rem .8rem; border-bottom:1px solid var(--border); }
+.page-header h1 { font-size:1.25rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:.5rem; }
+
+/* ── Health Score Arc ── */
+.health-row { display:grid; grid-template-columns:240px 1fr; gap:1.25rem; padding:1rem 1.5rem; }
+@media (max-width:900px) { .health-row { grid-template-columns:1fr; } }
+
+.health-main { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; display:flex; flex-direction:column; align-items:center; gap:.75rem; }
+.health-arc-wrap { position:relative; width:160px; height:160px; }
+.health-arc-wrap canvas { position:absolute; top:0; left:0; }
+.health-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.health-score { font-size:2.4rem; font-weight:900; }
+.health-label { font-size:.7rem; color:var(--muted); margin-top:.15rem; text-transform:uppercase; letter-spacing:.06em; }
+
+.health-status { font-size:.8rem; font-weight:700; padding:.25rem .75rem; border-radius:20px; }
+.status-ok   { background:rgba(0,255,136,.15); color:var(--green); }
+.status-warn { background:rgba(255,179,0,.15);  color:var(--amber); }
+.status-crit { background:rgba(255,68,68,.15);  color:#ff4444; }
+
+/* ── Sub-health bars ── */
+.sub-health { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.sub-health h2 { font-size:.9rem; font-weight:700; color:var(--text); margin-bottom:1rem; }
+.sh-item { margin-bottom:1rem; }
+.sh-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:.35rem; }
+.sh-name { font-size:.78rem; color:var(--muted); }
+.sh-val  { font-size:.85rem; font-weight:700; }
+.sh-bar  { height:7px; border-radius:4px; background:rgba(255,255,255,.07); overflow:hidden; }
+.sh-fill { height:100%; border-radius:4px; transition:width .6s; }
+
+/* ── Main grid ── */
+.main-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; padding:0 1.5rem 1.5rem; }
+.main-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.25rem; padding:0 1.5rem 1.5rem; }
+@media (max-width:1100px) { .main-grid { grid-template-columns:1fr; } .main-grid-3 { grid-template-columns:1fr; } }
+
+/* ── Cards ── */
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+.card h2 { font-size:.9rem; font-weight:700; color:var(--text); margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+.card-full { grid-column:1/-1; }
+
+/* ── KPI chips ── */
+.kpi-chips { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; padding:0 1.5rem .75rem; }
+@media (max-width:900px) { .kpi-chips { grid-template-columns:repeat(2,1fr); } }
+.kpi-chip { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.75rem 1rem; text-align:center; }
+.kpi-chip .v { font-size:1.4rem; font-weight:800; }
+.kpi-chip .l { font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:.2rem; }
+
+/* ── Recommendations ── */
+.rec-list { display:flex; flex-direction:column; gap:.6rem; }
+.rec-item { display:flex; align-items:flex-start; gap:.75rem; padding:.7rem .9rem; border-radius:9px; font-size:.83rem; line-height:1.5; }
+.rec-ok   { background:rgba(0,255,136,.07);  border:1px solid rgba(0,255,136,.2);  color:var(--text); }
+.rec-warn { background:rgba(255,179,0,.08);  border:1px solid rgba(255,179,0,.25); color:var(--text); }
+.rec-crit { background:rgba(255,68,68,.08);  border:1px solid rgba(255,68,68,.25); color:var(--text); }
+
+/* ── Alarm table ── */
+.alarm-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+.alarm-table th { text-align:left; padding:.4rem .6rem; color:var(--muted); border-bottom:1px solid var(--border); font-size:.67rem; text-transform:uppercase; letter-spacing:.04em; }
+.alarm-table td { padding:.45rem .6rem; border-bottom:1px solid rgba(255,255,255,.04); }
+.alarm-table tr:hover td { background:rgba(255,255,255,.03); }
+
+/* ── Time selector ── */
+.time-sel { display:flex; gap:.4rem; }
+.time-btn { padding:.28rem .7rem; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--muted); cursor:pointer; font-size:.75rem; font-family:inherit; transition:all .15s; }
+.time-btn.active { background:rgba(170,68,255,.15); border-color:var(--purple); color:var(--purple); }
+
+/* ── Loading overlay ── */
+.loading { display:flex; align-items:center; justify-content:center; min-height:200px; color:var(--muted); font-size:.85rem; }
+
+/* ── Live stat item ── */
+.live-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; }
+.live-item { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:.65rem .85rem; }
+.live-item .lbl { font-size:.67rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.live-item .val { font-size:1.1rem; font-weight:800; margin-top:.2rem; }
+.live-item .sub { font-size:.68rem; color:var(--muted); margin-top:.1rem; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<div class="page-header">
+  <h1>🔮 Predictive Analytics
+    <span id="hdr-time" style="font-size:.75rem;color:var(--muted);font-weight:400;"></span>
+  </h1>
+  <div style="display:flex;gap:.6rem;align-items:center;">
+    <div class="time-sel">
+      <button class="time-btn" onclick="setHours(8)">8h</button>
+      <button class="time-btn active" onclick="setHours(24)" id="btn-24h">24h</button>
+      <button class="time-btn" onclick="setHours(48)">48h</button>
+      <button class="time-btn" onclick="setHours(168)">7d</button>
+    </div>
+    <button onclick="loadData()" style="padding:.3rem .8rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;font-size:.78rem;">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- Health Score + Sub-components -->
+<div class="health-row">
+  <div class="health-main">
+    <div class="health-arc-wrap">
+      <canvas id="health-arc" width="160" height="160"></canvas>
+      <div class="health-center">
+        <span class="health-score" id="health-num">—</span>
+        <span class="health-label">Health</span>
+      </div>
+    </div>
+    <div id="health-status-badge" class="health-status status-ok">Loading…</div>
+    <div style="font-size:.72rem;color:var(--muted);text-align:center;line-height:1.5;" id="health-summary"></div>
+  </div>
+
+  <div class="sub-health">
+    <h2>🔬 Component Health Breakdown</h2>
+    <div class="sh-item">
+      <div class="sh-row">
+        <span class="sh-name">⏱ Cycle Time Health</span>
+        <span class="sh-val" id="sh-cycle">—</span>
+      </div>
+      <div class="sh-bar"><div class="sh-fill" id="sh-cycle-bar" style="width:0%;background:var(--cyan);"></div></div>
+    </div>
+    <div class="sh-item">
+      <div class="sh-row">
+        <span class="sh-name">🚨 Alarm Health</span>
+        <span class="sh-val" id="sh-alarm">—</span>
+      </div>
+      <div class="sh-bar"><div class="sh-fill" id="sh-alarm-bar" style="width:0%;background:var(--amber);"></div></div>
+    </div>
+    <div class="sh-item">
+      <div class="sh-row">
+        <span class="sh-name">⚡ Availability</span>
+        <span class="sh-val" id="sh-avail">—</span>
+      </div>
+      <div class="sh-bar"><div class="sh-fill" id="sh-avail-bar" style="width:0%;background:var(--green);"></div></div>
+    </div>
+    <hr style="border-color:var(--border);margin:1rem 0;">
+    <div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.04em;">🔔 Recommendations</div>
+      <div class="rec-list" id="rec-list"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI chips -->
+<div class="kpi-chips">
+  <div class="kpi-chip">
+    <div class="v" id="chip-cycles">—</div>
+    <div class="l">Cycles Analyzed</div>
+  </div>
+  <div class="kpi-chip">
+    <div class="v" id="chip-avail">—</div>
+    <div class="l">Availability %</div>
+  </div>
+  <div class="kpi-chip">
+    <div class="v" id="chip-alarms">—</div>
+    <div class="l">Alarms (period)</div>
+  </div>
+  <div class="kpi-chip">
+    <div class="v" id="chip-cycle-dev">—</div>
+    <div class="l">Cycle vs Target</div>
+  </div>
+</div>
+
+<!-- Charts row 1 -->
+<div class="main-grid">
+  <div class="card">
+    <h2>⏱ Hourly Cycle Time Trend (24h) <span style="font-size:.7rem;color:var(--muted);font-weight:400;">&nbsp;Target: 44s</span></h2>
+    <canvas id="cycle-trend-chart" height="200"></canvas>
+  </div>
+  <div class="card">
+    <h2>📊 7-Day OEE Trend</h2>
+    <canvas id="oee-trend-chart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Charts row 2 -->
+<div class="main-grid">
+  <div class="card">
+    <h2>🚨 Alarm Frequency (14-day)</h2>
+    <canvas id="alarm-trend-chart" height="200"></canvas>
+  </div>
+  <div class="card">
+    <h2>🔧 Live Machine Status</h2>
+    <div class="live-grid" id="live-grid">
+      <div class="loading">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Alarm breakdown table -->
+<div style="padding:0 1.5rem 1.5rem;">
+  <div class="card">
+    <h2>⚠️ Alarm Breakdown — Period Analysis</h2>
+    <div style="overflow-x:auto;">
+      <table class="alarm-table">
+        <thead>
+          <tr>
+            <th>Alarm No.</th>
+            <th>Occurrences</th>
+            <th>First Seen</th>
+            <th>Last Seen</th>
+            <th>Frequency</th>
+          </tr>
+        </thead>
+        <tbody id="alarm-tbody">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const MACHINE = 'MACHINE001';
+let _hours = 24;
+let _data = null;
+let _charts = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+  zCheckAuth();
+  zRenderNav('predict');
+  const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  document.getElementById('hdr-time').textContent =
+    '| ' + ist.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short'}) +
+    ' ' + ist.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) + ' IST';
+  loadData();
+  setInterval(loadData, 120000); // refresh every 2 min
+});
+
+function setHours(h) {
+  _hours = h;
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  const labels = {8:'8h',24:'24h',48:'48h',168:'7d'};
+  document.querySelectorAll('.time-btn').forEach(b => {
+    if (b.textContent === (labels[h]||h+'h')) b.classList.add('active');
+  });
+  loadData();
+}
+
+async function loadData() {
+  try {
+    const d = await zFetch(`/api/cnc/predict?machine=${MACHINE}&hours=${_hours}`);
+    if (!d || !d.ok) throw new Error(d && d.error ? d.error : 'API error');
+    _data = d;
+    renderAll(d);
+  } catch(e) {
+    console.error('Predictive load error:', e.message);
+    document.getElementById('rec-list').innerHTML =
+      `<div class="rec-item rec-warn">⚠️ Error loading predictive data: ${e.message}</div>`;
+  }
+}
+
+function renderAll(d) {
+  renderHealthArc(d.health.overall);
+  renderSubHealth(d.health);
+  renderRecommendations(d.recommendations);
+  renderKPIChips(d);
+  renderCycleTrend(d.ctTrend);
+  renderOEETrend(d.trend);
+  renderAlarmTrend(d.alarmTrend);
+  renderLive(d.live);
+  renderAlarmTable(d.alarms, d.totalAlarms);
+}
+
+function renderHealthArc(score) {
+  const canvas = document.getElementById('health-arc');
+  const ctx = canvas.getContext('2d');
+  const cx = 80, cy = 80, r = 68;
+  const startAngle = Math.PI * 0.75;
+  const endAngle   = Math.PI * 2.25;
+  const totalArc   = endAngle - startAngle;
+  const progress   = (score / 100) * totalArc;
+  const color = score >= 80 ? '#00ff88' : score >= 60 ? '#ffb300' : '#ff4444';
+
+  ctx.clearRect(0, 0, 160, 160);
+  // Background arc
+  ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, endAngle);
+  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.stroke();
+  // Progress arc
+  if (score > 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, startAngle + progress);
+    ctx.strokeStyle = color; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  document.getElementById('health-num').textContent = score;
+  document.getElementById('health-num').style.color = color;
+
+  const statusEl = document.getElementById('health-status-badge');
+  if (score >= 80) { statusEl.textContent = '✅ HEALTHY'; statusEl.className = 'health-status status-ok'; }
+  else if (score >= 60) { statusEl.textContent = '⚠️ MONITOR'; statusEl.className = 'health-status status-warn'; }
+  else { statusEl.textContent = '🔴 ACTION NEEDED'; statusEl.className = 'health-status status-crit'; }
+
+  document.getElementById('health-summary').textContent =
+    `MACHINE001 | Machine health score based on cycle time stability, alarm frequency, and availability.`;
+}
+
+function renderSubHealth(h) {
+  const items = [
+    { key:'cycle', id:'sh-cycle', barId:'sh-cycle-bar', color:'#00d4ff' },
+    { key:'alarm', id:'sh-alarm', barId:'sh-alarm-bar', color:'#ffb300' },
+    { key:'availability', id:'sh-avail', barId:'sh-avail-bar', color:'#00ff88' },
+  ];
+  items.forEach(({key,id,barId,color}) => {
+    const val = h[key] != null ? h[key] : 0;
+    document.getElementById(id).textContent = val + '%';
+    document.getElementById(id).style.color = val >= 80 ? '#00ff88' : val >= 60 ? '#ffb300' : '#ff4444';
+    const bar = document.getElementById(barId);
+    bar.style.width = val + '%';
+    bar.style.background = color;
+  });
+}
+
+function renderRecommendations(recs) {
+  const el = document.getElementById('rec-list');
+  if (!recs || !recs.length) { el.innerHTML = '<div class="rec-item rec-ok">✅ No issues detected</div>'; return; }
+  el.innerHTML = recs.map(r => `<div class="rec-item rec-${r.level}">${r.msg}</div>`).join('');
+}
+
+function renderKPIChips(d) {
+  document.getElementById('chip-cycles').textContent = d.cycle && d.cycle.cycle_count ? parseInt(d.cycle.cycle_count).toLocaleString() : '—';
+  document.getElementById('chip-avail').textContent  = d.availability != null ? d.availability + '%' : '—';
+  document.getElementById('chip-alarms').textContent = d.totalAlarms != null ? d.totalAlarms : '—';
+  if (d.cycle && d.cycle.avg_cycle) {
+    const dev = ((parseFloat(d.cycle.avg_cycle) - 44) / 44 * 100).toFixed(0);
+    document.getElementById('chip-cycle-dev').textContent = (dev >= 0 ? '+' : '') + dev + '%';
+    document.getElementById('chip-cycle-dev').style.color = Math.abs(dev) > 15 ? '#ff4444' : Math.abs(dev) > 5 ? '#ffb300' : '#00ff88';
+  }
+}
+
+function renderCycleTrend(data) {
+  const ctx = document.getElementById('cycle-trend-chart').getContext('2d');
+  if (_charts.cycle) _charts.cycle.destroy();
+  if (!data || !data.length) {
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    return;
+  }
+  const labels  = data.map(r => r.hour_ist ? String(r.hour_ist).slice(11,16) : '—');
+  const values  = data.map(r => parseFloat(r.avg_cycle) || null);
+  _charts.cycle = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Avg Cycle (s)', data:values, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.08)', borderWidth:2, pointRadius:2, tension:.3, fill:true },
+      { label:'Target 44s', data:data.map(()=>44), borderColor:'rgba(0,255,136,.4)', borderWidth:1.5, borderDash:[4,4], pointRadius:0 }
+    ]},
+    options:{ responsive:true, plugins:{ legend:{labels:{color:'#888',font:{size:10}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw}s`}} },
+      scales:{ x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:9},maxRotation:0}},
+               y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:10}},
+                  suggestedMin:30, suggestedMax:80} } }
+  });
+}
+
+function renderOEETrend(data) {
+  const ctx = document.getElementById('oee-trend-chart').getContext('2d');
+  if (_charts.oee) _charts.oee.destroy();
+  if (!data || !data.length) {
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    return;
+  }
+  const labels = data.map(r => r.date ? r.date.slice(5) + ' Sh' + r.shift : '—');
+  _charts.oee = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'OEE %',           data:data.map(r=>parseFloat(r.oee)||0),
+        backgroundColor:'rgba(0,212,255,.6)',  borderRadius:4, borderWidth:0 },
+      { label:'Availability %',  data:data.map(r=>parseFloat(r.availability)||0),
+        backgroundColor:'rgba(0,255,136,.4)', borderRadius:4, borderWidth:0 },
+      { label:'Performance %',   data:data.map(r=>parseFloat(r.performance)||0),
+        backgroundColor:'rgba(255,179,0,.4)', borderRadius:4, borderWidth:0 },
+    ]},
+    options:{ responsive:true, plugins:{ legend:{labels:{color:'#888',font:{size:10}}}, tooltip:{} },
+      scales:{ x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:9},maxRotation:45}},
+               y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:10}},
+                  min:0, max:100} } }
+  });
+}
+
+function renderAlarmTrend(data) {
+  const ctx = document.getElementById('alarm-trend-chart').getContext('2d');
+  if (_charts.alarmTrend) _charts.alarmTrend.destroy();
+  if (!data || !data.length) {
+    ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+    return;
+  }
+  _charts.alarmTrend = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:data.map(r=>r.day?String(r.day).slice(5):'—'),
+      datasets:[{ label:'Alarms/Day', data:data.map(r=>parseInt(r.alarm_count)||0),
+        backgroundColor:data.map(r=>parseInt(r.alarm_count)>20?'rgba(255,68,68,.7)':parseInt(r.alarm_count)>5?'rgba(255,179,0,.65)':'rgba(0,212,255,.5)'),
+        borderRadius:4, borderWidth:0 }]},
+    options:{ responsive:true,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.raw} alarms`}}},
+      scales:{ x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:9}}},
+               y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#888',font:{size:10}},beginAtZero:true} } }
+  });
+}
+
+function renderLive(live) {
+  const el = document.getElementById('live-grid');
+  if (!live) { el.innerHTML = '<div style="color:var(--muted);font-size:.8rem;grid-column:1/-1;">No live data available</div>'; return; }
+  const state = live.machine_state || '—';
+  const stateColor = state === 'RUNNING' ? '#00ff88' : state === 'EMERGENCY' ? '#ff4444' : '#ffb300';
+  const ts = live.time ? new Date(live.time).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) : '—';
+  el.innerHTML = `
+    <div class="live-item">
+      <div class="lbl">State</div>
+      <div class="val" style="color:${stateColor}">${state}</div>
+      <div class="sub">${ts} IST</div>
+    </div>
+    <div class="live-item">
+      <div class="lbl">Spindle Speed</div>
+      <div class="val">${live.spindle_speed != null ? live.spindle_speed + ' RPM' : '—'}</div>
+      <div class="sub">Feed: ${live.feed_rate||'—'} mm/min</div>
+    </div>
+    <div class="live-item">
+      <div class="lbl">Cycle (live)</div>
+      <div class="val">${live.raw_cycle_time_sec != null ? live.raw_cycle_time_sec + 's' : '—'}</div>
+      <div class="sub">Last: ${live.last_cycle_time_sec||'—'}s</div>
+    </div>
+    <div class="live-item">
+      <div class="lbl">Part Count</div>
+      <div class="val">${live.part_count != null ? live.part_count.toLocaleString() : '—'}</div>
+      <div class="sub">Program: ${live.program_no||'—'}</div>
+    </div>
+    <div class="live-item">
+      <div class="lbl">Alarm</div>
+      <div class="val" style="color:${live.alarm_active?'#ff4444':'#00ff88'}">${live.alarm_active ? 'ACTIVE' : 'None'}</div>
+      <div class="sub">Code: ${live.alarm_no||'—'}</div>
+    </div>
+    <div class="live-item">
+      <div class="lbl">Running</div>
+      <div class="val" style="color:${live.is_running?'#00ff88':'var(--muted)'}">${live.is_running ? 'YES' : 'NO'}</div>
+      <div class="sub">Machine MACHINE001</div>
+    </div>`;
+}
+
+function renderAlarmTable(alarms, total) {
+  const tbody = document.getElementById('alarm-tbody');
+  if (!alarms || !alarms.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">✅ No alarms in this period</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = alarms.map(a => {
+    const cnt   = parseInt(a.cnt) || 0;
+    const freq  = total > 0 ? ((cnt / total) * 100).toFixed(0) + '%' : '—';
+    const first = a.first_at ? String(a.first_at).slice(0,16) : '—';
+    const last  = a.last_at  ? String(a.last_at).slice(0,16)  : '—';
+    const color = cnt > 10 ? '#ff4444' : cnt > 3 ? '#ffb300' : 'var(--muted)';
+    return `<tr>
+      <td style="font-weight:700;color:#ffb300">A#${a.alarm_no||'?'}</td>
+      <td style="font-weight:700;color:${color}">${cnt}</td>
+      <td style="color:var(--muted);font-size:.77rem;">${first}</td>
+      <td style="color:var(--muted);font-size:.77rem;">${last}</td>
+      <td>
+        <div style="width:100%;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;">
+          <div style="width:${freq};height:100%;background:${color};border-radius:3px;"></div>
+        </div>
+        <span style="font-size:.7rem;color:var(--muted);">${freq}</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

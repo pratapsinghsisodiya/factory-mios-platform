@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Widget Library & KPI Builder — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+/* ── LAYOUT ─────────────────────────────────────────────── */
+.wl-layout { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 100px); }
+.wl-sidebar {
+  background:var(--panel); border-right:1px solid var(--border);
+  padding:16px 0; overflow-y:auto; position:sticky; top:100px;
+  height:calc(100vh - 100px);
+}
+.wl-main { padding:20px 24px 80px; overflow-y:auto; }
+
+/* ── SIDEBAR ─────────────────────────────────────────────── */
+.sb-section { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px;
+  color:var(--muted2); padding:12px 16px 6px; }
+.sb-item {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 16px; cursor:pointer;
+  border-left:3px solid transparent;
+  transition:all var(--trans); font-size:12px; font-weight:500;
+  color:var(--muted);
+}
+.sb-item:hover { background:rgba(255,255,255,.03); color:var(--text); }
+.sb-item.active { background:rgba(0,212,255,.06); border-left-color:var(--cyan); color:var(--cyan); }
+.sb-item .sb-icon { font-size:16px; width:20px; text-align:center; flex-shrink:0; }
+.sb-item .sb-badge {
+  margin-left:auto; font-size:9px; padding:1px 6px; border-radius:8px;
+  background:rgba(0,212,255,.15); color:var(--cyan); font-weight:700;
+}
+.sb-item .sb-badge.red { background:rgba(255,68,68,.15); color:var(--red); }
+
+/* ── SECTION HEADER ──────────────────────────────────────── */
+.sec-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:8px; }
+.sec-title { font-size:18px; font-weight:800; }
+.sec-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+
+/* ── WIDGET GRID ─────────────────────────────────────────── */
+.wg-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.wg-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+  overflow:hidden; cursor:pointer; transition:all var(--trans);
+  animation:fadeInUp .4s ease forwards;
+}
+.wg-card:hover { border-color:var(--border2); transform:translateY(-3px); box-shadow:0 8px 32px rgba(0,0,0,.4); }
+.wg-preview {
+  height:160px; background:var(--bg2); display:flex; align-items:center; justify-content:center;
+  padding:16px; border-bottom:1px solid var(--border); position:relative; overflow:hidden;
+}
+.wg-preview::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,.05) 0%, transparent 70%);
+}
+.wg-body { padding:14px 16px; }
+.wg-name { font-size:13px; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+.wg-desc { font-size:11px; color:var(--muted); line-height:1.5; }
+.wg-tags { display:flex; gap:5px; margin:10px 0 12px; flex-wrap:wrap; }
+.wg-tag { font-size:9px; padding:2px 8px; border-radius:10px; font-weight:600; }
+.wg-tag.live    { background:rgba(0,255,136,.12); color:var(--green); }
+.wg-tag.agg     { background:rgba(0,212,255,.12); color:var(--cyan); }
+.wg-tag.trend   { background:rgba(170,68,255,.12); color:var(--purple); }
+.wg-tag.compare { background:rgba(255,179,0,.12); color:var(--amber); }
+.wg-tag.status  { background:rgba(255,68,68,.12); color:var(--red); }
+.wg-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.wg-actions .z-btn { justify-content:center; font-size:11px; padding:6px 10px; }
+
+/* ── FILTER PILLS ─────────────────────────────────────────── */
+.filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.filter-pill {
+  padding:5px 14px; border-radius:20px; font-size:11px; font-weight:600;
+  border:1px solid var(--border); color:var(--muted); cursor:pointer;
+  transition:all var(--trans); background:transparent;
+}
+.filter-pill:hover { border-color:var(--border2); color:var(--text); }
+.filter-pill.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.08); }
+
+/* ── BUILDER ─────────────────────────────────────────────── */
+.builder-step {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; margin-bottom:16px; position:relative; overflow:hidden;
+}
+.builder-step::before {
+  content:''; position:absolute; top:0; left:0; bottom:0; width:3px;
+  background:var(--cyan);
+}
+.bs-title { font-size:13px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.bs-num {
+  width:22px; height:22px; border-radius:50%;
+  background:var(--cyan); color:#000; font-size:10px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+
+/* KPI Type Tabs */
+.ktype-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.ktype-btn {
+  border:1px solid var(--border); border-radius:var(--radius); padding:12px 8px;
+  text-align:center; cursor:pointer; transition:all var(--trans); background:var(--bg2);
+}
+.ktype-btn .kt-icon { font-size:20px; display:block; margin-bottom:5px; }
+.ktype-btn .kt-label { font-size:11px; font-weight:700; color:var(--muted); }
+.ktype-btn .kt-desc { font-size:9px; color:var(--muted2); margin-top:2px; }
+.ktype-btn:hover, .ktype-btn.active { border-color:var(--cyan); background:rgba(0,212,255,.06); }
+.ktype-btn.active .kt-label { color:var(--cyan); }
+
+/* Agg / Period pills */
+.pill-row { display:flex; flex-wrap:wrap; gap:6px; }
+.choice-pill {
+  border:1px solid var(--border); border-radius:20px; padding:5px 14px;
+  font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; background:transparent;
+  transition:all var(--trans);
+}
+.choice-pill:hover { border-color:var(--border2); color:var(--text); }
+.choice-pill.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.08); }
+
+/* Formula builder */
+.formula-wrap {
+  display:flex; align-items:stretch; gap:10px;
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:14px;
+}
+.formula-src { flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.formula-src .fsrc-lbl { font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+.formula-ops { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; }
+.op-btn {
+  width:36px; height:36px; border-radius:8px; border:1px solid var(--border);
+  background:var(--bg2); color:var(--muted); font-size:16px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-weight:700;
+  transition:all var(--trans);
+}
+.op-btn:hover, .op-btn.active { border-color:var(--purple); background:rgba(170,68,255,.15); color:var(--purple); }
+.formula-result {
+  background:var(--bg2); border:1px solid var(--cyan); border-radius:8px; padding:12px;
+  text-align:center; min-width:110px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+}
+.fr-lbl { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+.fr-val { font-size:22px; font-weight:800; color:var(--cyan); }
+.fr-desc { font-size:10px; color:var(--muted); }
+
+/* Threshold row */
+.thresh-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.thresh-item { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.thresh-label { font-size:11px; font-weight:700; margin-bottom:8px; }
+
+/* Preview box */
+.preview-box {
+  background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+  padding:24px; min-height:200px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center;
+  position:relative; overflow:hidden;
+}
+.preview-box::before {
+  content:'PREVIEW';
+  position:absolute; top:8px; right:10px;
+  font-size:9px; font-weight:700; letter-spacing:1.5px; color:var(--muted2);
+}
+
+/* Summary box */
+.summary-box {
+  background:rgba(0,212,255,.04); border:1px solid rgba(0,212,255,.15);
+  border-radius:8px; padding:12px 16px; font-size:11px; color:var(--muted); line-height:1.8;
+}
+
+/* Saved KPI list */
+.kpi-list { display:flex; flex-direction:column; gap:10px; }
+.kpi-row {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 16px; display:flex; align-items:center; gap:12px;
+  transition:all var(--trans);
+}
+.kpi-row:hover { border-color:var(--border2); }
+.kpi-icon-box {
+  width:42px; height:42px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
+}
+.kpi-info { flex:1; min-width:0; }
+.kpi-name { font-size:13px; font-weight:700; margin-bottom:3px; }
+.kpi-meta { font-size:11px; color:var(--muted); }
+.kpi-badges { display:flex; gap:5px; margin-top:5px; flex-wrap:wrap; }
+
+/* Form layout */
+.fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.fg3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.fg4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group.span2 { grid-column:span 2; }
+.form-group.span3 { grid-column:span 3; }
+
+/* Info banner */
+.info-banner {
+  background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.15);
+  border-radius:8px; padding:10px 14px; font-size:11px; color:var(--cyan);
+  margin-bottom:14px; line-height:1.6;
+}
+
+/* Code copy area */
+.code-block {
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 14px; font-family:'Courier New',monospace; font-size:11px;
+  color:var(--teal); line-height:1.7; overflow-x:auto; position:relative;
+  white-space:pre-wrap; word-break:break-all;
+}
+.copy-btn {
+  position:absolute; top:8px; right:8px;
+  padding:3px 10px; font-size:10px; font-weight:700; border-radius:5px;
+  background:rgba(0,212,255,.15); color:var(--cyan); border:1px solid rgba(0,212,255,.3);
+  cursor:pointer; transition:all var(--trans);
+}
+.copy-btn:hover { background:rgba(0,212,255,.25); }
+
+/* Hidden */
+.hidden { display:none !important; }
+
+@media (max-width:900px) {
+  .wl-layout { grid-template-columns:1fr; }
+  .wl-sidebar { display:none; }
+  .ktype-grid { grid-template-columns:1fr 1fr; }
+  .thresh-grid { grid-template-columns:1fr; }
+  .fg2,.fg3,.fg4 { grid-template-columns:1fr; }
+  .formula-wrap { flex-direction:column; }
+}
+</style>
+</head>
+<body>
+<div id="z-header-root"></div>
+<script>document.getElementById('z-header-root').innerHTML = zRenderHeader('WIDGET LIBRARY & KPI BUILDER');</script>
+
+<div class="wl-layout">
+  <!-- SIDEBAR -->
+  <aside class="wl-sidebar">
+    <div class="sb-section">Navigation</div>
+    <div class="sb-item active" id="snav_library" onclick="showSection('library')">
+      <span class="sb-icon">🧩</span> Widget Library <span class="sb-badge">10</span>
+    </div>
+    <div class="sb-item" id="snav_builder" onclick="showSection('builder')">
+      <span class="sb-icon">⚙️</span> KPI Builder
+    </div>
+    <div class="sb-item" id="snav_saved" onclick="showSection('saved')">
+      <span class="sb-icon">📌</span> Saved KPIs <span class="sb-badge" id="sbCount">0</span>
+    </div>
+
+    <div class="sb-section" style="margin-top:8px;">Filter Widgets</div>
+    <div class="sb-item" id="sfilt_all"     onclick="filterWidgets('all')"><span class="sb-icon">🔲</span> All Widgets</div>
+    <div class="sb-item" id="sfilt_live"    onclick="filterWidgets('live')"><span class="sb-icon">⚡</span> Live Value</div>
+    <div class="sb-item" id="sfilt_agg"     onclick="filterWidgets('agg')"><span class="sb-icon">∑</span> Aggregation</div>
+    <div class="sb-item" id="sfilt_trend"   onclick="filterWidgets('trend')"><span class="sb-icon">📈</span> Trend / Chart</div>
+    <div class="sb-item" id="sfilt_compare" onclick="filterWidgets('compare')"><span class="sb-icon">📊</span> Comparison</div>
+    <div class="sb-item" id="sfilt_status"  onclick="filterWidgets('status')"><span class="sb-icon">🔴</span> Status</div>
+
+    <div class="sb-section" style="margin-top:8px;">Quick Build</div>
+    <div class="sb-item" onclick="openBuilderType('live')"><span class="sb-icon">⚡</span> Live Value</div>
+    <div class="sb-item" onclick="openBuilderType('aggregation')"><span class="sb-icon">∑</span> Aggregation</div>
+    <div class="sb-item" onclick="openBuilderType('calculated')"><span class="sb-icon">🧮</span> Formula / Calc</div>
+    <div class="sb-item" onclick="openBuilderType('oee')"><span class="sb-icon">🏭</span> OEE Special</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="wl-main">
+
+    <!-- ═══ WIDGET LIBRARY ═══ -->
+    <div id="sec_library">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title">🧩 Widget Library</div>
+          <div class="sec-sub">10 ready-to-use widget types — click a widget to preview, copy its code, or add to dashboard</div>
+        </div>
+        <button class="z-btn primary" onclick="showSection('builder')">+ New KPI</button>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-pill active" id="fp_all"     onclick="filterWidgets('all')">All</button>
+        <button class="filter-pill" id="fp_live"    onclick="filterWidgets('live')">Live</button>
+        <button class="filter-pill" id="fp_agg"     onclick="filterWidgets('agg')">Aggregation</button>
+        <button class="filter-pill" id="fp_trend"   onclick="filterWidgets('trend')">Trend</button>
+        <button class="filter-pill" id="fp_compare" onclick="filterWidgets('compare')">Compare</button>
+        <button class="filter-pill" id="fp_status"  onclick="filterWidgets('status')">Status</button>
+      </div>
+
+      <div class="wg-grid" id="widgetGrid"></div>
+    </div>
+
+    <!-- ═══ KPI BUILDER ═══ -->
+    <div id="sec_builder" class="hidden">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title">⚙️ KPI Builder</div>
+          <div class="sec-sub">Define measurement source, aggregation, period, display widget and thresholds</div>
+        </div>
+        <button class="z-btn ghost" onclick="showSection('library')">← Back to Library</button>
+      </div>
+
+      <!-- STEP 1: KPI TYPE -->
+      <div class="builder-step">
+        <div class="bs-title"><span class="bs-num">1</span> KPI Type — What kind of measurement?</div>
+        <div class="ktype-grid">
+          <div class="ktype-btn active" id="kt_live" onclick="selectKPIType('live')">
+            <span class="kt-icon">⚡</span>
+            <span class="kt-label">Live Value</span>
+            <span class="kt-desc">Current real-time reading</span>
+          </div>
+          <div class="ktype-btn" id="kt_aggregation" onclick="selectKPIType('aggregation')">
+            <span class="kt-icon">∑</span>
+            <span class="kt-label">Aggregation</span>
+            <span class="kt-desc">Sum / Avg / Max over period</span>
+          </div>
+          <div class="ktype-btn" id="kt_calculated" onclick="selectKPIType('calculated')">
+            <span class="kt-icon">🧮</span>
+            <span class="kt-label">Formula / Calc</span>
+            <span class="kt-desc">Multiply, divide, add params</span>
+          </div>
+          <div class="ktype-btn" id="kt_oee" onclick="selectKPIType('oee')">
+            <span class="kt-icon">🏭</span>
+            <span class="kt-label">OEE Special</span>
+            <span class="kt-desc">A × P × Q / 10000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: DATA SOURCE -->
+      <div class="builder-step" id="sourcePanel">
+        <div class="bs-title"><span class="bs-num">2</span> Data Source</div>
+        <div class="fg3" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="z-label">Plant</label>
+            <select class="z-select" id="kpiPlant" onchange="loadDevices()" style="width:100%;">
+              <option value="">Select plant…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Device</label>
+            <select class="z-select" id="kpiDevice" onchange="loadParams()" disabled style="width:100%;">
+              <option value="">Select device…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Parameter</label>
+            <select class="z-select" id="kpiParam" onchange="onParamChange()" disabled style="width:100%;">
+              <option value="">Select parameter…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Aggregation options -->
+        <div id="aggPanel" class="hidden">
+          <div style="border-top:1px solid var(--border); margin:14px 0;"></div>
+          <div class="z-section">Aggregation Function</div>
+          <div class="info-banner" style="margin-bottom:12px;">
+            <strong>SUM</strong> = Totalizer of period | <strong>AVG</strong> = Average | <strong>MAX</strong> = High of day | <strong>MIN</strong> = Low | <strong>DELTA</strong> = Change over period
+          </div>
+          <div class="pill-row" style="margin-bottom:14px;">
+            <button class="choice-pill active" id="agg_sum"   onclick="selectAgg('sum')">∑ Sum</button>
+            <button class="choice-pill" id="agg_avg"          onclick="selectAgg('avg')">⌀ Average</button>
+            <button class="choice-pill" id="agg_max"          onclick="selectAgg('max')">▲ Maximum</button>
+            <button class="choice-pill" id="agg_min"          onclick="selectAgg('min')">▼ Minimum</button>
+            <button class="choice-pill" id="agg_count"        onclick="selectAgg('count')"># Count</button>
+            <button class="choice-pill" id="agg_delta"        onclick="selectAgg('delta')">△ Delta</button>
+            <button class="choice-pill" id="agg_rate"         onclick="selectAgg('rate')">⟳ Rate/hr</button>
+          </div>
+          <div class="z-section">Time Period</div>
+          <div class="pill-row">
+            <button class="choice-pill" id="per_live"     onclick="selectPeriod('live')">⚡ Live</button>
+            <button class="choice-pill active" id="per_shift" onclick="selectPeriod('shift')">🕐 Current Shift</button>
+            <button class="choice-pill" id="per_today"    onclick="selectPeriod('today')">📅 Today</button>
+            <button class="choice-pill" id="per_last_1h"  onclick="selectPeriod('last_1h')">1 Hour</button>
+            <button class="choice-pill" id="per_last_8h"  onclick="selectPeriod('last_8h')">8 Hours</button>
+            <button class="choice-pill" id="per_last_24h" onclick="selectPeriod('last_24h')">24 Hours</button>
+            <button class="choice-pill" id="per_last_7d"  onclick="selectPeriod('last_7d')">7 Days</button>
+            <button class="choice-pill" id="per_month"    onclick="selectPeriod('month')">📆 Month</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2B: FORMULA BUILDER -->
+      <div class="builder-step hidden" id="formulaPanel">
+        <div class="bs-title"><span class="bs-num">2</span> Formula Builder</div>
+        <div class="info-banner">
+          Build a calculation between two parameters or a parameter and a constant.<br>
+          Examples: <strong>kW × 0.5h = kWh estimate</strong> | <strong>Good Parts ÷ Total × 100 = Quality%</strong>
+        </div>
+        <div class="formula-wrap">
+          <div class="formula-src">
+            <div class="fsrc-lbl">Source A</div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Plant</label>
+              <select class="z-select" id="fPlantA" onchange="loadFormulaDevices('A')" style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Device</label>
+              <select class="z-select" id="fDeviceA" onchange="loadFormulaParams('A')" disabled style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+            </div>
+            <div class="form-group">
+              <label class="z-label">Parameter</label>
+              <select class="z-select" id="fParamA" onchange="updateFormulaPreview()" disabled style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+            </div>
+          </div>
+
+          <div class="formula-ops">
+            <button class="op-btn active" id="op_multiply" onclick="selectOp('multiply')" title="Multiply">×</button>
+            <button class="op-btn" id="op_divide"   onclick="selectOp('divide')"   title="Divide">÷</button>
+            <button class="op-btn" id="op_add"      onclick="selectOp('add')"      title="Add">+</button>
+            <button class="op-btn" id="op_subtract" onclick="selectOp('subtract')" title="Subtract">−</button>
+            <button class="op-btn" id="op_percent"  onclick="selectOp('percent')"  title="Percent">%</button>
+          </div>
+
+          <div class="formula-src">
+            <div class="fsrc-lbl">Source B</div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Type</label>
+              <select class="z-select" id="fSourceBType" onchange="toggleSourceB()" style="width:100%;font-size:11px;">
+                <option value="param">Another Parameter</option>
+                <option value="constant">Constant Value</option>
+              </select>
+            </div>
+            <div id="fSourceBParam">
+              <div class="form-group" style="margin-bottom:8px;">
+                <label class="z-label">Plant</label>
+                <select class="z-select" id="fPlantB" onchange="loadFormulaDevices('B')" style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label class="z-label">Device</label>
+                <select class="z-select" id="fDeviceB" onchange="loadFormulaParams('B')" disabled style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+              </div>
+              <div class="form-group">
+                <label class="z-label">Parameter</label>
+                <select class="z-select" id="fParamB" onchange="updateFormulaPreview()" disabled style="width:100%;font-size:11px;"><option value="">Select…</option></select>
+              </div>
+            </div>
+            <div id="fSourceBConst" class="hidden">
+              <div class="form-group">
+                <label class="z-label">Constant Value</label>
+                <input class="z-input" type="number" id="fConstant" placeholder="e.g. 0.5" onchange="updateFormulaPreview()"/>
+                <span style="font-size:10px;color:var(--muted);margin-top:3px;">Multiply kW × 0.5 → kWh per 30min</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="formula-result">
+            <div class="fr-lbl">Result</div>
+            <div class="fr-val" id="formulaResult">—</div>
+            <div class="fr-desc" id="formulaDesc">A × B</div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="z-section">Period for Sources</div>
+          <div class="pill-row">
+            <button class="choice-pill active" id="fper_live"    onclick="selectFormulaPeriod('live')">⚡ Live</button>
+            <button class="choice-pill" id="fper_shift"          onclick="selectFormulaPeriod('shift')">🕐 Shift</button>
+            <button class="choice-pill" id="fper_today"          onclick="selectFormulaPeriod('today')">📅 Today</button>
+            <button class="choice-pill" id="fper_last_24h"       onclick="selectFormulaPeriod('last_24h')">24h</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2C: OEE SPECIAL -->
+      <div class="builder-step hidden" id="oeePanel">
+        <div class="bs-title"><span class="bs-num">2</span> OEE Configuration</div>
+        <div class="info-banner">
+          OEE = Availability × Performance × Quality ÷ 10000<br>
+          Select the plant and parameters for each OEE component from your device registry.
+        </div>
+        <div class="fg2" style="margin-bottom:12px;">
+          <div class="form-group">
+            <label class="z-label">Plant</label>
+            <select class="z-select" id="oeePlant" style="width:100%;"><option value="">Select plant…</option></select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">OEE Period</label>
+            <select class="z-select" id="oeePeriod" style="width:100%;">
+              <option value="shift">Current Shift</option>
+              <option value="today">Today</option>
+              <option value="last_8h">Last 8 Hours</option>
+              <option value="last_24h">Last 24 Hours</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg3">
+          <div class="form-group">
+            <label class="z-label">Availability Parameter</label>
+            <select class="z-select" id="oeeAvail" style="width:100%;"><option value="plant_availability">plant_availability (default)</option></select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Performance Parameter</label>
+            <select class="z-select" id="oeePerf" style="width:100%;"><option value="plant_performance">plant_performance (default)</option></select>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Quality Parameter</label>
+            <select class="z-select" id="oeeQual" style="width:100%;"><option value="plant_quality">plant_quality (default)</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: KPI IDENTITY -->
+      <div class="builder-step">
+        <div class="bs-title"><span class="bs-num">3</span> KPI Identity & Display</div>
+        <div class="fg4">
+          <div class="form-group">
+            <label class="z-label">KPI Name *</label>
+            <input class="z-input" type="text" id="kpiName" placeholder="e.g. Energy Meter 1 Daily Total"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">KPI ID * (no spaces)</label>
+            <input class="z-input" type="text" id="kpiId" placeholder="e.g. em1_kwh_daily"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Unit</label>
+            <input class="z-input" type="text" id="kpiUnit" placeholder="e.g. kWh, %, RPM"/>
+          </div>
+          <div class="form-group">
+            <label class="z-label">Widget Type *</label>
+            <select class="z-select" id="kpiWidget" onchange="updatePreview()" style="width:100%;">
+              <option value="kpi_card">🔢 KPI Card</option>
+              <option value="gauge">🎯 Gauge</option>
+              <option value="sparkline">📉 Sparkline</option>
+              <option value="line_chart">📈 Line Chart</option>
+              <option value="bar_chart">📊 Bar Chart</option>
+              <option value="donut">🍩 Donut</option>
+              <option value="heatmap">🌡️ Heatmap</option>
+              <option value="waterfall">🌊 Waterfall</option>
+              <option value="pareto">📉 Pareto</option>
+              <option value="radar">🕸️ Radar</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: THRESHOLDS -->
+      <div class="builder-step">
+        <div class="bs-title"><span class="bs-num">4</span> Thresholds — Status Colours</div>
+        <div class="thresh-grid">
+          <div class="thresh-item" style="border-color:rgba(0,255,136,.2);">
+            <div class="thresh-label" style="color:var(--green);">🟢 Good (Green)</div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Min</label><input class="z-input" type="number" id="tGMin" placeholder="85"/>
+            </div>
+            <div class="form-group">
+              <label class="z-label">Max</label><input class="z-input" type="number" id="tGMax" placeholder="100"/>
+            </div>
+          </div>
+          <div class="thresh-item" style="border-color:rgba(255,179,0,.2);">
+            <div class="thresh-label" style="color:var(--amber);">🟡 Warning (Amber)</div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Min</label><input class="z-input" type="number" id="tAMin" placeholder="70"/>
+            </div>
+            <div class="form-group">
+              <label class="z-label">Max</label><input class="z-input" type="number" id="tAMax" placeholder="84"/>
+            </div>
+          </div>
+          <div class="thresh-item" style="border-color:rgba(255,68,68,.2);">
+            <div class="thresh-label" style="color:var(--red);">🔴 Alert (Red)</div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="z-label">Min</label><input class="z-input" type="number" id="tRMin" placeholder="0"/>
+            </div>
+            <div class="form-group">
+              <label class="z-label">Max</label><input class="z-input" type="number" id="tRMax" placeholder="69"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: PREVIEW & SAVE -->
+      <div class="builder-step">
+        <div class="bs-title"><span class="bs-num">5</span> Preview & Save</div>
+        <div class="preview-box" id="previewBox" style="margin-bottom:14px;">
+          <span style="color:var(--muted);font-size:12px;">Configure the KPI above to see a live preview here</span>
+        </div>
+        <div id="kpiSummaryBox" class="summary-box hidden" style="margin-bottom:14px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;">
+          <button class="z-btn primary" onclick="saveKPI()">💾 Save KPI</button>
+          <button class="z-btn ghost" onclick="copyWidgetCode()">📋 Copy Code</button>
+          <button class="z-btn ghost" onclick="resetBuilder()">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SAVED KPIs ═══ -->
+    <div id="sec_saved" class="hidden">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title">📌 Saved KPIs</div>
+          <div class="sec-sub">All custom KPI definitions — these power your plant dashboard widgets automatically</div>
+        </div>
+        <button class="z-btn primary" onclick="showSection('builder')">+ New KPI</button>
+      </div>
+      <div id="savedList">
+        <div style="text-align:center;padding:50px;color:var(--muted);">No KPIs saved yet.</div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- CODE MODAL -->
+<div class="z-modal-overlay" id="codeModal">
+  <div class="z-modal" style="max-width:680px;">
+    <div class="z-modal-title">
+      📋 Widget Code Snippet
+      <button class="z-modal-close" onclick="closeCodeModal()">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Copy this HTML snippet to embed the widget in any dashboard page:</p>
+    <div class="code-block" id="codeSnippet" style="position:relative;">
+      <button class="copy-btn" onclick="doCopy()">Copy</button>
+      <span id="codeContent"></span>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="z-btn cyan" onclick="addToDashboard()">+ Add to Dashboard</button>
+      <button class="z-btn ghost" onclick="closeCodeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+zCheckAuth();
+
+// ── WIDGET DEFINITIONS ─────────────────────────────────────────
+const WIDGETS = [
+  {
+    id:'kpi_card', name:'KPI Card', icon:'🔢', filter:['live','agg'],
+    desc:'Large number with label, unit, trend arrow and colour-coded status badge. Perfect for any single-value KPI.',
+    tags:['live','agg'],
+    render(el) {
+      el.innerHTML = `<div style="text-align:center;padding:8px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Daily kWh</div>
+        <div style="font-size:40px;font-weight:900;color:var(--text);line-height:1;margin-bottom:6px;">1,248</div>
+        <div style="font-size:13px;color:var(--green);margin-bottom:10px;font-weight:700;">kWh ▲ +12%</div>
+        <div style="display:inline-block;background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);color:var(--green);font-size:10px;font-weight:700;padding:3px 12px;border-radius:20px;letter-spacing:.5px;">● GOOD</div>
+        <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:10px;"><div style="width:75%;height:100%;background:linear-gradient(90deg,var(--cyan2),var(--cyan));border-radius:2px;"></div></div>
+      </div>`;
+    }
+  },
+  {
+    id:'gauge', name:'Gauge', icon:'🎯', filter:['live','agg'],
+    desc:'Semi-circular arc gauge with colour zones. Best for OEE %, health score, or any 0–100% metric.',
+    tags:['live','agg'],
+    render(el) {
+      const pct = 75;
+      el.innerHTML = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+        ${zArcGauge(pct,'var(--cyan)',160)}
+        <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:var(--cyan);">${pct}%</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">OEE</div>
+        </div>
+      </div>`;
+    }
+  },
+  {
+    id:'sparkline', name:'Sparkline', icon:'📉', filter:['trend'],
+    desc:'Compact trend line showing recent movement. Embed inside KPI cards for a 12-reading sparkline.',
+    tags:['trend'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=220; c.height=80; el.appendChild(c);
+      new Chart(c, {type:'line', data:{labels:Array(12).fill(''),datasets:[{data:[68,72,70,75,73,78,76,74,79,77,80,82],borderColor:'var(--cyan)',borderWidth:2,pointRadius:0,tension:.4,fill:true,backgroundColor:'rgba(0,212,255,.1)'}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:false}});
+    }
+  },
+  {
+    id:'line_chart', name:'Line Chart', icon:'📈', filter:['trend'],
+    desc:'Multi-series time chart. Use for OEE trends, energy over time, shift performance comparisons.',
+    tags:['trend','agg'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=220; c.height=120; el.appendChild(c);
+      new Chart(c, {type:'line', data:{labels:['6h','5h','4h','3h','2h','1h','Now'],datasets:[{label:'OEE',data:[72,75,71,78,76,80,77],borderColor:'var(--cyan)',borderWidth:2,pointRadius:3,tension:.4,fill:false},{label:'Avail',data:[85,87,84,89,88,92,90],borderColor:'var(--green)',borderWidth:2,pointRadius:3,tension:.4,fill:false}]},options:{plugins:{legend:{labels:{color:'rgba(107,140,174,.8)',boxWidth:8,font:{size:9}}}},scales:{x:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}}},y:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},grid:{color:'rgba(255,255,255,.03)'}}},animation:false}});
+    }
+  },
+  {
+    id:'bar_chart', name:'Bar Chart', icon:'📊', filter:['compare','agg'],
+    desc:'Grouped or stacked bars — shift comparison, plant vs plant, daily production totals.',
+    tags:['compare','agg'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=220; c.height=120; el.appendChild(c);
+      new Chart(c, {type:'bar', data:{labels:['Shift A','Shift B','Shift C'],datasets:[{label:'OEE %',data:[78,72,68],backgroundColor:['rgba(0,212,255,.6)','rgba(0,255,136,.6)','rgba(255,179,0,.6)'],borderRadius:5}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}}},y:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},max:100,grid:{color:'rgba(255,255,255,.03)'}}},animation:false}});
+    }
+  },
+  {
+    id:'donut', name:'Donut / Pie', icon:'🍩', filter:['compare'],
+    desc:'Proportional breakdown — good vs scrap, energy per meter, stop reason distribution.',
+    tags:['compare'],
+    render(el) {
+      const wrap = document.createElement('div'); wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;';
+      const c = document.createElement('canvas'); c.width=120; c.height=120; wrap.appendChild(c);
+      const lbl = document.createElement('div'); lbl.style.cssText='font-size:10px;color:var(--muted);'; lbl.textContent='Good 94% · Scrap 6%'; wrap.appendChild(lbl);
+      el.appendChild(wrap);
+      new Chart(c, {type:'doughnut',data:{labels:['Good','Scrap'],datasets:[{data:[94,6],backgroundColor:['rgba(0,255,136,.7)','rgba(255,68,68,.7)'],borderWidth:0}]},options:{plugins:{legend:{display:false}},cutout:'65%',animation:false}});
+    }
+  },
+  {
+    id:'heatmap', name:'Heatmap', icon:'🌡️', filter:['trend','agg'],
+    desc:'Colour-intensity grid for hour × day patterns. Energy, machine utilisation, downtime frequency.',
+    tags:['trend','agg'],
+    render(el) {
+      const wrap = document.createElement('div'); wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;';
+      const g = document.createElement('div'); g.style.cssText='display:grid;grid-template-columns:repeat(12,1fr);gap:3px;width:220px;';
+      [45,62,78,85,90,88,76,82,79,68,55,40].forEach(v=>{
+        const d=document.createElement('div'); const i=v/100;
+        d.style.cssText=`height:22px;border-radius:3px;background:rgba(${Math.round(0+i*0)},${Math.round(212*i)},${Math.round(255*i)},${0.3+i*0.7})`;
+        g.appendChild(d);
+      });
+      const lbl = document.createElement('div'); lbl.style.cssText='font-size:9px;color:var(--muted);'; lbl.textContent='kWh intensity — last 12 hours';
+      wrap.appendChild(g); wrap.appendChild(lbl); el.appendChild(wrap);
+    }
+  },
+  {
+    id:'waterfall', name:'Waterfall', icon:'🌊', filter:['compare'],
+    desc:'OEE waterfall: cascades from 100% down to actual OEE showing Availability, Performance, Quality losses.',
+    tags:['compare'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=220; c.height=120; el.appendChild(c);
+      new Chart(c, {type:'bar',data:{labels:['100%','Avail','Perf','Quality','OEE'],datasets:[{data:[0,88,10,6,0],backgroundColor:'transparent',borderWidth:0},{data:[100,12,6,4,78],backgroundColor:['rgba(0,255,136,.6)','rgba(255,68,68,.7)','rgba(255,179,0,.7)','rgba(255,68,200,.7)','rgba(0,212,255,.7)'],borderRadius:3}]},options:{plugins:{legend:{display:false}},scales:{x:{stacked:true,ticks:{color:'rgba(107,140,174,.6)',font:{size:8}}},y:{stacked:true,ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},max:100,grid:{color:'rgba(255,255,255,.03)'}}},animation:false}});
+    }
+  },
+  {
+    id:'pareto', name:'Pareto Chart', icon:'📉', filter:['compare'],
+    desc:'Bar + cumulative line for top stop reasons or defect causes. Find the 20% causing 80% of losses.',
+    tags:['compare'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=220; c.height=120; el.appendChild(c);
+      new Chart(c, {type:'bar',data:{labels:['Breakdown','Setup','Material','Quality','Other'],datasets:[{type:'bar',data:[45,28,18,12,7],backgroundColor:'rgba(0,212,255,.5)',borderRadius:3,yAxisID:'y'},{type:'line',data:[41,66,82,93,100],borderColor:'var(--red)',borderWidth:2,pointRadius:2,yAxisID:'y1',tension:.3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},grid:{color:'rgba(255,255,255,.03)'}},y1:{position:'right',max:100,ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},grid:{display:false}}},animation:false}});
+    }
+  },
+  {
+    id:'radar', name:'Radar Chart', icon:'🕸️', filter:['compare','status'],
+    desc:'Multi-axis radar for machine health: vibration, temperature, current, speed, pressure dimensions.',
+    tags:['compare','status'],
+    render(el) {
+      const c = document.createElement('canvas'); c.width=140; c.height=140; el.appendChild(c);
+      new Chart(c, {type:'radar',data:{labels:['Vib','Temp','Current','Speed','Pressure'],datasets:[{data:[70,85,90,75,80],backgroundColor:'rgba(0,212,255,.15)',borderColor:'var(--cyan)',pointBackgroundColor:'var(--cyan)',borderWidth:2}]},options:{plugins:{legend:{display:false}},scales:{r:{ticks:{display:false},grid:{color:'rgba(26,47,85,.8)'},pointLabels:{color:'rgba(107,140,174,.8)',font:{size:9}}}},animation:false}});
+    }
+  },
+];
+
+const WIDGET_ICONS = {kpi_card:'🔢',gauge:'🎯',sparkline:'📉',line_chart:'📈',bar_chart:'📊',donut:'🍩',heatmap:'🌡️',waterfall:'🌊',pareto:'📉',radar:'🕸️'};
+
+// ── STATE ───────────────────────────────────────────────────────
+let savedKPIs = [];
+let registry = null;
+let currentKPIType = 'live';
+let currentAgg = 'sum';
+let currentPeriod = 'shift';
+let currentOp = 'multiply';
+let currentFormulaPeriod = 'live';
+let currentFilter = 'all';
+
+// ── SECTION NAV ─────────────────────────────────────────────────
+function showSection(name) {
+  ['library','builder','saved'].forEach(s => {
+    document.getElementById('sec_'+s).classList.toggle('hidden', s !== name);
+    const el = document.getElementById('snav_'+s);
+    if (el) el.classList.toggle('active', s === name);
+  });
+  if (name === 'saved') renderSavedList();
+}
+function openBuilderType(type) { showSection('builder'); selectKPIType(type); }
+
+// ── WIDGET LIBRARY ───────────────────────────────────────────────
+function filterWidgets(f) {
+  currentFilter = f;
+  document.querySelectorAll('[id^="fp_"]').forEach(el => el.classList.remove('active'));
+  const fpEl = document.getElementById('fp_'+f);
+  if (fpEl) fpEl.classList.add('active');
+  renderWidgetGrid();
+}
+function renderWidgetGrid() {
+  const grid = document.getElementById('widgetGrid');
+  const list = currentFilter === 'all' ? WIDGETS : WIDGETS.filter(w => w.filter.includes(currentFilter));
+  grid.innerHTML = '';
+  list.forEach((w, i) => {
+    const card = document.createElement('div');
+    card.className = 'wg-card';
+    card.style.animationDelay = (i * 0.05) + 's';
+    const prev = document.createElement('div'); prev.className = 'wg-preview';
+    card.appendChild(prev);
+    const tagsHtml = w.tags.map(t => `<span class="wg-tag ${t}">${t}</span>`).join('');
+    const body = document.createElement('div'); body.className = 'wg-body';
+    body.innerHTML = `
+      <div class="wg-name">${w.icon} ${w.name}</div>
+      <div class="wg-desc">${w.desc}</div>
+      <div class="wg-tags">${tagsHtml}</div>
+      <div class="wg-actions">
+        <button class="z-btn primary" onclick="useWidget('${w.id}')">+ Use Widget</button>
+        <button class="z-btn ghost" onclick="showWidgetCode('${w.id}')">📋 Copy Code</button>
+      </div>`;
+    card.appendChild(body);
+    grid.appendChild(card);
+    setTimeout(() => { try { w.render(prev); } catch(e){} }, 60 * i);
+  });
+}
+function useWidget(id) {
+  document.getElementById('kpiWidget').value = id;
+  showSection('builder');
+  updatePreview();
+  zToast('Widget selected: ' + id, 'ok');
+}
+function showWidgetCode(id) {
+  const w = WIDGETS.find(x => x.id === id);
+  if (!w) return;
+  const code = generateCode({ widget_type: id, name: w.name + ' Widget', unit: 'value' });
+  document.getElementById('codeContent').textContent = code;
+  document.getElementById('codeModal').classList.add('open');
+}
+
+// ── KPI TYPE ────────────────────────────────────────────────────
+function selectKPIType(type) {
+  currentKPIType = type;
+  document.querySelectorAll('.ktype-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('kt_'+type).classList.add('active');
+  document.getElementById('sourcePanel').classList.toggle('hidden', type === 'calculated' || type === 'oee');
+  document.getElementById('formulaPanel').classList.toggle('hidden', type !== 'calculated');
+  document.getElementById('oeePanel').classList.toggle('hidden', type !== 'oee');
+  document.getElementById('aggPanel').classList.toggle('hidden', type !== 'aggregation');
+  updateKPISummary();
+}
+
+// ── DATA SOURCE ─────────────────────────────────────────────────
+async function loadPlantOptions() {
+  try {
+    const res = await fetch('/api/saas/plants-list');
+    const data = await res.json();
+    registry = data.registry;
+    ['kpiPlant','oeePlant','fPlantA','fPlantB'].forEach(id => {
+      const sel = document.getElementById(id); if (!sel) return;
+      sel.innerHTML = '<option value="">Select plant…</option>';
+      (registry.plants||[]).forEach(p => {
+        const o = document.createElement('option'); o.value = p.plant_id; o.textContent = p.plant_name; sel.appendChild(o);
+      });
+    });
+  } catch {}
+}
+function loadDevices() {
+  const plantId = document.getElementById('kpiPlant').value;
+  const dSel = document.getElementById('kpiDevice'), pSel = document.getElementById('kpiParam');
+  dSel.innerHTML = '<option value="">Select device…</option>'; dSel.disabled = true;
+  pSel.innerHTML = '<option value="">Select parameter…</option>'; pSel.disabled = true;
+  if (!plantId || !registry) return;
+  const plant = registry.plants.find(p => p.plant_id === plantId);
+  (plant?.devices||[]).forEach(d => {
+    const o = document.createElement('option'); o.value = d.device_id; o.textContent = `${d.device_name} (${d.device_type})`; dSel.appendChild(o);
+  });
+  dSel.disabled = false;
+}
+function loadParams() {
+  const plantId = document.getElementById('kpiPlant').value, deviceId = document.getElementById('kpiDevice').value;
+  const pSel = document.getElementById('kpiParam');
+  pSel.innerHTML = '<option value="">Select parameter…</option>'; pSel.disabled = true;
+  if (!plantId || !deviceId || !registry) return;
+  const plant = registry.plants.find(p => p.plant_id === plantId);
+  const device = plant?.devices?.find(d => d.device_id === deviceId);
+  (device?.parameters||[]).forEach(p => {
+    const o = document.createElement('option'); o.value = p.field; o.textContent = `${p.label} (${p.unit||p.kpi_type})`;
+    o.dataset.unit = p.unit||''; o.dataset.kpiType = p.kpi_type; pSel.appendChild(o);
+  });
+  pSel.disabled = false;
+}
+function onParamChange() {
+  const pSel = document.getElementById('kpiParam'), opt = pSel.options[pSel.selectedIndex];
+  if (opt?.dataset?.unit) document.getElementById('kpiUnit').value = opt.dataset.unit;
+  const dSel = document.getElementById('kpiDevice');
+  const dName = dSel.options[dSel.selectedIndex]?.textContent?.split(' (')[0] || '';
+  const param = opt?.textContent?.split(' (')[0] || '';
+  const aggLabel = currentKPIType === 'aggregation' ? ` [${currentAgg.toUpperCase()} — ${currentPeriod.replace('_',' ')}]` : '';
+  if (dName && param) {
+    document.getElementById('kpiName').value = `${dName} — ${param}${aggLabel}`;
+    document.getElementById('kpiId').value = `${dSel.value}_${pSel.value}${currentKPIType!=='live'?'_'+currentAgg:''}`.replace(/[^a-z0-9_]/gi,'_').toLowerCase();
+  }
+  updateKPISummary();
+}
+
+// ── AGG + PERIOD ────────────────────────────────────────────────
+function selectAgg(agg) {
+  currentAgg = agg;
+  document.querySelectorAll('[id^="agg_"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('agg_'+agg).classList.add('active');
+  onParamChange();
+}
+function selectPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll('[id^="per_"]').forEach(el => el.classList.remove('active'));
+  document.getElementById('per_'+p).classList.add('active');
+  onParamChange();
+}
+
+// ── FORMULA ─────────────────────────────────────────────────────
+function loadFormulaDevices(side) {
+  const plantId = document.getElementById(`fPlant${side}`).value;
+  const dSel = document.getElementById(`fDevice${side}`), pSel = document.getElementById(`fParam${side}`);
+  dSel.innerHTML='<option value="">Select…</option>'; dSel.disabled=true;
+  pSel.innerHTML='<option value="">Select…</option>'; pSel.disabled=true;
+  if(!plantId||!registry) return;
+  const plant=registry.plants.find(p=>p.plant_id===plantId);
+  (plant?.devices||[]).forEach(d=>{ const o=document.createElement('option');o.value=d.device_id;o.textContent=d.device_name;dSel.appendChild(o); });
+  dSel.disabled=false;
+}
+function loadFormulaParams(side) {
+  const plantId=document.getElementById(`fPlant${side}`).value, deviceId=document.getElementById(`fDevice${side}`).value;
+  const pSel=document.getElementById(`fParam${side}`);
+  pSel.innerHTML='<option value="">Select…</option>'; pSel.disabled=true;
+  if(!plantId||!deviceId||!registry) return;
+  const plant=registry.plants.find(p=>p.plant_id===plantId);
+  const device=plant?.devices?.find(d=>d.device_id===deviceId);
+  (device?.parameters||[]).forEach(p=>{ const o=document.createElement('option');o.value=p.field;o.textContent=`${p.label} (${p.unit||''})`;pSel.appendChild(o); });
+  pSel.disabled=false;
+}
+function selectOp(op) {
+  currentOp = op;
+  document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('op_'+op).classList.add('active');
+  updateFormulaPreview();
+}
+function toggleSourceB() {
+  const t = document.getElementById('fSourceBType').value;
+  document.getElementById('fSourceBParam').classList.toggle('hidden', t === 'constant');
+  document.getElementById('fSourceBConst').classList.toggle('hidden', t !== 'constant');
+}
+function updateFormulaPreview() {
+  const sym={multiply:'×',divide:'÷',add:'+',subtract:'−',percent:'÷×100'};
+  document.getElementById('formulaDesc').textContent = `A ${sym[currentOp]||'×'} B`;
+  const pA=document.getElementById('fParamA').options[document.getElementById('fParamA').selectedIndex]?.textContent?.split(' (')[0];
+  const pB=document.getElementById('fSourceBType').value==='constant'
+    ? document.getElementById('fConstant').value
+    : document.getElementById('fParamB').options[document.getElementById('fParamB').selectedIndex]?.textContent?.split(' (')[0];
+  if(pA&&pB){
+    document.getElementById('kpiName').value=`${pA} ${sym[currentOp]||'×'} ${pB}`;
+    document.getElementById('kpiId').value=`calc_${currentOp}_${Date.now()}`.toLowerCase();
+  }
+  updateKPISummary();
+}
+function selectFormulaPeriod(p) {
+  currentFormulaPeriod=p;
+  document.querySelectorAll('[id^="fper_"]').forEach(el=>el.classList.remove('active'));
+  document.getElementById('fper_'+p).classList.add('active');
+}
+
+// ── KPI SUMMARY & PREVIEW ────────────────────────────────────────
+function updateKPISummary() {
+  const box = document.getElementById('kpiSummaryBox');
+  const tl={live:'⚡ Live Value',aggregation:'∑ Aggregation',calculated:'🧮 Calculated',oee:'🏭 OEE Special'};
+  const al={sum:'SUM',avg:'AVG',max:'MAX',min:'MIN',count:'COUNT',delta:'DELTA',rate:'RATE/hr'};
+  const pl={live:'Real-time',shift:'Current Shift',today:'Today',last_1h:'1h',last_8h:'8h',last_24h:'24h',last_7d:'7d',month:'Month'};
+  let html = `<strong style="color:var(--text)">KPI Summary:</strong> Type: <span style="color:var(--cyan)">${tl[currentKPIType]}</span>`;
+  if(currentKPIType==='aggregation') html += ` | Fn: <span style="color:var(--green)">${al[currentAgg]}</span> | Period: <span style="color:var(--amber)">${pl[currentPeriod]}</span>`;
+  if(currentKPIType==='calculated'){const ops={multiply:'A×B',divide:'A÷B',add:'A+B',subtract:'A−B',percent:'A÷B×100'};html+=` | Op: <span style="color:var(--purple)">${ops[currentOp]}</span>`;}
+  html += `<br><span style="font-size:10px;color:var(--muted2);">SQL will be auto-generated from this definition when the dashboard queries your database.</span>`;
+  box.innerHTML = html; box.classList.remove('hidden');
+  updatePreview();
+}
+function updatePreview() {
+  const box = document.getElementById('previewBox'); box.innerHTML = '';
+  const widgetId = document.getElementById('kpiWidget').value;
+  const w = WIDGETS.find(x => x.id === widgetId);
+  if (!w) { box.innerHTML = '<span style="color:var(--muted);font-size:12px;">Select a widget type above</span>'; return; }
+  const inner = document.createElement('div'); inner.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+  box.appendChild(inner);
+  try { w.render(inner); } catch(e){}
+  const lbl = document.createElement('div'); lbl.style.cssText = 'font-size:11px;color:var(--muted);margin-top:10px;';
+  lbl.textContent = document.getElementById('kpiName').value || w.name + ' Preview';
+  box.appendChild(lbl);
+}
+
+// ── SAVE KPI ────────────────────────────────────────────────────
+async function saveKPI() {
+  const name = document.getElementById('kpiName').value.trim();
+  const id = document.getElementById('kpiId').value.trim().replace(/\s+/g,'_').toLowerCase();
+  const widget = document.getElementById('kpiWidget').value;
+  const unit = document.getElementById('kpiUnit').value;
+  if (!name || !id || !widget) { zToast('Name, ID and Widget are required', 'err'); return; }
+
+  const kpi = {
+    id, name, kpi_type: currentKPIType, widget_type: widget, unit,
+    thresholds:{
+      green:{ min: document.getElementById('tGMin').value, max: document.getElementById('tGMax').value },
+      amber:{ min: document.getElementById('tAMin').value, max: document.getElementById('tAMax').value },
+      red:  { min: document.getElementById('tRMin').value, max: document.getElementById('tRMax').value },
+    },
+    created_at: new Date().toISOString(),
+  };
+  if (currentKPIType === 'live' || currentKPIType === 'aggregation') {
+    kpi.plant_id    = document.getElementById('kpiPlant').value;
+    kpi.device_id   = document.getElementById('kpiDevice').value;
+    kpi.param_field = document.getElementById('kpiParam').value;
+    if (!kpi.plant_id || !kpi.device_id || !kpi.param_field) { zToast('Select Plant, Device and Parameter', 'err'); return; }
+  }
+  if (currentKPIType === 'aggregation') { kpi.aggregation = currentAgg; kpi.period = currentPeriod; }
+  if (currentKPIType === 'oee') {
+    kpi.plant_id = document.getElementById('oeePlant').value;
+    kpi.period = document.getElementById('oeePeriod').value;
+    kpi.oee_params = { availability: document.getElementById('oeeAvail').value, performance: document.getElementById('oeePerf').value, quality: document.getElementById('oeeQual').value };
+    if (!kpi.plant_id) { zToast('Select a plant for OEE', 'err'); return; }
+  }
+  try {
+    const res = await fetch('/api/kpi', { method:'POST', headers:{'Content-Type':'application/json', ...zAuthHeader()}, body: JSON.stringify(kpi) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    zToast('KPI saved: ' + name, 'ok');
+    await loadSavedKPIs();
+    showSection('saved');
+  } catch(e) { zToast('Error: ' + e.message, 'err'); }
+}
+function resetBuilder() {
+  ['kpiName','kpiId','kpiUnit','tGMin','tGMax','tAMin','tAMax','tRMin','tRMax'].forEach(id => { const el=document.getElementById(id);if(el)el.value=''; });
+  document.getElementById('kpiSummaryBox').classList.add('hidden');
+  selectKPIType('live'); updatePreview();
+}
+
+// ── SAVED KPIs ──────────────────────────────────────────────────
+async function loadSavedKPIs() {
+  try {
+    const res = await fetch('/api/kpi', { headers: zAuthHeader() });
+    const d = await res.json();
+    savedKPIs = d.kpis || [];
+    document.getElementById('sbCount').textContent = savedKPIs.length;
+  } catch { savedKPIs = []; }
+}
+function renderSavedList() {
+  const el = document.getElementById('savedList');
+  if (!savedKPIs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:50px 20px;color:var(--muted);">No KPIs saved yet. Use the KPI Builder to create your first one.</div>';
+    return;
+  }
+  const al={sum:'SUM',avg:'AVG',max:'MAX',min:'MIN',count:'COUNT',delta:'DELTA',rate:'RATE/hr'};
+  const pl={live:'Live',shift:'Shift',today:'Today',last_1h:'1h',last_8h:'8h',last_24h:'24h',last_7d:'7d',month:'Month'};
+  el.innerHTML = `<div class="kpi-list">${savedKPIs.map(k=>`
+    <div class="kpi-row">
+      <div class="kpi-icon-box">${WIDGET_ICONS[k.widget_type]||'📦'}</div>
+      <div class="kpi-info">
+        <div class="kpi-name">${k.name}</div>
+        <div class="kpi-meta">${[k.plant_id&&'Plant: '+k.plant_id, k.device_id&&'Device: '+k.device_id, k.param_field&&'Param: '+k.param_field].filter(Boolean).join(' | ')}</div>
+        <div class="kpi-badges">
+          <span class="z-badge info">${k.kpi_type}</span>
+          ${k.aggregation?`<span class="z-badge ok">${al[k.aggregation]||k.aggregation}</span>`:''}
+          ${k.period?`<span class="z-badge warn">${pl[k.period]||k.period}</span>`:''}
+          <span class="z-badge purple">${(k.widget_type||'').replace('_',' ')}</span>
+          ${k.unit?`<span class="z-badge info">${k.unit}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <button class="z-btn ghost" style="font-size:11px;" onclick="showWidgetCode('${k.widget_type}')">📋 Code</button>
+        <button class="z-btn ghost" style="font-size:11px;" onclick="editKPI('${k.id}')">✏️ Edit</button>
+        <button class="z-btn danger" style="font-size:11px;" onclick="deleteKPI('${k.id}')">🗑️</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+function editKPI(id) {
+  const k = savedKPIs.find(x => x.id === id); if (!k) return;
+  document.getElementById('kpiId').value = k.id;
+  document.getElementById('kpiName').value = k.name;
+  document.getElementById('kpiWidget').value = k.widget_type;
+  document.getElementById('kpiUnit').value = k.unit||'';
+  if (k.thresholds) {
+    const t=k.thresholds;
+    document.getElementById('tGMin').value=t.green?.min||''; document.getElementById('tGMax').value=t.green?.max||'';
+    document.getElementById('tAMin').value=t.amber?.min||''; document.getElementById('tAMax').value=t.amber?.max||'';
+    document.getElementById('tRMin').value=t.red?.min||''; document.getElementById('tRMax').value=t.red?.max||'';
+  }
+  selectKPIType(k.kpi_type||'live');
+  if (k.aggregation) selectAgg(k.aggregation);
+  if (k.period) selectPeriod(k.period);
+  showSection('builder'); updatePreview();
+}
+async function deleteKPI(id) {
+  if (!confirm('Delete this KPI definition?')) return;
+  try {
+    await fetch(`/api/kpi/${id}`, { method:'DELETE', headers: zAuthHeader() });
+    await loadSavedKPIs(); renderSavedList();
+    zToast('KPI deleted', 'ok');
+  } catch(e) { zToast('Error: ' + e.message, 'err'); }
+}
+
+// ── CODE GENERATION ──────────────────────────────────────────────
+function generateCode(kpi) {
+  const w = kpi.widget_type || 'kpi_card';
+  return `<!-- ${kpi.name} — ${w} widget -->
+<div class="z-card" data-accent="cyan" id="widget_${kpi.id||'new'}">
+  <div class="z-section">
+    <span class="dot" style="background:var(--cyan)"></span>
+    ${kpi.name}
+  </div>
+  <div id="wv_${kpi.id||'new'}" class="widget-${w}"></div>
+</div>
+<script>
+  // Auto-refreshes every 30s
+  async function loadWidget_${(kpi.id||'new').replace(/[^a-z0-9]/gi,'_')}() {
+    const d = await zFetch('/api/kpi/${kpi.id||'ID'}/value');
+    document.getElementById('wv_${kpi.id||'new'}').textContent = d.value + ' ${kpi.unit||''}';
+  }
+  loadWidget_${(kpi.id||'new').replace(/[^a-z0-9]/gi,'_')}();
+  setInterval(loadWidget_${(kpi.id||'new').replace(/[^a-z0-9]/gi,'_')}, 30000);
+<\/script>`;
+}
+function copyWidgetCode() {
+  const name = document.getElementById('kpiName').value || 'My KPI';
+  const id = document.getElementById('kpiId').value || 'kpi_1';
+  const kpi = { id, name, widget_type: document.getElementById('kpiWidget').value, unit: document.getElementById('kpiUnit').value };
+  const code = generateCode(kpi);
+  document.getElementById('codeContent').textContent = code;
+  document.getElementById('codeModal').classList.add('open');
+}
+function closeCodeModal() { document.getElementById('codeModal').classList.remove('open'); }
+function doCopy() {
+  navigator.clipboard.writeText(document.getElementById('codeContent').textContent)
+    .then(() => zToast('Code copied to clipboard!', 'ok'))
+    .catch(() => zToast('Copy failed — select text manually', 'warn'));
+}
+function addToDashboard() {
+  zToast('Widget queued for dashboard — coming soon!', 'info');
+  closeCodeModal();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  zParticles();
+  renderWidgetGrid();
+  document.getElementById('sfilt_all').classList.add('active');
+  await loadPlantOptions();
+  await loadSavedKPIs();
+  updatePreview();
+});
+</script>
+</body>
+</html>

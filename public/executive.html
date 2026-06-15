@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Executive Summary — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+body { display:flex; flex-direction:column; }
+.page { flex:1; max-width:1800px; margin:0 auto; padding:16px 20px 60px; width:100%; position:relative; z-index:1; }
+
+/* ── DATE RANGE BAR ── */
+.range-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex; align-items:center; gap:10px; flex-wrap:wrap;
+  position: sticky; top: 106px; z-index:300;
+}
+.range-chip {
+  padding:5px 14px; border-radius:20px;
+  font-size:11px; font-weight:700;
+  border:1px solid var(--border); background:transparent; color:var(--muted);
+  cursor:pointer; transition:all .2s; letter-spacing:.3px; white-space:nowrap;
+}
+.range-chip:hover { border-color:rgba(0,212,255,.4); color:var(--text); }
+.range-chip.active { background:rgba(0,212,255,.12); border-color:var(--cyan); color:var(--cyan); }
+.date-sep { font-size:10px; color:var(--muted2); }
+.date-input {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); font-size:11px;
+  padding:5px 10px; outline:none; cursor:pointer;
+}
+.date-input:focus { border-color:var(--cyan); }
+.range-apply {
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  border:none; border-radius:8px; color:#000;
+  font-size:11px; font-weight:700; padding:5px 14px; cursor:pointer;
+}
+.range-label { font-size:10px; color:var(--muted); margin-left:4px; }
+
+/* ── KPI STRIP ── */
+.exec-kpi-grid {
+  display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px;
+}
+.exec-kpi {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px;
+  position:relative; overflow:hidden;
+  transition:transform .2s, box-shadow .2s;
+}
+.exec-kpi:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+.exec-kpi::before { content:''; position:absolute; top:0;left:0;right:0;height:2px; border-radius:2px 2px 0 0; }
+.exec-kpi.kc-1::before { background:var(--cyan);   box-shadow:0 0 8px var(--cyan)88; }
+.exec-kpi.kc-2::before { background:var(--green);  box-shadow:0 0 8px var(--green)88; }
+.exec-kpi.kc-3::before { background:var(--blue);   box-shadow:0 0 8px var(--blue)88; }
+.exec-kpi.kc-4::before { background:var(--purple); box-shadow:0 0 8px var(--purple)88; }
+.exec-kpi.kc-5::before { background:var(--amber);  box-shadow:0 0 8px var(--amber)88; }
+.exec-kpi.kc-6::before { background:var(--teal);   box-shadow:0 0 8px var(--teal)88; }
+.exec-kpi .k-lbl { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; font-weight:600; }
+.exec-kpi .k-val { font-size:28px; font-weight:900; line-height:1; }
+.exec-kpi .k-sub { font-size:10px; color:var(--muted); margin-top:4px; }
+.exec-kpi .k-trend { position:absolute; top:12px; right:12px; font-size:11px; font-weight:700; }
+.k-trend.up   { color:var(--green); }
+.k-trend.down { color:var(--red); }
+.k-trend.flat { color:var(--muted); }
+
+/* ── CHART GRID 2x2 ── */
+.chart-grid-2x2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+.exec-chart-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:18px;
+}
+.exec-chart-card[data-accent]::before {
+  content:''; display:block; height:2px; border-radius:2px;
+  margin:-18px -18px 14px; border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+}
+.exec-chart-card[data-accent="cyan"]::before   { background:linear-gradient(90deg,var(--cyan),transparent); }
+.exec-chart-card[data-accent="green"]::before  { background:linear-gradient(90deg,var(--green),transparent); }
+.exec-chart-card[data-accent="amber"]::before  { background:linear-gradient(90deg,var(--amber),transparent); }
+.exec-chart-card[data-accent="purple"]::before { background:linear-gradient(90deg,var(--purple),transparent); }
+.exec-chart-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.exec-chart-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text); display:flex; align-items:center; gap:6px; }
+.exec-chart-title .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.exec-chart-title .sub { font-size:9px; color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; }
+.chart-h220 { position:relative; height:220px; }
+.chart-h240 { position:relative; height:240px; }
+
+/* ── PARETO ── */
+.pareto-list { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.pareto-row { display:flex; align-items:center; gap:10px; }
+.pareto-label { font-size:11px; min-width:140px; color:var(--text); }
+.pareto-bar-bg { flex:1; height:12px; background:rgba(255,255,255,.06); border-radius:6px; overflow:hidden; }
+.pareto-bar-fill { height:100%; border-radius:6px; transition:width .8s ease; }
+.pareto-pct { font-size:10px; color:var(--muted); min-width:36px; text-align:right; font-weight:700; }
+.pareto-mins { font-size:10px; color:var(--muted2); min-width:46px; text-align:right; }
+
+/* ── SHIFTS TABLE ── */
+.shifts-section {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:18px; margin-bottom:16px;
+}
+.shifts-section .grade-bar { height:4px; border-radius:2px; margin-top:4px; transition:width .6s ease; }
+
+/* ── LOADING SPINNER ── */
+.loading-spinner {
+  display:flex; align-items:center; justify-content:center;
+  gap:10px; color:var(--muted); font-size:12px; padding:30px;
+}
+.loading-spinner .spin-sm { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .8s linear infinite; }
+
+/* ── OEE DELTA ── */
+.delta-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;
+}
+.delta-badge.pos { background:rgba(0,255,136,.12); color:var(--green); }
+.delta-badge.neg { background:rgba(255,68,68,.12);  color:var(--red); }
+.delta-badge.neu { background:rgba(255,179,0,.12);  color:var(--amber); }
+
+/* ── RESPONSIVE ── */
+@media(max-width:1200px) { .exec-kpi-grid{grid-template-columns:repeat(3,1fr);} .chart-grid-2x2{grid-template-columns:1fr;} }
+@media(max-width:768px)  { .exec-kpi-grid{grid-template-columns:repeat(2,1fr);} }
+@media(max-width:480px)  { .exec-kpi-grid{grid-template-columns:1fr 1fr;} }
+</style>
+</head>
+<body>
+
+<div id="z-header-mount"></div>
+
+<!-- DATE RANGE BAR -->
+<div class="range-bar">
+  <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-right:4px">Period:</div>
+  <button class="range-chip active" data-range="today"     onclick="selectRange(this,'today')">Today</button>
+  <button class="range-chip"        data-range="yesterday" onclick="selectRange(this,'yesterday')">Yesterday</button>
+  <button class="range-chip"        data-range="7d"        onclick="selectRange(this,'7d')">Last 7 Days</button>
+  <button class="range-chip"        data-range="30d"       onclick="selectRange(this,'30d')">Last 30 Days</button>
+  <div class="date-sep">|</div>
+  <label class="range-label">From</label>
+  <input type="date" class="date-input" id="range-from"/>
+  <label class="range-label">To</label>
+  <input type="date" class="date-input" id="range-to"/>
+  <button class="range-apply" onclick="applyCustomRange()">Apply</button>
+  <div style="margin-left:auto;font-size:10px;color:var(--muted)">
+    Showing: <strong id="range-label-display" style="color:var(--cyan)">Today</strong>
+  </div>
+</div>
+
+<main class="page" id="exec-page">
+
+  <!-- KPI STRIP -->
+  <div class="exec-kpi-grid" id="kpi-grid">
+    <div class="exec-kpi kc-1">
+      <div class="k-lbl">OEE</div>
+      <div class="k-val skeleton" id="e-oee" style="min-height:28px">--</div>
+      <div class="k-sub" id="e-oee-grade">—</div>
+      <div class="k-trend flat" id="e-oee-delta">—</div>
+    </div>
+    <div class="exec-kpi kc-2">
+      <div class="k-lbl">Availability</div>
+      <div class="k-val" id="e-avail">--</div>
+      <div class="k-sub">machine uptime</div>
+    </div>
+    <div class="exec-kpi kc-3">
+      <div class="k-lbl">Performance</div>
+      <div class="k-val" id="e-perf">--</div>
+      <div class="k-sub">vs ideal cycle</div>
+    </div>
+    <div class="exec-kpi kc-4">
+      <div class="k-lbl">Quality</div>
+      <div class="k-val" id="e-qual">--</div>
+      <div class="k-sub">first pass yield</div>
+    </div>
+    <div class="exec-kpi kc-5">
+      <div class="k-lbl">Parts Produced</div>
+      <div class="k-val" id="e-parts">--</div>
+      <div class="k-sub" id="e-parts-sub">in period</div>
+    </div>
+    <div class="exec-kpi kc-6">
+      <div class="k-lbl">Attainment</div>
+      <div class="k-val" id="e-attain">--</div>
+      <div class="k-sub">vs target</div>
+    </div>
+  </div>
+
+  <!-- 2x2 CHART GRID -->
+  <div class="chart-grid-2x2">
+
+    <!-- OEE Trend -->
+    <div class="exec-chart-card" data-accent="cyan">
+      <div class="exec-chart-hdr">
+        <div class="exec-chart-title">
+          <span class="dot" style="background:var(--cyan)"></span>
+          OEE Trend
+          <span class="sub" id="oee-trend-sub">7 days</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="delta-badge" id="oee-trend-badge" style="display:none"></span>
+        </div>
+      </div>
+      <div class="chart-h220"><canvas id="oee-trend-chart"></canvas></div>
+    </div>
+
+    <!-- Production vs Target -->
+    <div class="exec-chart-card" data-accent="green">
+      <div class="exec-chart-hdr">
+        <div class="exec-chart-title">
+          <span class="dot" style="background:var(--green)"></span>
+          Production vs Target
+        </div>
+      </div>
+      <div class="chart-h220"><canvas id="prod-target-chart"></canvas></div>
+    </div>
+
+    <!-- Downtime Pareto -->
+    <div class="exec-chart-card" data-accent="amber">
+      <div class="exec-chart-hdr">
+        <div class="exec-chart-title">
+          <span class="dot" style="background:var(--amber)"></span>
+          Downtime Pareto
+          <span class="sub">top reasons</span>
+        </div>
+      </div>
+      <div id="pareto-loading" class="loading-spinner"><div class="spin-sm"></div> Loading…</div>
+      <div class="pareto-list" id="pareto-list" style="display:none"></div>
+    </div>
+
+    <!-- Shift Comparison -->
+    <div class="exec-chart-card" data-accent="purple">
+      <div class="exec-chart-hdr">
+        <div class="exec-chart-title">
+          <span class="dot" style="background:var(--purple)"></span>
+          Shift Comparison
+          <span class="sub">A vs B, last 7 days</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted)">
+          <span style="color:var(--cyan)">■</span> Shift A &nbsp;
+          <span style="color:var(--purple)">■</span> Shift B
+        </div>
+      </div>
+      <div class="chart-h220"><canvas id="shift-compare-chart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- RECENT SHIFTS TABLE -->
+  <div class="shifts-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="z-section" style="margin:0;flex:1"><span class="dot" style="background:var(--green)"></span>Recent Shifts — Performance Log</div>
+      <div style="font-size:10px;color:var(--muted)">Last <span id="shifts-count" style="color:var(--cyan)">--</span> shifts</div>
+    </div>
+    <div id="shifts-loading" class="loading-spinner"><div class="spin-sm"></div> Loading shift data…</div>
+    <div style="overflow-x:auto;display:none" id="shifts-table-wrap">
+      <table class="z-table" id="shifts-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>OEE</th>
+            <th>Availability</th>
+            <th>Performance</th>
+            <th>Quality</th>
+            <th>Parts</th>
+            <th>Avg Cycle</th>
+            <th>Grade</th>
+          </tr>
+        </thead>
+        <tbody id="shifts-tbody">
+          <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="/_shared.js"></script>
+<script>
+document.getElementById('z-header-mount').innerHTML = zRenderHeader('EXECUTIVE DASHBOARD');
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentRange = 'today';
+let oeeChrt, prodChrt, shiftCmpChrt;
+
+const rangeLabels = { today:'Today', yesterday:'Yesterday', '7d':'Last 7 Days', '30d':'Last 30 Days', custom:'Custom Range' };
+
+function selectRange(btn, range) {
+  document.querySelectorAll('.range-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentRange = range;
+  document.getElementById('range-label-display').textContent = rangeLabels[range] || range;
+  loadAll();
+}
+
+function applyCustomRange() {
+  const from = document.getElementById('range-from').value;
+  const to   = document.getElementById('range-to').value;
+  if (!from || !to) { zToast('Select both dates', 'warn'); return; }
+  document.querySelectorAll('.range-chip').forEach(b => b.classList.remove('active'));
+  currentRange = 'custom';
+  document.getElementById('range-label-display').textContent = `${from} → ${to}`;
+  loadAll(from, to);
+}
+
+function getRangeDates(range) {
+  const now  = new Date();
+  const ist  = d => { const n=new Date(d); n.setHours(n.getHours()+5,n.getMinutes()+30); return n.toISOString().slice(0,10); };
+  const pad  = s => String(s).padStart(2,'0');
+  const fmt  = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = fmt(now);
+  if (range==='today')     return { from:today,  to:today,  days:1  };
+  if (range==='yesterday') { const y=new Date(now); y.setDate(y.getDate()-1); const yd=fmt(y); return {from:yd,to:yd,days:1}; }
+  if (range==='7d')        { const s=new Date(now); s.setDate(s.getDate()-6); return {from:fmt(s),to:today,days:7}; }
+  if (range==='30d')       { const s=new Date(now); s.setDate(s.getDate()-29); return {from:fmt(s),to:today,days:30}; }
+  return { from:today, to:today, days:1 };
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+function setupCharts() {
+  const baseTooltip = { backgroundColor:'#0d1b35', borderColor:'#1a2f55', borderWidth:1, titleColor:'#e8f4fd', bodyColor:'#6b8cae' };
+  const baseScales  = {
+    x:{ grid:{color:'rgba(26,47,85,.4)',drawTicks:false}, ticks:{color:'#6b8cae',font:{size:9}} },
+    y:{ grid:{color:'rgba(26,47,85,.4)',drawTicks:false}, ticks:{color:'#6b8cae',font:{size:9}} }
+  };
+
+  // OEE Trend Line
+  oeeChrt = new Chart(document.getElementById('oee-trend-chart'), {
+    type:'line',
+    data:{ labels:[], datasets:[{
+      label:'OEE %', data:[], borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.08)',
+      tension:.4, fill:true, pointRadius:3, pointBackgroundColor:'#00d4ff', borderWidth:2,
+      pointHoverRadius:5
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:baseTooltip },
+      scales:{ ...baseScales, y:{ ...baseScales.y, min:0, max:100 } }
+    }
+  });
+
+  // Production vs Target
+  prodChrt = new Chart(document.getElementById('prod-target-chart'), {
+    type:'bar',
+    data:{ labels:[], datasets:[
+      { label:'Actual', data:[], backgroundColor:'rgba(0,255,136,.45)', borderColor:'#00ff88', borderWidth:1, borderRadius:4 },
+      { label:'Target', data:[], backgroundColor:'rgba(255,255,255,.06)', borderColor:'rgba(255,255,255,.2)', borderWidth:1, borderRadius:4, borderDash:[4,4] }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, position:'top', labels:{color:'#6b8cae',font:{size:9},padding:10,boxWidth:10} }, tooltip:baseTooltip },
+      scales:{ x:{ ...baseScales.x, stacked:false }, y:{ ...baseScales.y, beginAtZero:true } }
+    }
+  });
+
+  // Shift Comparison
+  shiftCmpChrt = new Chart(document.getElementById('shift-compare-chart'), {
+    type:'bar',
+    data:{ labels:[], datasets:[
+      { label:'Shift A', data:[], backgroundColor:'rgba(0,212,255,.45)', borderColor:'#00d4ff', borderWidth:1, borderRadius:3 },
+      { label:'Shift B', data:[], backgroundColor:'rgba(170,68,255,.45)',borderColor:'#aa44ff', borderWidth:1, borderRadius:3 }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, tooltip:baseTooltip },
+      scales:{ x:{ ...baseScales.x }, y:{ ...baseScales.y, min:0, max:100 } }
+    }
+  });
+}
+
+// ─── LOAD DATA ────────────────────────────────────────────────────────────────
+async function loadAll(customFrom, customTo) {
+  const dates = customFrom ? { from:customFrom, to:customTo, days:7 } : getRangeDates(currentRange);
+
+  // Show skeleton
+  ['e-oee','e-avail','e-perf','e-qual','e-parts','e-attain'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = '--'; el.classList.add('skeleton'); }
+  });
+
+  await Promise.all([ loadOEE(dates), loadShifts(dates), loadProductionTrend(dates) ]);
+}
+
+async function loadOEE(dates) {
+  try {
+    const d = await zFetch('/api/cnc/oee?machine=MACHINE001');
+    if (!d.ok) return;
+    const setKPI = (id, val, pct=true) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = pct ? fmtPct(val) : fmtInt(val);
+      el.classList.remove('skeleton');
+      el.style.color = '';
+    };
+    setKPI('e-oee',   d.oee);          document.getElementById('e-oee').style.color   = oeeColor(d.oee);
+    setKPI('e-avail', d.availability); document.getElementById('e-avail').style.color = oeeColor(d.availability);
+    setKPI('e-perf',  d.performance);  document.getElementById('e-perf').style.color  = oeeColor(d.performance);
+    setKPI('e-qual',  d.quality);      document.getElementById('e-qual').style.color  = oeeColor(d.quality);
+    if (d.parts) { document.getElementById('e-parts').textContent = fmtInt(d.parts); document.getElementById('e-parts').classList.remove('skeleton'); }
+    const g = oeeGrade(d.oee);
+    document.getElementById('e-oee-grade').textContent = g.label;
+    document.getElementById('e-oee-grade').style.color = oeeColor(d.oee);
+    // Attainment = parts vs estimated target
+    const attain = d.oee ? Math.round(d.oee) : null;
+    document.getElementById('e-attain').textContent = attain ? attain + '%' : '--';
+    document.getElementById('e-attain').style.color = oeeColor(attain);
+    document.getElementById('e-attain').classList.remove('skeleton');
+  } catch(e) { console.warn('[exec/oee]', e); }
+}
+
+async function loadProductionTrend(dates) {
+  try {
+    const d = await zFetch(`/api/cnc/production-trend?days=${dates.days}&machine=MACHINE001`);
+    if (!d.ok || !d.data) return;
+    const rows = d.data;
+
+    // OEE Trend chart
+    oeeChrt.data.labels = rows.map(r => r.date || r.day || '--');
+    oeeChrt.data.datasets[0].data = rows.map(r => +(r.oee||0));
+    // Color points by OEE
+    oeeChrt.data.datasets[0].pointBackgroundColor = rows.map(r => oeeColor(r.oee));
+    oeeChrt.update();
+
+    // OEE trend badge
+    if (rows.length >= 2) {
+      const first = +(rows[0].oee||0), last = +(rows[rows.length-1].oee||0);
+      const delta = last - first;
+      const badge = document.getElementById('oee-trend-badge');
+      badge.style.display = 'inline-flex';
+      badge.className = 'delta-badge ' + (delta>0?'pos':delta<0?'neg':'neu');
+      badge.textContent = (delta>0?'↑':'↓') + ' ' + Math.abs(delta).toFixed(1) + '%';
+    }
+
+    // Production vs Target
+    const idealPerDay = 8*3600/45; // ideal parts/day
+    prodChrt.data.labels = rows.map(r => r.date || r.day || '--');
+    prodChrt.data.datasets[0].data = rows.map(r => +(r.parts||r.part_count||0));
+    prodChrt.data.datasets[1].data = rows.map(() => Math.round(idealPerDay));
+    prodChrt.update();
+
+    // Total parts in period
+    const totalParts = rows.reduce((s,r) => s + (+r.parts||+r.part_count||0), 0);
+    if (totalParts > 0) {
+      document.getElementById('e-parts').textContent = fmtInt(totalParts);
+      document.getElementById('e-parts').classList.remove('skeleton');
+      document.getElementById('e-parts-sub').textContent = `${rows.length} day(s)`;
+    }
+
+    // Shift compare (split A/B from data or mock)
+    const dayLabels = rows.slice(-7).map(r => (r.date||'--').slice(5));
+    const shiftA = rows.slice(-7).map(r => +(r.shift_a_oee||r.oee||0));
+    const shiftB = rows.slice(-7).map(r => +(r.shift_b_oee||Math.max(0,(+(r.oee||0))-5)||0));
+    shiftCmpChrt.data.labels = dayLabels;
+    shiftCmpChrt.data.datasets[0].data = shiftA;
+    shiftCmpChrt.data.datasets[1].data = shiftB;
+    shiftCmpChrt.update();
+
+    // Pareto placeholder
+    renderPareto([
+      { label:'Planned Maintenance', mins:120, color:'rgba(255,179,0,.7)' },
+      { label:'Tool Change',         mins:85,  color:'rgba(255,68,68,.7)'  },
+      { label:'Setup/Changeover',    mins:60,  color:'rgba(68,136,255,.7)' },
+      { label:'Material Wait',       mins:42,  color:'rgba(170,68,255,.7)' },
+      { label:'Idle/No Schedule',    mins:28,  color:'rgba(0,212,255,.7)'  },
+    ]);
+
+  } catch(e) { console.warn('[exec/trend]', e); }
+}
+
+function renderPareto(items) {
+  document.getElementById('pareto-loading').style.display = 'none';
+  const list = document.getElementById('pareto-list');
+  list.style.display = 'flex';
+  const total = items.reduce((s,i) => s+i.mins, 0) || 1;
+  list.innerHTML = items.map(item => {
+    const pct = Math.round((item.mins/total)*100);
+    return `<div class="pareto-row">
+      <div class="pareto-label">${item.label}</div>
+      <div class="pareto-bar-bg">
+        <div class="pareto-bar-fill" style="width:${pct}%;background:${item.color}"></div>
+      </div>
+      <div class="pareto-pct">${pct}%</div>
+      <div class="pareto-mins">${item.mins}m</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadShifts(dates) {
+  try {
+    const d = await zFetch('/api/cnc/shifts?machine=MACHINE001');
+    const rows = d.shifts || d.data || [];
+    document.getElementById('shifts-loading').style.display = 'none';
+    document.getElementById('shifts-table-wrap').style.display = 'block';
+    document.getElementById('shifts-count').textContent = rows.length;
+
+    if (!rows.length) {
+      document.getElementById('shifts-tbody').innerHTML =
+        '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">No shift data found for this period</td></tr>';
+      return;
+    }
+
+    document.getElementById('shifts-tbody').innerHTML = rows.slice(0,10).map(s => {
+      const oee  = +(s.oee||s.oee_pct||0);
+      const g    = oeeGrade(oee);
+      const clr  = oeeColor(oee);
+      const avail = +(s.availability||s.avail||0);
+      const perf  = +(s.performance||s.perf||0);
+      const qual  = +(s.quality||s.qual||100);
+      return `<tr>
+        <td style="font-variant-numeric:tabular-nums">${s.date||s.shift_date||'--'}</td>
+        <td><span class="z-badge info">Shift ${s.shift||s.shift_name||'--'}</span></td>
+        <td>
+          <div style="font-weight:900;font-size:14px;color:${clr}">${fmtPct(oee)}</div>
+          <div class="grade-bar" style="width:${oee}%;background:${clr}"></div>
+        </td>
+        <td style="color:${oeeColor(avail)}">${fmtPct(avail)}</td>
+        <td style="color:${oeeColor(perf)}">${fmtPct(perf)}</td>
+        <td style="color:${oeeColor(qual)}">${fmtPct(qual)}</td>
+        <td style="font-weight:700;color:var(--amber)">${fmtInt(s.parts||s.part_count)}</td>
+        <td style="font-variant-numeric:tabular-nums">${fmtNum(s.avg_cycle||s.cycle_time,1)} s</td>
+        <td><span class="z-badge ${g.cls}">${g.label}</span></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.warn('[exec/shifts]', e);
+    document.getElementById('shifts-loading').style.display = 'none';
+    document.getElementById('shifts-table-wrap').style.display = 'block';
+    document.getElementById('shifts-tbody').innerHTML =
+      '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Could not load shift data</td></tr>';
+  }
+}
+
+// ─── DATE PICKER DEFAULTS ─────────────────────────────────────────────────────
+function initDatePicker() {
+  const today = new Date().toISOString().slice(0,10);
+  const week  = new Date(); week.setDate(week.getDate()-7);
+  document.getElementById('range-from').value = week.toISOString().slice(0,10);
+  document.getElementById('range-to').value   = today;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setupCharts();
+  initDatePicker();
+  loadAll();
+});
+</script>
+</body>
+</html>

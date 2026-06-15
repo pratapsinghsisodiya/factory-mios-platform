@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Facto-Bot — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+/* ── Layout ─────────────────────────────────────────────────────── */
+.chat-layout{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 64px);overflow:hidden;}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.chat-sidebar{background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-head{padding:16px 14px 10px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+
+/* Engine badge */
+.engine-badge{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:10px;margin-bottom:10px;}
+.engine-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite;flex-shrink:0;}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
+.engine-name{font-size:11px;font-weight:700;color:var(--purple);}
+.engine-model{font-size:9px;color:var(--muted);}
+
+/* Mode selector */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;}
+.mode-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;transition:all .2s;color:var(--muted);font-size:10px;font-weight:600;}
+.mode-btn:hover{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.05);color:var(--cyan);}
+.mode-btn.active{border-color:var(--cyan);background:rgba(0,212,255,.12);color:var(--cyan);}
+.mode-btn.active.report-mode{border-color:var(--amber);background:rgba(255,179,0,.1);color:var(--amber);}
+.mode-btn.active.chart-mode{border-color:var(--purple);background:rgba(168,85,247,.1);color:var(--purple);}
+.mode-btn.active.rca-mode{border-color:#ff6600;background:rgba(255,102,0,.1);color:#ff6600;}
+.mode-icon{font-size:16px;}
+
+/* Reports list */
+.report-list{flex:1;overflow-y:auto;padding:10px;}
+.report-list::-webkit-scrollbar{width:3px;}
+.report-list::-webkit-scrollbar-thumb{background:var(--border);}
+.report-item{padding:9px 11px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;margin-bottom:6px;transition:all .2s;}
+.report-item:hover{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.05);transform:translateX(2px);}
+.report-icon{font-size:15px;margin-bottom:3px;}
+.report-name{font-size:10px;font-weight:600;color:var(--text);}
+.report-desc{font-size:9px;color:var(--muted);margin-top:1px;}
+
+/* ── Main area ──────────────────────────────────────────────────── */
+.chat-main{display:flex;flex-direction:column;overflow:hidden;}
+
+/* Topbar */
+.chat-topbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.chat-topbar-title{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.facto-bot-mark{width:34px;height:34px;border-radius:10px;object-fit:contain;background:rgba(255,255,255,.04);border:1px solid rgba(168,85,247,.28);box-shadow:0 0 18px rgba(168,85,247,.25);}
+.clear-btn{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.2);border-radius:8px;padding:5px 11px;color:var(--red);font-size:10px;cursor:pointer;transition:all .2s;}
+.clear-btn:hover{background:rgba(255,68,68,.2);}
+
+/* Mode indicator bar */
+.mode-bar{padding:8px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:11px;}
+.mode-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;}
+.mode-pill.chat  {background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.3);}
+.mode-pill.report{background:rgba(255,179,0,.1);color:var(--amber);border:1px solid rgba(255,179,0,.3);}
+.mode-pill.chart {background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.3);}
+.mode-pill.rca   {background:rgba(255,102,0,.1);color:#ff6600;border:1px solid rgba(255,102,0,.3);}
+.mode-hint{color:var(--muted);}
+
+/* Suggestion chips */
+.suggestions-row{padding:8px 18px;border-bottom:1px solid var(--border);overflow-x:auto;white-space:nowrap;flex-shrink:0;}
+.suggestions-row::-webkit-scrollbar{height:3px;}
+.suggestions-row::-webkit-scrollbar-thumb{background:var(--border);}
+.sugg-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:18px;border:1px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;font-size:10px;color:var(--muted);margin-right:7px;transition:all .2s;white-space:nowrap;}
+.sugg-chip:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.06);}
+.sugg-chip.hinglish{border-color:rgba(168,85,247,.3);color:rgba(168,85,247,.8);}
+.sugg-chip.hinglish:hover{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.06);}
+
+/* Messages */
+.messages-area{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;}
+.messages-area::-webkit-scrollbar{width:3px;}
+.messages-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.msg-row{display:flex;gap:10px;align-items:flex-start;}
+.msg-row.user{flex-direction:row-reverse;}
+.msg-avatar{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.msg-avatar.ai{background:linear-gradient(135deg,var(--purple),var(--blue));}
+.msg-avatar.user{background:linear-gradient(135deg,var(--cyan),var(--blue));}
+
+.msg-bubble{max-width:75%;padding:11px 14px;border-radius:13px;position:relative;}
+.msg-row.user .msg-bubble{background:linear-gradient(135deg,rgba(0,212,255,.12),rgba(68,136,255,.08));border:1px solid rgba(0,212,255,.18);border-radius:13px 13px 3px 13px;}
+.msg-row.ai .msg-bubble{background:var(--card);border:1px solid var(--border);border-radius:13px 13px 13px 3px;}
+
+/* Report mode bubble */
+.msg-bubble.mode-report{border-color:rgba(255,179,0,.3);background:rgba(255,179,0,.04);}
+.msg-bubble.mode-chart{border-color:rgba(168,85,247,.3);background:rgba(168,85,247,.04);}
+.msg-bubble.mode-rca{border-color:rgba(255,102,0,.3);background:rgba(255,102,0,.04);}
+
+.msg-text{font-size:12.5px;line-height:1.65;color:var(--text);}
+.msg-text b,.msg-text strong{color:var(--cyan);font-weight:700;}
+.msg-text code{background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;font-family:monospace;}
+.msg-text pre{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto;font-size:11px;font-family:monospace;line-height:1.5;margin:8px 0;}
+
+/* Report formatting */
+.msg-text .report-header{background:linear-gradient(135deg,rgba(255,179,0,.15),rgba(255,102,0,.1));border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-family:monospace;font-size:11px;white-space:pre;}
+.msg-text hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
+.msg-text table.data-table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;}
+.msg-text table.data-table th{background:rgba(255,255,255,.06);padding:5px 9px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;border:1px solid var(--border);}
+.msg-text table.data-table td{padding:5px 9px;border:1px solid var(--border);color:var(--text);}
+.msg-text table.data-table tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+
+/* RCA styling */
+.rca-block{background:rgba(255,102,0,.05);border-left:3px solid #ff6600;border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0;}
+
+/* Chart canvas container */
+.chart-container{margin-top:12px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;}
+.chart-container canvas{max-height:260px;}
+.chart-title{font-size:11px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}
+
+/* Data table in message */
+.msg-table{margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:10.5px;}
+.msg-table table{width:100%;border-collapse:collapse;}
+.msg-table th{background:rgba(255,255,255,.05);padding:5px 9px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;}
+.msg-table td{padding:5px 9px;border-top:1px solid var(--border);color:var(--text);}
+
+/* Msg meta */
+.msg-meta{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;}
+.msg-time{font-size:9px;color:var(--muted);}
+.msg-engine{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;background:rgba(168,85,247,.12);color:var(--purple);border:1px solid rgba(168,85,247,.2);}
+.msg-mode-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;}
+.msg-copy{background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;padding:2px 5px;border-radius:4px;transition:all .2s;}
+.msg-copy:hover{color:var(--cyan);background:rgba(0,212,255,.1);}
+
+/* Typing */
+.typing-row{display:flex;gap:10px;align-items:flex-start;}
+.typing-bubble{background:var(--card);border:1px solid var(--border);border-radius:13px 13px 13px 3px;padding:13px 16px;display:flex;gap:4px;align-items:center;}
+.typing-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:typing-bounce .8s infinite;}
+.typing-dot:nth-child(2){animation-delay:.15s;}
+.typing-dot:nth-child(3){animation-delay:.3s;}
+@keyframes typing-bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+/* Input */
+.input-area{padding:14px 18px;border-top:1px solid var(--border);flex-shrink:0;}
+.input-row{display:flex;gap:8px;align-items:flex-end;}
+.input-wrap{flex:1;position:relative;}
+.chat-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 44px 11px 14px;color:var(--text);font-size:12.5px;resize:none;outline:none;font-family:inherit;max-height:120px;min-height:42px;line-height:1.5;transition:border-color .2s;box-sizing:border-box;}
+.chat-input:focus{border-color:rgba(0,212,255,.4);box-shadow:0 0 0 3px rgba(0,212,255,.07);}
+.char-count{position:absolute;bottom:8px;right:10px;font-size:9px;color:var(--muted);}
+.send-btn{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;color:#0a0e1a;transition:all .2s;flex-shrink:0;}
+.send-btn:hover{transform:scale(1.06);box-shadow:0 0 18px rgba(0,212,255,.4);}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* Welcome */
+.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:40px;text-align:center;}
+.welcome-icon{width:86px;height:86px;border-radius:22px;background:rgba(255,255,255,.04) url('/assets/facto-bot-logo.png') center/contain no-repeat;border:1px solid rgba(168,85,247,.32);box-shadow:0 0 40px rgba(168,85,247,.35);animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.welcome-title{font-size:22px;font-weight:800;color:var(--text);}
+.welcome-sub{font-size:13px;color:var(--muted);max-width:360px;line-height:1.65;}
+.welcome-caps{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.welcome-cap{padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-size:11px;color:var(--muted);background:rgba(255,255,255,.02);}
+
+@media(max-width:920px){.chat-layout{grid-template-columns:1fr}.chat-sidebar{display:none}}
+</style>
+</head>
+<body>
+<div id="z-nav"></div>
+<div class="chat-layout">
+
+  <!-- ══ SIDEBAR ═══════════════════════════════════════════════ -->
+  <div class="chat-sidebar">
+    <div class="sidebar-head">
+      <!-- Engine status -->
+      <div class="sidebar-label">AI Engine</div>
+      <div class="engine-badge">
+        <div class="engine-dot" id="engine-dot"></div>
+        <div>
+          <div class="engine-name" id="engine-name">Detecting…</div>
+          <div class="engine-model" id="engine-model">Loading engine info</div>
+        </div>
+      </div>
+
+      <!-- Mode selector -->
+      <div class="sidebar-label" style="margin-top:10px">Mode</div>
+      <div class="mode-grid">
+        <button class="mode-btn active" id="mode-chat"   onclick="setMode('chat')"  title="Natural language answers">
+          <span class="mode-icon">💬</span>Chat
+        </button>
+        <button class="mode-btn report-mode" id="mode-report" onclick="setMode('report')" title="Industrial shift report">
+          <span class="mode-icon">📋</span>Report
+        </button>
+        <button class="mode-btn chart-mode"  id="mode-chart"  onclick="setMode('chart')"  title="Bar / line / pie charts">
+          <span class="mode-icon">📊</span>Chart
+        </button>
+        <button class="mode-btn rca-mode"    id="mode-rca"    onclick="setMode('rca')"    title="Root Cause Analysis">
+          <span class="mode-icon">🔍</span>RCA
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Reports -->
+    <div style="padding:10px 14px 6px">
+      <div class="sidebar-label">Quick Reports</div>
+    </div>
+    <div class="report-list" id="report-list">
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">📊</div>
+        <div class="report-name">Today's OEE Summary</div>
+        <div class="report-desc" data-q="What is today's OEE?" data-mode="chat">Overall equipment effectiveness today</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">📋</div>
+        <div class="report-name">Shift Production Report</div>
+        <div class="report-desc" data-q="Generate a full shift production report for today" data-mode="report">Industrial format report</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">📈</div>
+        <div class="report-name">7-Day OEE Trend Chart</div>
+        <div class="report-desc" data-q="Show OEE trend for last 7 days as a chart" data-mode="chart">Bar chart — weekly trend</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">⚠️</div>
+        <div class="report-name">Top Downtime Reasons</div>
+        <div class="report-desc" data-q="Show top downtime reasons this week as a pie chart" data-mode="chart">Pie chart — downtime causes</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">🔍</div>
+        <div class="report-name">Low OEE Root Cause</div>
+        <div class="report-desc" data-q="Why is the OEE low today? Do a root cause analysis." data-mode="rca">5-Why analysis</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">🎯</div>
+        <div class="report-name">Quality Rejection Analysis</div>
+        <div class="report-desc" data-q="Show rejection rate and defect types as a chart" data-mode="chart">Donut chart — defect types</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">⏱</div>
+        <div class="report-name">Cycle Time Analysis</div>
+        <div class="report-desc" data-q="What is the cycle time analysis for last 8 hours?" data-mode="chat">Avg / best / worst vs target</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">🔔</div>
+        <div class="report-name">Machine Alarm History</div>
+        <div class="report-desc" data-q="Show alarm history today with counts" data-mode="chart">Bar chart — alarm frequency</div>
+      </div>
+      <div class="report-item" onclick="sendReport(this)">
+        <div class="report-icon">🔄</div>
+        <div class="report-name">Shift A vs Shift B</div>
+        <div class="report-desc" data-q="Compare Shift A vs Shift B OEE performance this week as a chart" data-mode="chart">Grouped bar comparison</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MAIN CHAT ══════════════════════════════════════════════ -->
+  <div class="chat-main">
+    <div class="chat-topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:17px">🤖</div>
+        <div>
+          <div class="chat-topbar-title"><img class="facto-bot-mark" src="/assets/facto-bot-logo.png" alt="Facto-Bot logo"/>Facto-Bot</div>
+          <div style="font-size:10px;color:var(--muted)">Factory-MIOS Intelligence · MACHINE001 · Hinglish supported</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
+      </div>
+    </div>
+
+    <!-- Active mode bar -->
+    <div class="mode-bar">
+      <span id="active-mode-pill" class="mode-pill chat">💬 Chat Mode</span>
+      <span class="mode-hint" id="mode-hint-text">Ask anything — OEE, production, alarms, cycle time (English or Hinglish)</span>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="suggestions-row" id="sugg-row">
+      <span style="font-size:10px;color:var(--muted);margin-right:6px;vertical-align:middle">Try:</span>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-area" id="messages">
+      <div class="welcome" id="welcome-screen">
+        <div class="welcome-icon" aria-label="Facto-Bot logo"></div>
+        <div class="welcome-title">Facto-Bot</div>
+        <div class="welcome-sub">Ask me anything about MACHINE001 — OEE, production, downtime, alarms, cycle time. Supports <strong>English &amp; Hinglish</strong>.</div>
+        <div class="welcome-caps">
+          <span class="welcome-cap">💬 Chat</span>
+          <span class="welcome-cap">📋 Reports</span>
+          <span class="welcome-cap">📊 Charts</span>
+          <span class="welcome-cap">🔍 RCA</span>
+          <span class="welcome-cap">🇮🇳 Hinglish</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-row">
+        <div class="input-wrap">
+          <textarea class="chat-input" id="chat-input" rows="1"
+            placeholder="Ask about OEE, parts, downtime… या Hinglish mein poochho 🇮🇳"
+            maxlength="600" onkeydown="inputKeyDown(event)" oninput="updateCharCount(this)"></textarea>
+          <span class="char-count" id="char-count">0/600</span>
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendChat()" title="Send (Enter)">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/chart.min.js"></script>
+<script src="/_shared.js"></script>
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   STATE
+─────────────────────────────────────────────────────────────────── */
+let isWaiting = false;
+let currentMode = 'chat';
+let chartCounter = 0;
+
+/* ──────────────────────────────────────────────────────────────────
+   MODE
+─────────────────────────────────────────────────────────────────── */
+const MODE_META = {
+  chat:   { pill:'💬 Chat Mode',   hint:'Ask anything — OEE, production, alarms, cycle time (English or Hinglish)',     pillClass:'chat'   },
+  report: { pill:'📋 Report Mode', hint:'Generates industrial-format shift/production reports',                          pillClass:'report' },
+  chart:  { pill:'📊 Chart Mode',  hint:'Visualise data as bar, line, pie or donut charts',                             pillClass:'chart'  },
+  rca:    { pill:'🔍 RCA Mode',    hint:'Root Cause Analysis with 5-Why, impact & corrective actions',                  pillClass:'rca'    },
+};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode-' + mode).classList.add('active');
+  const meta = MODE_META[mode] || MODE_META.chat;
+  const pill = document.getElementById('active-mode-pill');
+  pill.className = 'mode-pill ' + meta.pillClass;
+  pill.textContent = meta.pill;
+  document.getElementById('mode-hint-text').textContent = meta.hint;
+  // Update placeholder
+  const inp = document.getElementById('chat-input');
+  const placeholders = {
+    chat:   'Ask about OEE, parts, downtime… या Hinglish mein poochho 🇮🇳',
+    report: 'e.g. "Generate today\'s shift report" / "Shift A ka report banao"',
+    chart:  'e.g. "OEE last 7 days bar chart" / "Parts trend dikhao"',
+    rca:    'e.g. "Why is OEE low?" / "Machine band kyun hai? RCA karo"',
+  };
+  inp.placeholder = placeholders[mode] || inp.placeholder;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   ENGINE INFO
+─────────────────────────────────────────────────────────────────── */
+zFetch('/api/chat/engine').then(function(d) {
+  if (!d || !d.ok) return;
+  document.getElementById('engine-name').textContent = (d.engine || 'unknown').toUpperCase();
+  document.getElementById('engine-model').textContent = d.model || 'AI Model';
+  const dot = document.getElementById('engine-dot');
+  const cols = { gemini:'#00ff88', claude:'#a855f7', groq:'#00d4ff', ollama:'#ffb300' };
+  dot.style.background = cols[d.engine] || '#ffb300';
+}).catch(function(){});
+
+/* ──────────────────────────────────────────────────────────────────
+   SUGGESTIONS
+─────────────────────────────────────────────────────────────────── */
+const HINGLISH_CHIPS = [
+  'Aaj ka OEE kya hai?',
+  'Parts kitne bane aaj?',
+  'Machine band kyun hai?',
+  'Cycle time kya hai?',
+  'Downtime kitna raha?',
+  'Alarm aaya kya?',
+];
+
+zFetch('/api/chat/suggestions').then(function(d) {
+  if (!d || !d.suggestions) return;
+  const row = document.getElementById('sugg-row');
+  // English suggestions
+  d.suggestions.slice(0, 6).forEach(function(s) {
+    const c = document.createElement('span');
+    c.className = 'sugg-chip';
+    c.textContent = s;
+    c.onclick = function() { fillAndSend(s); };
+    row.appendChild(c);
+  });
+  // Hinglish suggestions
+  HINGLISH_CHIPS.forEach(function(s) {
+    const c = document.createElement('span');
+    c.className = 'sugg-chip hinglish';
+    c.textContent = '🇮🇳 ' + s;
+    c.onclick = function() { fillAndSend(s); };
+    row.appendChild(c);
+  });
+}).catch(function(){});
+
+/* ──────────────────────────────────────────────────────────────────
+   SEND
+─────────────────────────────────────────────────────────────────── */
+function fillAndSend(text) {
+  const inp = document.getElementById('chat-input');
+  inp.value = text;
+  updateCharCount(inp);
+  sendChat();
+}
+
+function sendReport(el) {
+  const desc = el.querySelector('[data-q]');
+  if (!desc) return;
+  const q    = desc.getAttribute('data-q');
+  const m    = desc.getAttribute('data-mode') || 'chat';
+  setMode(m);
+  fillAndSend(q);
+}
+
+function updateCharCount(el) {
+  document.getElementById('char-count').textContent = el.value.length + '/600';
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function inputKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function sendChat() {
+  const inp = document.getElementById('chat-input');
+  const q = inp.value.trim();
+  if (!q || isWaiting) return;
+  inp.value = ''; updateCharCount(inp);
+  isWaiting = true;
+  document.getElementById('send-btn').disabled = true;
+  hideWelcome();
+  appendUserMsg(q, currentMode);
+  appendTyping();
+
+  zFetch('/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({ question: q, mode: currentMode }),
+  }).then(function(d) {
+    removeTyping();
+    isWaiting = false;
+    document.getElementById('send-btn').disabled = false;
+    if (d && (d.text || d.answer)) {
+      appendAIMsg(d.text || d.answer, d.engine || 'ai', d, currentMode);
+    } else {
+      appendAIMsg('Sorry, no response received. Please try again.', 'error', null, currentMode);
+    }
+  }).catch(function(err) {
+    removeTyping();
+    isWaiting = false;
+    document.getElementById('send-btn').disabled = false;
+    appendAIMsg('⚠️ Connection error: ' + (err.message || 'Unknown error'), 'error', null, currentMode);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   MESSAGE RENDERING
+─────────────────────────────────────────────────────────────────── */
+function hideWelcome() {
+  const w = document.getElementById('welcome-screen');
+  if (w) w.remove();
+}
+
+function appendUserMsg(text, mode) {
+  const msgs = document.getElementById('messages');
+  const now  = nowIST();
+  const div  = document.createElement('div');
+  div.className = 'msg-row user';
+  div.innerHTML =
+    '<div class="msg-avatar user">👤</div>' +
+    '<div class="msg-bubble">' +
+      '<div class="msg-text">' + escHtml(text) + '</div>' +
+      '<div class="msg-meta">' +
+        '<span class="msg-time">' + now + ' IST</span>' +
+        modePillHtml(mode) +
+      '</div>' +
+    '</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendAIMsg(text, engine, d, mode) {
+  const msgs   = document.getElementById('messages');
+  const now    = nowIST();
+  const cid    = 'chart-' + (++chartCounter);
+  const mid    = 'msg-' + Date.now();
+  const modeClass = mode !== 'chat' ? 'mode-' + mode : '';
+
+  // Format the text
+  const formatted = formatMsgText(text, mode);
+
+  // Data table (if raw rows attached and mode is chat)
+  let dataHtml = '';
+  if (mode === 'chat' && d && d.data && Array.isArray(d.data) && d.data.length > 0
+      && typeof d.data[0] === 'object') {
+    const keys = Object.keys(d.data[0]);
+    if (keys.length > 0 && keys.length <= 10) {
+      dataHtml =
+        '<div class="msg-table"><table>' +
+          '<thead><tr>' + keys.map(k => '<th>' + escHtml(k) + '</th>').join('') + '</tr></thead>' +
+          '<tbody>' + d.data.slice(0, 8).map(row =>
+            '<tr>' + keys.map(k => '<td>' + escHtml(String(row[k] ?? '--')) + '</td>').join('') + '</tr>'
+          ).join('') + '</tbody>' +
+        '</table></div>';
+    }
+  }
+
+  // Chart placeholder (rendered after DOM insert)
+  let chartHtml = '';
+  if (mode === 'chart' && d && d.chart_config) {
+    chartHtml =
+      '<div class="chart-container">' +
+        '<div class="chart-title" id="title-' + cid + '"></div>' +
+        '<canvas id="' + cid + '"></canvas>' +
+      '</div>';
+  }
+
+  const engColor = { gemini:'var(--green)', claude:'var(--purple)', groq:'var(--cyan)',
+                     ollama:'var(--amber)', 'cnc-fallback':'var(--muted)' }[engine] || 'var(--muted)';
+
+  const div = document.createElement('div');
+  div.className = 'msg-row ai';
+  div.innerHTML =
+    '<div class="msg-avatar ai">🤖</div>' +
+    '<div class="msg-bubble ' + modeClass + '">' +
+      '<div class="msg-text">' + formatted + '</div>' +
+      dataHtml + chartHtml +
+      '<div class="msg-meta">' +
+        '<span class="msg-engine" style="color:' + engColor + ';border-color:' + engColor + '40">' +
+          engine.toUpperCase() + '</span>' +
+        modePillHtml(mode) +
+        '<span class="msg-time">' + now + ' IST</span>' +
+        '<button class="msg-copy" id="' + mid + '" onclick="copyMsg(\'' + mid + '\',this)">⎘ Copy</button>' +
+      '</div>' +
+    '</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Render chart after DOM insert
+  if (mode === 'chart' && d && d.chart_config) {
+    renderChart(cid, d.chart_config);
+  }
+}
+
+function modePillHtml(mode) {
+  if (!mode || mode === 'chat') return '';
+  const labels = { report:'📋 Report', chart:'📊 Chart', rca:'🔍 RCA' };
+  const cls    = { report:'mode-pill report', chart:'mode-pill chart', rca:'mode-pill rca' };
+  return '<span class="msg-mode-tag ' + (cls[mode]||'') + '">' + (labels[mode]||mode) + '</span>';
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'typing-row';
+  div.id = 'typing-indicator';
+  div.innerHTML =
+    '<div class="msg-avatar ai" style="background:linear-gradient(135deg,var(--purple),var(--blue))">🤖</div>' +
+    '<div class="typing-bubble">' +
+      '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>' +
+    '</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+function clearChat() {
+  document.getElementById('messages').innerHTML =
+    '<div class="welcome" id="welcome-screen">' +
+      '<div class="welcome-icon" aria-label="Facto-Bot logo"></div>' +
+      '<div class="welcome-title">Facto-Bot</div>' +
+      '<div class="welcome-sub">Ask me anything about MACHINE001 — OEE, production, downtime, alarms, cycle time. Supports <strong>English &amp; Hinglish</strong>.</div>' +
+      '<div class="welcome-caps"><span class="welcome-cap">💬 Chat</span><span class="welcome-cap">📋 Reports</span><span class="welcome-cap">📊 Charts</span><span class="welcome-cap">🔍 RCA</span><span class="welcome-cap">🇮🇳 Hinglish</span></div>' +
+    '</div>';
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CHART RENDERING
+─────────────────────────────────────────────────────────────────── */
+function renderChart(cid, cfg) {
+  try {
+    const canvas = document.getElementById(cid);
+    if (!canvas || !window.Chart) return;
+
+    // Set title
+    const titleEl = document.getElementById('title-' + cid);
+    if (titleEl && cfg.title) titleEl.textContent = cfg.title;
+
+    const defaults = {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          labels: { color: '#9ca3af', font: { size: 11 } },
+        },
+        tooltip: {
+          backgroundColor: '#1a1f35',
+          borderColor: '#2d3555',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#9ca3af',
+        },
+      },
+      scales: {},
+    };
+
+    const isRadial = (cfg.type === 'pie' || cfg.type === 'doughnut');
+    if (!isRadial) {
+      defaults.scales = {
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.08)' } },
+      };
+    }
+
+    // Ensure datasets have proper styling
+    const datasets = (cfg.datasets || []).map(function(ds) {
+      const out = Object.assign({}, ds);
+      if (!out.borderWidth) out.borderWidth = isRadial ? 2 : 1.5;
+      if (cfg.type === 'line') {
+        out.tension = 0.35;
+        out.pointRadius = 4;
+        out.pointHoverRadius = 6;
+        if (!Array.isArray(out.backgroundColor)) out.fill = true;
+      }
+      return out;
+    });
+
+    new Chart(canvas, {
+      type: cfg.type || 'bar',
+      data: { labels: cfg.labels || [], datasets: datasets },
+      options: defaults,
+    });
+  } catch(e) {
+    console.warn('[Chart] render error:', e.message);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   TEXT FORMATTING
+─────────────────────────────────────────────────────────────────── */
+function formatMsgText(text, mode) {
+  let t = escHtml(text);
+
+  // Code blocks (```...```)
+  t = t.replace(/```[\s\S]*?```/g, function(m) {
+    const inner = m.replace(/^```[a-z]*\n?/,'').replace(/```$/,'');
+    return '<pre>' + inner + '</pre>';
+  });
+
+  // Report mode: wrap ╔...╝ header blocks
+  if (mode === 'report') {
+    t = t.replace(/(╔[\s\S]*?╝)/g, '<div class="report-header">$1</div>');
+  }
+
+  // RCA mode: wrap ## sections with rca-block
+  if (mode === 'rca') {
+    t = t.replace(/(##\s+[🔍📊🔎🎯⚡🔧🛡️📣].+)/g, '</div><div class="rca-block"><strong>$1</strong>');
+    if (t.includes('rca-block')) t = '<div>' + t + '</div>';
+  }
+
+  // Markdown tables: |col|col|
+  t = t.replace(/(\|[^\n]+\|\n)+/g, function(m) {
+    const lines = m.trim().split('\n').filter(Boolean);
+    if (lines.length < 2) return m;
+    const header = lines[0].split('|').filter(c => c.trim());
+    const body   = lines.slice(2); // skip separator row
+    let html = '<table class="data-table">';
+    html += '<thead><tr>' + header.map(h => '<th>' + h.trim() + '</th>').join('') + '</tr></thead>';
+    html += '<tbody>';
+    for (const row of body) {
+      const cells = row.split('|').filter(c => c.trim());
+      html += '<tr>' + cells.map(c => '<td>' + c.trim() + '</td>').join('') + '</tr>';
+    }
+    html += '</tbody></table>';
+    return html;
+  });
+
+  // Bold (**text**)
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic (*text*)
+  t = t.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+  // Inline code (`code`)
+  t = t.replace(/`([^`]+?)`/g, '<code>$1</code>');
+  // Horizontal rules (─────)
+  t = t.replace(/[─━═]{5,}/g, '<hr>');
+  // Line breaks
+  t = t.replace(/\n/g, '<br>');
+
+  return t;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function nowIST() {
+  return new Date().toLocaleTimeString('en-IN',
+    { hour:'2-digit', minute:'2-digit', timeZone:'Asia/Kolkata', hour12:false });
+}
+
+function copyMsg(id, btn) {
+  const bubble = btn.closest('.msg-bubble').querySelector('.msg-text');
+  navigator.clipboard.writeText(bubble.innerText || bubble.textContent).then(function() {
+    btn.textContent = '✓ Copied';
+    setTimeout(function(){ btn.textContent = '⎘ Copy'; }, 2000);
+  }).catch(function(){});
+}
+</script>
+</body>
+</html>

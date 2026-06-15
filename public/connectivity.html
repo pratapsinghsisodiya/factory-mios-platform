@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Platform Connectivity — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+.page { max-width:1400px; margin:0 auto; padding:20px 24px 80px; }
+
+/* ── PIPELINE DIAGRAM ───────────────────────────────────────── */
+.pipeline-wrap {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:28px 20px; margin-bottom:20px; overflow-x:auto;
+  position:relative;
+}
+.pipeline-wrap::before {
+  content:''; position:absolute; inset:0; border-radius:var(--radius-lg);
+  background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,.04) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pipeline-title {
+  font-size:13px; font-weight:700; color:var(--text); margin-bottom:20px;
+  display:flex; align-items:center; gap:8px;
+}
+
+/* SVG pipeline */
+.pipeline-svg-container { width:100%; overflow-x:auto; }
+
+/* ── STAGE CARDS ────────────────────────────────────────────── */
+.stage-grid {
+  display:grid; grid-template-columns:repeat(8,1fr); gap:12px;
+  margin-bottom:20px; align-items:start;
+}
+.stage-card {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px;
+  transition:all var(--trans); position:relative; overflow:hidden;
+  cursor:pointer;
+}
+.stage-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+}
+.stage-card.ok::before   { background:var(--green); box-shadow:0 0 8px var(--green); }
+.stage-card.warn::before { background:var(--amber); box-shadow:0 0 8px var(--amber); }
+.stage-card.err::before  { background:var(--red); box-shadow:0 0 8px var(--red); }
+.stage-card:hover { border-color:var(--border2); transform:translateY(-2px); }
+.sc-icon { font-size:22px; margin-bottom:8px; }
+.sc-name { font-size:11px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.sc-sub  { font-size:9px; color:var(--muted); line-height:1.4; margin-bottom:8px; }
+.sc-status {
+  display:flex; align-items:center; gap:5px;
+  font-size:9px; font-weight:700;
+}
+.sc-dot {
+  width:6px; height:6px; border-radius:50%;
+  flex-shrink:0;
+}
+.sc-dot.ok   { background:var(--green); animation:blink 1.5s infinite; box-shadow:0 0 4px var(--green); }
+.sc-dot.warn { background:var(--amber); animation:blink 2s infinite; box-shadow:0 0 4px var(--amber); }
+.sc-dot.err  { background:var(--red); box-shadow:0 0 4px var(--red); }
+.sc-latency  { font-size:10px; font-weight:800; margin-top:6px; }
+.sc-uptime   { font-size:9px; color:var(--muted); margin-top:2px; }
+.sc-lastseen { font-size:9px; color:var(--muted2); margin-top:2px; }
+.sc-ping-btn {
+  margin-top:8px; width:100%; padding:4px; border-radius:5px;
+  border:1px solid var(--border); background:transparent;
+  color:var(--muted); font-size:9px; font-weight:600; cursor:pointer;
+  transition:all var(--trans);
+}
+.sc-ping-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.06); }
+
+/* Arrow connectors */
+.stage-arrow {
+  display:flex; align-items:center; justify-content:center;
+  padding-top:30px;
+}
+
+/* ── ANIMATED SVG PIPELINE ──────────────────────────────────── */
+.animated-pipeline {
+  width:100%; min-width:900px;
+}
+
+/* ── STATUS GRID ────────────────────────────────────────────── */
+.status-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+
+/* ── PROTOCOL CARDS ─────────────────────────────────────────── */
+.proto-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-bottom:20px; }
+.proto-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; transition:all var(--trans);
+}
+.proto-card:hover { border-color:var(--border2); }
+.pc-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.pc-icon  { font-size:22px; }
+.pc-name  { font-size:13px; font-weight:700; }
+.pc-sub   { font-size:10px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+.pc-devices { font-size:10px; color:var(--muted2); }
+.pc-devices strong { color:var(--text); }
+
+/* ── DATA FLOW TIMELINE ─────────────────────────────────────── */
+.flow-timeline { display:flex; align-items:center; gap:0; margin:16px 0; overflow-x:auto; padding-bottom:4px; }
+.flow-step {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 12px; text-align:center; min-width:130px; position:relative; flex-shrink:0;
+}
+.flow-step:not(:last-child)::after {
+  content:''; position:absolute; right:-16px; top:50%; transform:translateY(-50%);
+  width:16px; height:2px; background:var(--cyan); z-index:1;
+}
+.flow-step:not(:last-child)::before {
+  content:'►'; position:absolute; right:-8px; top:50%; transform:translateY(-50%);
+  font-size:8px; color:var(--cyan); z-index:2;
+}
+.fs-num { font-size:9px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.fs-icon { font-size:20px; margin-bottom:5px; }
+.fs-label { font-size:11px; font-weight:700; color:var(--text); }
+.fs-sub { font-size:9px; color:var(--muted); margin-top:3px; line-height:1.4; }
+
+/* ── ROCKWELL SECTION ───────────────────────────────────────── */
+.rockwell-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+.rw-path {
+  display:flex; flex-direction:column; gap:8px;
+}
+.rw-step {
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:12px; display:flex; align-items:center; gap:10px;
+  transition:all var(--trans);
+}
+.rw-step:hover { border-color:var(--border2); }
+.rw-step-icon { font-size:18px; flex-shrink:0; }
+.rw-step-name { font-size:12px; font-weight:700; }
+.rw-step-sub  { font-size:10px; color:var(--muted); }
+.rw-arrow { text-align:center; font-size:14px; color:var(--cyan); opacity:.6; padding:2px 0; }
+
+/* Spec table */
+.spec-table { width:100%; border-collapse:collapse; font-size:11px; }
+.spec-table td { padding:7px 10px; border-bottom:1px solid rgba(26,47,85,.3); }
+.spec-table td:first-child { color:var(--muted); width:45%; font-family:'Courier New',monospace; font-size:10px; }
+.spec-table td:last-child { color:var(--text); font-weight:600; font-family:'Courier New',monospace; font-size:10px; }
+.spec-table tr:last-child td { border-bottom:none; }
+
+/* Plant status table */
+.z-table-wrap { overflow-x:auto; }
+
+/* Deployment options */
+.deploy-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.deploy-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:14px; display:flex; gap:10px; align-items:flex-start;
+  transition:all var(--trans);
+}
+.deploy-card:hover { border-color:var(--border2); }
+
+/* Tag chips */
+.tag-chip {
+  display:inline-block; font-size:9px; padding:2px 8px; border-radius:10px;
+  font-weight:600; margin:2px;
+}
+.tc-red    { background:rgba(255,68,68,.12); color:var(--red); }
+.tc-amber  { background:rgba(255,179,0,.12); color:var(--amber); }
+.tc-blue   { background:rgba(68,136,255,.12); color:var(--blue); }
+.tc-green  { background:rgba(0,255,136,.12); color:var(--green); }
+.tc-purple { background:rgba(170,68,255,.12); color:var(--purple); }
+
+/* Security list */
+.sec-list { display:flex; flex-direction:column; gap:6px; }
+.sec-item { display:flex; align-items:center; gap:8px; font-size:12px; }
+
+@media (max-width:900px) {
+  .stage-grid { grid-template-columns:1fr 1fr; }
+  .status-grid { grid-template-columns:1fr; }
+  .rockwell-grid { grid-template-columns:1fr; }
+  .deploy-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div id="z-header-root"></div>
+<script>document.getElementById('z-header-root').innerHTML = zRenderHeader('PLATFORM CONNECTIVITY');</script>
+
+<div class="page">
+
+  <!-- KPI TILES -->
+  <div class="kpi-grid cols-4 mb" style="margin-bottom:16px;">
+    <div class="kpi-tile c-green">
+      <div class="label">Pipeline Status</div>
+      <div class="value" style="color:var(--green);" id="kpi-pipeline">LIVE</div>
+      <div class="sub">All stages connected</div>
+      <span class="trend up" id="kpi-pipeline-trend">●</span>
+    </div>
+    <div class="kpi-tile c-cyan">
+      <div class="label">End-to-End Latency</div>
+      <div class="value" style="color:var(--cyan);" id="kpi-latency">42ms</div>
+      <div class="sub">CNC → Dashboard</div>
+      <div class="z-bar"><div class="z-bar-fill cyan" id="bar-latency" style="width:15%;"></div></div>
+    </div>
+    <div class="kpi-tile c-blue">
+      <div class="label">Data Points / min</div>
+      <div class="value" style="color:var(--blue);" id="kpi-dpm">2,880</div>
+      <div class="sub">119 fields × 30s interval</div>
+    </div>
+    <div class="kpi-tile c-amber">
+      <div class="label">Last CNC Reading</div>
+      <div class="value" style="font-size:18px;color:var(--amber);" id="kpi-last">--:--:--</div>
+      <div class="sub" id="kpi-last-sub">Polling every 5s</div>
+    </div>
+  </div>
+
+  <!-- ANIMATED SVG PIPELINE DIAGRAM -->
+  <div class="pipeline-wrap">
+    <div class="pipeline-title">
+      <span style="color:var(--cyan);">⚡</span> IIoT Data Pipeline — Live Architecture View
+    </div>
+    <div class="pipeline-svg-container">
+      <svg class="animated-pipeline" viewBox="0 0 1100 220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Glow filters -->
+          <filter id="glow-c" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-g" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Gradients for connection lines -->
+          <linearGradient id="line1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00ff88;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0.8"/>
+          </linearGradient>
+          <linearGradient id="line2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#4488ff;stop-opacity:0.8"/>
+          </linearGradient>
+          <linearGradient id="line3" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#4488ff;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#aa44ff;stop-opacity:0.8"/>
+          </linearGradient>
+          <linearGradient id="line4" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#aa44ff;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#00ffcc;stop-opacity:0.8"/>
+          </linearGradient>
+          <linearGradient id="line5" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00ffcc;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0.8"/>
+          </linearGradient>
+          <linearGradient id="line6" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.8"/>
+            <stop offset="100%" style="stop-color:#00ff88;stop-opacity:0.8"/>
+          </linearGradient>
+          <!-- Animated dots along paths -->
+          <circle id="dot" r="4" fill="#00d4ff" filter="url(#glow-c)"/>
+        </defs>
+
+        <!-- Background grid lines -->
+        <line x1="0" y1="110" x2="1100" y2="110" stroke="rgba(26,47,85,.3)" stroke-width="1" stroke-dasharray="4,8"/>
+
+        <!-- Stage boxes - 7 nodes -->
+        <!-- Node 1: Industrial CNC -->
+        <rect x="10" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#00ff88" stroke-width="1.5" filter="url(#glow-g)"/>
+        <text x="70" y="82" text-anchor="middle" fill="#00ff88" font-size="18">🏭</text>
+        <text x="70" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">Demo CNC Machine</text>
+        <text x="70" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Machining Center</text>
+        <circle cx="100" cy="130" r="4" fill="#00ff88"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite"/></circle>
+        <text x="108" y="134" fill="#00ff88" font-size="8" font-weight="700">ONLINE</text>
+        <text x="70" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">Last: <tspan id="svg-cnc-time" fill="#00d4ff">just now</tspan></text>
+
+        <!-- Connector 1: CNC → FOCAS2 -->
+        <path d="M 130 110 L 178 110" stroke="url(#line1)" stroke-width="2" fill="none"/>
+        <text x="154" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">FOCAS2</text>
+        <!-- Animated data packet -->
+        <circle r="3" fill="#00ff88" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M 130 110 L 178 110"/>
+        </circle>
+
+        <!-- Node 2: Raspberry Pi 4 -->
+        <rect x="178" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#00d4ff" stroke-width="1.5" filter="url(#glow-c)"/>
+        <text x="238" y="82" text-anchor="middle" fill="#00d4ff" font-size="18">🍓</text>
+        <text x="238" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">Raspberry Pi 4</text>
+        <text x="238" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Edge Gateway</text>
+        <circle cx="260" cy="130" r="4" fill="#00d4ff"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="0.3s"/></circle>
+        <text x="268" y="134" fill="#00d4ff" font-size="8" font-weight="700">RUNNING</text>
+        <text x="238" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">CPU: <tspan id="svg-pi-cpu" fill="#00d4ff">12%</tspan> | Mem: <tspan fill="#00d4ff">34%</tspan></text>
+
+        <!-- Connector 2: Pi → MQTT -->
+        <path d="M 298 110 L 346 110" stroke="url(#line2)" stroke-width="2" fill="none"/>
+        <text x="322" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">TCP:1883</text>
+        <circle r="3" fill="#00d4ff" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="0.5s" path="M 298 110 L 346 110"/>
+        </circle>
+
+        <!-- Node 3: MQTT Broker -->
+        <rect x="346" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#4488ff" stroke-width="1.5"/>
+        <text x="406" y="82" text-anchor="middle" fill="#4488ff" font-size="18">📡</text>
+        <text x="406" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">MQTT Broker</text>
+        <text x="406" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Eclipse Mosquitto</text>
+        <circle cx="430" cy="130" r="4" fill="#4488ff"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="0.6s"/></circle>
+        <text x="438" y="134" fill="#4488ff" font-size="8" font-weight="700">LIVE</text>
+        <text x="406" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">Port: <tspan fill="#4488ff">1883</tspan> | QoS: <tspan fill="#4488ff">1</tspan></text>
+
+        <!-- Connector 3: MQTT → Node-RED -->
+        <path d="M 466 110 L 514 110" stroke="url(#line3)" stroke-width="2" fill="none"/>
+        <text x="490" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">subscribe</text>
+        <circle r="3" fill="#aa44ff" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="1s" path="M 466 110 L 514 110"/>
+        </circle>
+
+        <!-- Node 4: Node-RED -->
+        <rect x="514" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="574" y="82" text-anchor="middle" fill="#aa44ff" font-size="18">🔀</text>
+        <text x="574" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">Node-RED</text>
+        <text x="574" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Flow Engine :1880</text>
+        <circle cx="598" cy="130" r="4" fill="#aa44ff"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="0.9s"/></circle>
+        <text x="606" y="134" fill="#aa44ff" font-size="8" font-weight="700">ACTIVE</text>
+        <text x="574" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">119 fields/30s</text>
+
+        <!-- Connector 4: Node-RED → TimescaleDB -->
+        <path d="M 634 110 L 682 110" stroke="url(#line4)" stroke-width="2" fill="none"/>
+        <text x="658" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">INSERT</text>
+        <circle r="3" fill="#00ffcc" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="1.4s" path="M 634 110 L 682 110"/>
+        </circle>
+
+        <!-- Node 5: TimescaleDB -->
+        <rect x="682" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#00ffcc" stroke-width="1.5"/>
+        <text x="742" y="82" text-anchor="middle" fill="#00ffcc" font-size="18">🗄️</text>
+        <text x="742" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">TimescaleDB</text>
+        <text x="742" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">machine_live hypertable</text>
+        <circle cx="766" cy="130" r="4" fill="#00ffcc"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="1.2s"/></circle>
+        <text x="774" y="134" fill="#00ffcc" font-size="8" font-weight="700">HEALTHY</text>
+        <text x="742" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">7-day retention</text>
+
+        <!-- Connector 5: TimescaleDB → Express API -->
+        <path d="M 802 110 L 850 110" stroke="url(#line5)" stroke-width="2" fill="none"/>
+        <text x="826" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">REST/WS</text>
+        <circle r="3" fill="#00d4ff" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="1.8s" path="M 802 110 L 850 110"/>
+        </circle>
+
+        <!-- Node 6: Express API -->
+        <rect x="850" y="60" width="120" height="100" rx="10" fill="#0d1b35" stroke="#00d4ff" stroke-width="1.5" filter="url(#glow-c)"/>
+        <text x="910" y="82" text-anchor="middle" fill="#00d4ff" font-size="18">⚡</text>
+        <text x="910" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">Express API</text>
+        <text x="910" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Port 3000 + WebSocket</text>
+        <circle cx="934" cy="130" r="4" fill="#00d4ff"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="1.5s"/></circle>
+        <text x="942" y="134" fill="#00d4ff" font-size="8" font-weight="700">SERVING</text>
+        <text x="910" y="150" text-anchor="middle" fill="#6b8cae" font-size="7">WS push every 5s</text>
+
+        <!-- Connector 6: API → Browser -->
+        <path d="M 970 110 L 1018 110" stroke="url(#line6)" stroke-width="2" fill="none"/>
+        <text x="994" y="104" text-anchor="middle" fill="#6b8cae" font-size="7">HTTPS/WSS</text>
+        <circle r="3" fill="#00ff88" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="2.2s" path="M 970 110 L 1018 110"/>
+        </circle>
+
+        <!-- Node 7: Browser -->
+        <rect x="1018" y="60" width="72" height="100" rx="10" fill="#0d1b35" stroke="#00ff88" stroke-width="1.5" filter="url(#glow-g)"/>
+        <text x="1054" y="82" text-anchor="middle" fill="#00ff88" font-size="18">📊</text>
+        <text x="1054" y="100" text-anchor="middle" fill="#e8f4fd" font-size="10" font-weight="700">Browser</text>
+        <text x="1054" y="114" text-anchor="middle" fill="#6b8cae" font-size="8">Dashboard</text>
+        <circle cx="1054" cy="132" r="4" fill="#00ff88"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite" begin="2s"/></circle>
+        <text x="1054" y="148" text-anchor="middle" fill="#00ff88" font-size="8" font-weight="700">YOU</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- STAGE DETAIL CARDS -->
+  <div class="z-section" style="margin-bottom:14px;"><span class="dot" style="background:var(--cyan)"></span>Stage Status Monitor</div>
+  <div class="stage-grid" id="stageGrid" style="margin-bottom:20px;">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- DATA FLOW STEPS -->
+  <div class="z-card" style="margin-bottom:16px;" data-accent="blue">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+      🔄 Data Flow Detail — Step-by-Step
+    </div>
+    <div class="flow-timeline">
+      <div class="flow-step">
+        <div class="fs-num">Step 1</div>
+        <div class="fs-icon">🏭</div>
+        <div class="fs-label">CNC Reads</div>
+        <div class="fs-sub">FOCAS2 polls CNC registers every 1s</div>
+      </div>
+      <div style="width:32px;flex-shrink:0;"></div>
+      <div class="flow-step">
+        <div class="fs-num">Step 2</div>
+        <div class="fs-icon">🍓</div>
+        <div class="fs-label">Pi Gateway</div>
+        <div class="fs-sub">Aggregates to 30s payload, publishes MQTT</div>
+      </div>
+      <div style="width:32px;flex-shrink:0;"></div>
+      <div class="flow-step">
+        <div class="fs-num">Step 3</div>
+        <div class="fs-icon">🔀</div>
+        <div class="fs-label">Node-RED</div>
+        <div class="fs-sub">Transforms, normalises → HTTP POST /api/data</div>
+      </div>
+      <div style="width:32px;flex-shrink:0;"></div>
+      <div class="flow-step">
+        <div class="fs-num">Step 4</div>
+        <div class="fs-icon">🗄️</div>
+        <div class="fs-label">TimescaleDB</div>
+        <div class="fs-sub">Hypertable, 119 columns, 7-day auto-delete</div>
+      </div>
+      <div style="width:32px;flex-shrink:0;"></div>
+      <div class="flow-step">
+        <div class="fs-num">Step 5</div>
+        <div class="fs-icon">📊</div>
+        <div class="fs-label">Dashboard</div>
+        <div class="fs-sub">WebSocket push every 5s + REST history</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROTOCOL SUPPORT -->
+  <div class="z-section" style="margin-bottom:14px;"><span class="dot" style="background:var(--green)"></span>Protocol Support Matrix</div>
+  <div class="proto-grid" style="margin-bottom:20px;">
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">📡</span>
+        <div>
+          <div class="pc-name">MQTT v3.1 / v5.0</div>
+          <span class="z-badge ok">Supported</span>
+        </div>
+      </div>
+      <div class="pc-sub">Primary ingestion via Eclipse Mosquitto. Supports QoS 0/1/2, retained messages, and LWT for device health monitoring.</div>
+      <div class="pc-devices"><strong>Compatible:</strong> Advantech ADAM, Siemens IOT2040, any MQTT-enabled gateway</div>
+    </div>
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">🔗</span>
+        <div>
+          <div class="pc-name">OPC-UA (IEC 62541)</div>
+          <span class="z-badge ok">Supported</span>
+        </div>
+      </div>
+      <div class="pc-sub">node-opcua client connects to S7-1500, B&R PLCs. Subscription-based (not polling) for real-time data efficiency.</div>
+      <div class="pc-devices"><strong>Compatible:</strong> Siemens S7-1200/1500, B&R Automation Studio, Kepware OPC-UA</div>
+    </div>
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">🔌</span>
+        <div>
+          <div class="pc-name">EtherNet/IP (CIP)</div>
+          <span class="z-badge warn">Via Kepware</span>
+        </div>
+      </div>
+      <div class="pc-sub">Rockwell ControlLogix / CompactLogix via Kepware KEPServerEX as EtherNet/IP-to-OPC-UA bridge. Native driver also available.</div>
+      <div class="pc-devices"><strong>Compatible:</strong> Allen-Bradley ControlLogix 5580, CompactLogix 5380, MicroLogix, PowerFlex</div>
+    </div>
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">📶</span>
+        <div>
+          <div class="pc-name">Modbus TCP / RTU</div>
+          <span class="z-badge ok">Supported</span>
+        </div>
+      </div>
+      <div class="pc-sub">node-red-contrib-modbus supports TCP and RTU. Energy meters, water meters, and legacy drives via RS-485/USB converter.</div>
+      <div class="pc-devices"><strong>Compatible:</strong> Schneider iEM3000/3100, ABB DMTME, Yokogawa analyzers, VACON drives</div>
+    </div>
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">🏛️</span>
+        <div>
+          <div class="pc-name">FactoryTalk Historian</div>
+          <span class="z-badge warn">Roadmap Q3</span>
+        </div>
+      </div>
+      <div class="pc-sub">Integration via FT Historian SDK or PI Web API bridge. Pulls historical context into TimescaleDB to supplement live PLC data.</div>
+      <div class="pc-devices"><strong>Compatible:</strong> FactoryTalk Historian SE, PI Server, FactoryTalk AssetCentre</div>
+    </div>
+    <div class="proto-card">
+      <div class="pc-header">
+        <span class="pc-icon">☁️</span>
+        <div>
+          <div class="pc-name">Google Cloud Pub/Sub</div>
+          <span class="z-badge info">Config Ready</span>
+        </div>
+      </div>
+      <div class="pc-sub">Set DATA_SINK=gcp in .env to activate. All 119 fields include tenant_id, plant_id, device_id for BigQuery partitioning.</div>
+      <div class="pc-devices"><strong>Targets:</strong> BigQuery, Cloud Spanner, Looker, Vertex AI</div>
+    </div>
+  </div>
+
+  <!-- ROCKWELL INTEGRATION -->
+  <div class="z-section" style="margin-bottom:14px;"><span class="dot" style="background:var(--red)"></span>Rockwell Automation Integration</div>
+  <div class="z-card" style="margin-bottom:16px;" data-accent="red">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;">🔴 Rockwell Integration Detail</div>
+    <div class="rockwell-grid">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Connectivity Path</div>
+        <div class="rw-path">
+          <div class="rw-step" style="border-color:rgba(255,68,68,.3);">
+            <span class="rw-step-icon">🤖</span>
+            <div>
+              <div class="rw-step-name">ControlLogix 5580 / CompactLogix 5380</div>
+              <div class="rw-step-sub">EtherNet/IP (CIP) on Ethernet Port</div>
+            </div>
+          </div>
+          <div class="rw-arrow">↓ EtherNet/IP (CIP)</div>
+          <div class="rw-step" style="border-color:rgba(255,179,0,.3);">
+            <span class="rw-step-icon">🔀</span>
+            <div>
+              <div class="rw-step-name">Kepware KEPServerEX</div>
+              <div class="rw-step-sub">AB EtherNet/IP Driver → OPC-UA Server</div>
+            </div>
+          </div>
+          <div class="rw-arrow">↓ OPC-UA</div>
+          <div class="rw-step" style="border-color:rgba(0,212,255,.3);">
+            <span class="rw-step-icon">📡</span>
+            <div>
+              <div class="rw-step-name">Node-RED Edge Gateway</div>
+              <div class="rw-step-sub">node-opcua → 30s aggregation → POST to OEE Engine</div>
+            </div>
+          </div>
+          <div class="rw-arrow">↓ HTTP/MQTT</div>
+          <div class="rw-step" style="border-color:rgba(0,255,136,.3);">
+            <span class="rw-step-icon">📊</span>
+            <div>
+              <div class="rw-step-name">Factory-MIOS Dashboard</div>
+              <div class="rw-step-sub">Live OEE, machine health, alerts, predictive AI</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Supported Models</div>
+          <div>
+            <span class="tag-chip tc-red">ControlLogix 5580</span>
+            <span class="tag-chip tc-red">CompactLogix 5380</span>
+            <span class="tag-chip tc-red">CompactLogix 5480</span>
+            <span class="tag-chip tc-amber">MicroLogix 1400</span>
+            <span class="tag-chip tc-amber">GuardLogix 5580</span>
+            <span class="tag-chip tc-purple">PowerFlex 755</span>
+            <span class="tag-chip tc-purple">PowerFlex 525</span>
+            <span class="tag-chip tc-blue">Kepware KEPServerEX</span>
+            <span class="tag-chip tc-green">FT Historian SE</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Rockwell Tag Mapping</div>
+        <table class="spec-table">
+          <tr><td>Controller Tag</td><td>OEE Field</td></tr>
+          <tr><td>Program:OEE.RunTime</td><td>availability (sec)</td></tr>
+          <tr><td>Program:OEE.DownTime</td><td>total_stop_min</td></tr>
+          <tr><td>Program:OEE.GoodCount</td><td>total_good</td></tr>
+          <tr><td>Program:OEE.RejectCount</td><td>total_scrap</td></tr>
+          <tr><td>Program:OEE.TotalCount</td><td>total_parts</td></tr>
+          <tr><td>Program:OEE.IdealCycleTime</td><td>ideal_cycle_sec</td></tr>
+          <tr><td>Drive:VFD1.OutputFreq</td><td>m1_speed (Hz→RPM)</td></tr>
+          <tr><td>Drive:VFD1.MotorCurrent</td><td>m1_current (A)</td></tr>
+          <tr><td>Analog:Temp1.Value</td><td>m1_temp (°C)</td></tr>
+          <tr><td>Energy:PM1.KW</td><td>em1_kw (kW)</td></tr>
+          <tr><td>Energy:PM1.KWH</td><td>em1_kwh (cumul.)</td></tr>
+          <tr><td>Program:Shift.Name</td><td>shift (A/B/C)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANT CONNECTIVITY TABLE -->
+  <div class="z-section" style="margin-bottom:14px;"><span class="dot" style="background:var(--amber)"></span>Plant Connectivity Registry</div>
+  <div class="z-card" style="margin-bottom:16px;" data-accent="amber">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;">🏭 Connected Plants</div>
+    <div class="z-table-wrap">
+      <table class="z-table" id="plantTable">
+        <thead>
+          <tr>
+            <th>Plant</th><th>Location</th><th>Protocol</th><th>Devices</th>
+            <th>Shifts</th><th>OEE Target</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="plantTableBody">
+          <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;" class="skeleton" style="height:40px;">Loading plant data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECURITY + DEPLOYMENT -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="z-card" data-accent="green">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;">🔒 Data Security & Compliance</div>
+      <div class="sec-list">
+        <div class="sec-item"><span style="color:var(--green);">✅</span> JWT authentication (bcrypt hashed passwords)</div>
+        <div class="sec-item"><span style="color:var(--green);">✅</span> Role-based access (Admin, Supervisor, Operator)</div>
+        <div class="sec-item"><span style="color:var(--green);">✅</span> HttpOnly cookies — no token exposure in JS</div>
+        <div class="sec-item"><span style="color:var(--green);">✅</span> Multi-tenant data isolation (tenant_id all rows)</div>
+        <div class="sec-item"><span style="color:var(--green);">✅</span> All data on-premise by default (no third-party SaaS)</div>
+        <div class="sec-item"><span style="color:var(--amber);">🔜</span> LDAP / Active Directory integration (roadmap)</div>
+        <div class="sec-item"><span style="color:var(--amber);">🔜</span> TLS/HTTPS with certificate management (roadmap)</div>
+      </div>
+    </div>
+    <div class="z-card" data-accent="blue">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;">🗺️ Deployment Options</div>
+      <div class="deploy-grid" style="grid-template-columns:1fr;">
+        <div class="deploy-card">
+          <span style="font-size:20px;">🏭</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:3px;">On-Premise</div>
+            <div style="font-size:10px;color:var(--muted);">Install on plant server or industrial PC. Full data sovereignty. Works without internet.</div>
+          </div>
+        </div>
+        <div class="deploy-card">
+          <span style="font-size:20px;">☁️</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:3px;">Private Cloud (GCP / AWS / Azure)</div>
+            <div style="font-size:10px;color:var(--muted);">Docker containerised. Multi-plant hub with VPN connectivity from each plant edge.</div>
+          </div>
+        </div>
+        <div class="deploy-card">
+          <span style="font-size:20px;">🔀</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:3px;">Hybrid (Edge + Cloud)</div>
+            <div style="font-size:10px;color:var(--muted);">Edge node per plant for real-time OEE. Cloud aggregator for cross-plant analytics and AI.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script src="/_shared.js"></script>
+<script>
+zCheckAuth();
+
+// ── STAGE DATA ──────────────────────────────────────────────────
+const STAGES = [
+  {
+    id:'cnc', icon:'🏭', name:'Demo CNC Machine', sub:'Machining Center', status:'ok',
+    latency:'--', uptime:'99.2%', addr:'192.168.1.50', port:null,
+    apiPath:'/api/cnc/ping', pingLabel:'Ping CNC'
+  },
+  {
+    id:'focas', icon:'🔗', name:'FOCAS2 Driver', sub:'libfocas2 on Pi', status:'ok',
+    latency:'2ms', uptime:'99.8%', addr:'local', port:null,
+    apiPath:'/api/focas/status', pingLabel:'Check FOCAS'
+  },
+  {
+    id:'pi', icon:'🍓', name:'Raspberry Pi 4', sub:'Edge Gateway Node', status:'ok',
+    latency:'--', uptime:'99.5%', addr:'192.168.1.100', port:null,
+    apiPath:'/api/health/edge', pingLabel:'Ping Pi'
+  },
+  {
+    id:'mqtt', icon:'📡', name:'MQTT Broker', sub:'Eclipse Mosquitto', status:'ok',
+    latency:'--', uptime:'99.9%', addr:'192.168.1.100', port:1883,
+    apiPath:'/api/health/mqtt', pingLabel:'Check MQTT'
+  },
+  {
+    id:'nodered', icon:'🔀', name:'Node-RED', sub:'Flow Engine', status:'ok',
+    latency:'--', uptime:'99.4%', addr:'192.168.1.100', port:1880,
+    apiPath:'/api/health/nodered', pingLabel:'Check Node-RED'
+  },
+  {
+    id:'timescale', icon:'🗄️', name:'TimescaleDB', sub:'Time-series DB', status:'ok',
+    latency:'--', uptime:'99.9%', addr:'localhost', port:5432,
+    apiPath:'/api/health/db', pingLabel:'Check DB'
+  },
+  {
+    id:'api', icon:'⚡', name:'Express API', sub:'OEE Engine :3000', status:'ok',
+    latency:'--', uptime:'99.7%', addr:'localhost', port:3000,
+    apiPath:'/api/health', pingLabel:'Check API'
+  },
+  {
+    id:'browser', icon:'📊', name:'Browser', sub:'Dashboard Client', status:'ok',
+    latency:'<1ms', uptime:'100%', addr:'this browser', port:null,
+    apiPath:null, pingLabel:'You are here!'
+  },
+];
+
+const stageStatus = {};
+STAGES.forEach(s => { stageStatus[s.id] = { status: s.status, latency: s.latency, lastSeen: 'just now' }; });
+
+function renderStageGrid() {
+  const grid = document.getElementById('stageGrid');
+  grid.innerHTML = '';
+  STAGES.forEach(s => {
+    const st = stageStatus[s.id];
+    const col = st.status === 'ok' ? 'var(--green)' : st.status === 'warn' ? 'var(--amber)' : 'var(--red)';
+    const card = document.createElement('div');
+    card.className = `stage-card ${st.status}`;
+    card.innerHTML = `
+      <div class="sc-icon">${s.icon}</div>
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-sub">${s.sub}${s.port ? ` :${s.port}` : ''}</div>
+      <div class="sc-status">
+        <div class="sc-dot ${st.status}"></div>
+        <span style="color:${col};">${st.status.toUpperCase()}</span>
+      </div>
+      <div class="sc-latency" style="color:${col};">${st.latency}</div>
+      <div class="sc-uptime">Uptime: ${s.uptime}</div>
+      <div class="sc-lastseen">Last: ${st.lastSeen}</div>
+      ${s.apiPath ? `<button class="sc-ping-btn" onclick="pingStage('${s.id}')">${s.pingLabel}</button>` : `<button class="sc-ping-btn" disabled>Local</button>`}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function pingStage(id) {
+  const s = STAGES.find(x => x.id === id);
+  if (!s || !s.apiPath) return;
+  const t0 = performance.now();
+  zToast(`Pinging ${s.name}…`, 'info', 1500);
+  try {
+    const res = await fetch(s.apiPath, { headers: zAuthHeader() });
+    const lat = Math.round(performance.now() - t0);
+    stageStatus[id].status = res.ok ? 'ok' : 'warn';
+    stageStatus[id].latency = lat + 'ms';
+    stageStatus[id].lastSeen = 'just now';
+    zToast(`${s.name}: ${lat}ms — ${res.ok ? 'OK' : 'WARN'}`, res.ok ? 'ok' : 'warn');
+  } catch {
+    stageStatus[id].status = 'err';
+    stageStatus[id].latency = 'ERR';
+    zToast(`${s.name}: unreachable`, 'err');
+  }
+  renderStageGrid();
+}
+
+async function pingAll() {
+  zToast('Pinging all stages…', 'info', 2000);
+  const t0 = performance.now();
+  const results = await Promise.allSettled(
+    STAGES.filter(s => s.apiPath).map(async s => {
+      const t = performance.now();
+      const res = await fetch(s.apiPath, { headers: zAuthHeader() });
+      stageStatus[s.id].latency = Math.round(performance.now() - t) + 'ms';
+      stageStatus[s.id].status = res.ok ? 'ok' : 'warn';
+      stageStatus[s.id].lastSeen = 'just now';
+    })
+  );
+  const totalLat = Math.round(performance.now() - t0);
+  document.getElementById('kpi-latency').textContent = totalLat + 'ms';
+  renderStageGrid();
+  zToast(`All stages pinged — total ${totalLat}ms`, 'ok');
+}
+
+// ── LOAD PLANTS ─────────────────────────────────────────────────
+async function loadPlants() {
+  try {
+    const res = await fetch('/api/plants', { headers: zAuthHeader() });
+    const d = await res.json();
+    const plants = d.plants || [];
+    const tbody = document.getElementById('plantTableBody');
+    if (!plants.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No plants configured</td></tr>';
+      return;
+    }
+    tbody.innerHTML = plants.map(p => {
+      const active = p.active !== false;
+      const protocol = p.protocol || 'MQTT';
+      const devices = (p.devices||[]).length;
+      const shifts = (p.shifts||[]).length;
+      const target = p.oee_target || 85;
+      const protoCls = {MQTT:'info','OPC-UA':'ok','EtherNet/IP':'err',Modbus:'warn'}[protocol] || 'info';
+      return `<tr>
+        <td style="font-weight:700;">🏭 ${p.plant_name||p.plant_id}</td>
+        <td style="color:var(--muted);font-size:11px;">${p.location||'—'}</td>
+        <td><span class="z-badge ${protoCls}">${protocol}</span></td>
+        <td style="font-weight:700;color:${devices>0?'var(--green)':'var(--red)'}">${devices}</td>
+        <td style="font-weight:700;color:var(--cyan);">${shifts}</td>
+        <td style="font-weight:700;color:var(--amber);">${target}%</td>
+        <td><span class="z-badge ${active?'ok':'warn'}">${active?'ACTIVE':'INACTIVE'}</span></td>
+        <td>
+          <button class="z-btn ghost" style="font-size:10px;padding:4px 10px;" onclick="zToast('Pinging ${p.plant_name||p.plant_id}…','info')">Ping</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch {
+    document.getElementById('plantTableBody').innerHTML = `
+      <tr>
+        <td style="font-weight:700;">🏭 Demo Factory CNC Plant</td>
+        <td style="color:var(--muted);font-size:11px;">Factory Site</td>
+        <td><span class="z-badge ok">MQTT</span></td>
+        <td style="color:var(--green);font-weight:700;">1</td>
+        <td style="color:var(--cyan);font-weight:700;">2</td>
+        <td style="color:var(--amber);font-weight:700;">85%</td>
+        <td><span class="z-badge ok">ACTIVE</span></td>
+        <td><button class="z-btn ghost" style="font-size:10px;padding:4px 10px;">Ping</button></td>
+      </tr>`;
+  }
+}
+
+// ── LIVE CLOCK & LAST READING ────────────────────────────────────
+function updateLastReading() {
+  const now = new Date();
+  document.getElementById('kpi-last').textContent =
+    now.toLocaleTimeString('en-IN', { hour12:false, timeZone:'Asia/Kolkata' });
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  zParticles();
+  renderStageGrid();
+  loadPlants();
+  updateLastReading();
+  setInterval(updateLastReading, 5000);
+  // Auto-ping on load (non-blocking)
+  setTimeout(() => pingAll(), 1500);
+});
+</script>
+</body>
+</html>

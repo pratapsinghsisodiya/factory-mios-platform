@@ -1,0 +1,387 @@
+[
+  {
+    "id": "tab_cnc_oee_main",
+    "type": "tab",
+    "label": "CNC → OEE → PostgreSQL",
+    "disabled": false,
+    "info": "Full pipeline: CNC machine payload → OEE calculation → plant_readings table → Live Dashboard"
+  },
+
+  {
+    "id": "tab_cnc_raw_store",
+    "type": "tab",
+    "label": "CNC Raw Data Store",
+    "disabled": false,
+    "info": "Stores original CNC payload in cnc_machine_data table for detailed analysis"
+  },
+
+  {
+    "id": "tab_cnc_config",
+    "type": "tab",
+    "label": "Config & Setup",
+    "disabled": false,
+    "info": "Configuration: ideal cycle time, quality rate, plant ID, machine ID"
+  },
+
+  {
+    "id": "db_config_cnc",
+    "type": "postgreSQLConfig",
+    "name": "oee_db (localhost)",
+    "host": "127.0.0.1",
+    "hostFieldType": "str",
+    "port": "5432",
+    "portFieldType": "num",
+    "database": "oee_db",
+    "databaseFieldType": "str",
+    "ssl": false,
+    "user": "oee_user",
+    "userFieldType": "str",
+    "password": "oee_pass123",
+    "passwordFieldType": "str",
+    "max": "10",
+    "idle": "1000"
+  },
+
+  {
+    "id": "comment_overview",
+    "type": "comment",
+    "z": "tab_cnc_oee_main",
+    "name": "📖 HOW TO USE THIS FLOW",
+    "info": "## CNC → OEE → Dashboard Pipeline\n\n### Step 1: Connect your CNC data\nConnect your existing CNC output node to the **[CONNECT HERE]** Link-In node.\nYour payload should have these fields:\n- `is_running`, `machine_state`, `alarm_active`, `emergency`\n- `spindle_speed`, `feed_rate`, `program_no`, `alarm_no`\n- `raw_cycle_time_sec` (ideal/programmed cycle time)\n- `last_cycle_time_sec` (actual last cycle wall time)\n- `last_cutting_time_sec` (net cutting time in last cycle)\n- `part_count` (cumulative counter)\n- `cutting_time_delta_sec`, `timestamp`\n\n### Step 2: Configure\nSee **Config & Setup** tab. Set:\n- IDEAL_CYCLE_SEC (your target cycle time)\n- QUALITY_RATE (default 98%)\n- PLANT_ID, MACHINE_ID\n\n### Step 3: Test\nUse the **Test Inject** node to send a sample payload\n\n### Dashboard\nData flows to `plant_readings` table → visible at http://localhost:3000\nFacto-Bot will now answer: \"What is the OEE for last 3 days?\" etc.",
+    "x": 180,
+    "y": 40
+  },
+
+  {
+    "id": "inject_test",
+    "type": "inject",
+    "z": "tab_cnc_oee_main",
+    "name": "🧪 Test: Sample CNC Payload",
+    "props": [{"p":"payload"},{"p":"topic","vt":"str"}],
+    "repeat": "30",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "2",
+    "topic": "",
+    "payload": "{\"timestamp\":\"2026-05-21T13:43:16.202009\",\"status\":\"OK\",\"connection_status\":\"connected\",\"machine_state\":\"RUNNING\",\"auto_mode\":\"MEMORY\",\"run_status\":\"MSTR\",\"is_running\":true,\"emergency\":false,\"alarm_active\":false,\"program_no\":8,\"alarm_no\":0,\"feed_rate\":0,\"spindle_speed\":200,\"raw_cycle_time_sec\":20.848,\"cutting_time_total_sec\":14272340.848,\"last_cycle_time_sec\":45.9,\"last_cutting_time_sec\":26.56,\"part_count\":13,\"cutting_time_delta_sec\":0.656}",
+    "payloadType": "json",
+    "x": 200,
+    "y": 120,
+    "wires": [["oee_calculator"]]
+  },
+
+  {
+    "id": "link_in_cnc",
+    "type": "link in",
+    "z": "tab_cnc_oee_main",
+    "name": "🔌 CONNECT YOUR CNC NODE HERE",
+    "links": [],
+    "x": 195,
+    "y": 180,
+    "wires": [["oee_calculator"]]
+  },
+
+  {
+    "id": "comment_connect",
+    "type": "comment",
+    "z": "tab_cnc_oee_main",
+    "name": "⬆️ Connect your existing CNC output to this Link-In node",
+    "info": "",
+    "x": 370,
+    "y": 180
+  },
+
+  {
+    "id": "oee_calculator",
+    "type": "function",
+    "z": "tab_cnc_oee_main",
+    "name": "🧮 OEE Calculator (Shift-Aware)",
+    "func": "// ══════════════════════════════════════════════════════════════\n//  OEE CALCULATOR — CNC Machine → plant_readings format\n//  Calculations:\n//    Availability  = running_time / total_shift_time (rolling)\n//    Performance   = raw_cycle_time_sec / last_cycle_time_sec\n//    Quality       = configured rate (no scrap sensor in payload)\n//    OEE           = A × P × Q\n// ══════════════════════════════════════════════════════════════\n\nconst p = msg.payload;\n\n// ── CONFIGURATION (edit these) ─────────────────────────────────\n// Override with global context: global.set('cnc_ideal_cycle_sec', 20)\nconst IDEAL_CYCLE_SEC   = global.get('cnc_ideal_cycle_sec')   || 20.848;  // seconds per part (your programmed cycle time)\nconst QUALITY_RATE_PCT  = global.get('cnc_quality_rate_pct')  || 98.0;    // % (add scrap counter to improve this)\nconst SHIFT_DURATION_MIN = 480;                                             // 8-hour shifts\nconst PLANT_ID          = global.get('cnc_plant_id')          || 'plant_1';\nconst MACHINE_SLOT      = global.get('cnc_machine_slot')      || 1;        // which m1-m5 slot to use\n\n// ── SHIFT DETECTION (IST / server timezone) ─────────────────────\nconst now = new Date();\nconst hour = now.getHours();\nconst min  = now.getMinutes();\nconst totalMin = hour * 60 + min;\n\nlet shiftId, shiftStartMin, shiftEndMin;\nif (totalMin >= 360 && totalMin < 840) {       // 06:00–14:00\n    shiftId = 'SHIFT_A'; shiftStartMin = 360; shiftEndMin = 840;\n} else if (totalMin >= 840 && totalMin < 1320) { // 14:00–22:00\n    shiftId = 'SHIFT_B'; shiftStartMin = 840; shiftEndMin = 1320;\n} else {                                        // 22:00–06:00\n    shiftId = 'SHIFT_C';\n    shiftStartMin = totalMin >= 1320 ? 1320 : 0;\n    shiftEndMin   = totalMin >= 1320 ? 1440 : 360;\n}\nconst elapsedMin   = Math.max(0, totalMin - shiftStartMin);\nconst remainingMin = Math.max(0, shiftEndMin - totalMin);\n\n// ── PERSISTENT STATE via flow context ────────────────────────────\nconst STATE_KEY = `cnc_m${MACHINE_SLOT}_state`;\nlet s = flow.get(STATE_KEY) || {\n    shift:             null,\n    shiftStartTs:      null,\n    runningTicks:      0,\n    totalTicks:        0,\n    lastPartCount:     null,\n    goodPartsShift:    0,\n    totalPartsShift:   0,\n    scrapPartsShift:   0,\n    stopCount:         0,\n    stopMinutes:       0.0,\n    lastWasRunning:    true,\n    stopStartTs:       null,\n    lastPerformance:   100.0,\n    cumulativeKwh:     0.0,\n    totalCuttingThisShift: 0.0,\n    lastCuttingTotal:  null,\n    readingCount:      0,\n};\n\n// ── SHIFT RESET — clear counters when shift changes ──────────────\nif (s.shift !== shiftId) {\n    node.warn(`⏰ Shift change: ${s.shift || 'init'} → ${shiftId}. Counters reset.`);\n    // Keep lastPartCount so we don't double-count parts straddling shift boundary\n    s.shift            = shiftId;\n    s.shiftStartTs     = now.toISOString();\n    s.runningTicks     = 0;\n    s.totalTicks       = 0;\n    s.goodPartsShift   = 0;\n    s.totalPartsShift  = 0;\n    s.scrapPartsShift  = 0;\n    s.stopCount        = 0;\n    s.stopMinutes      = 0.0;\n    s.lastWasRunning   = true;\n    s.stopStartTs      = null;\n    s.totalCuttingThisShift = 0.0;\n    s.lastCuttingTotal = p.cutting_time_total_sec;\n    s.readingCount     = 0;\n}\ns.readingCount++;\n\n// ── MACHINE STATUS ────────────────────────────────────────────────\nconst isEmergency = !!p.emergency;\nconst isAlarm     = !!p.alarm_active;\nconst isRunning   = !!p.is_running && p.machine_state === 'RUNNING' && !isEmergency && !isAlarm;\nconst machineStatus = isEmergency ? 'ALERT' : isAlarm ? 'ALERT' : !p.is_running ? 'WARN' : 'OK';\n\n// ── AVAILABILITY TRACKING ─────────────────────────────────────────\n// Track every reading as a tick (one tick = one reading interval)\ns.totalTicks++;\nif (isRunning) s.runningTicks++;\n\n// Detect stop events for downtime counter\nif (s.lastWasRunning && !isRunning) {\n    // Machine just stopped\n    s.stopCount++;\n    s.stopStartTs = now.toISOString();\n} else if (!s.lastWasRunning && isRunning && s.stopStartTs) {\n    // Machine restarted — add elapsed stop duration\n    const stopDur = (now - new Date(s.stopStartTs)) / 60000;\n    s.stopMinutes += stopDur;\n    s.stopStartTs = null;\n}\ns.lastWasRunning = isRunning;\n\n// Current stop duration (if still stopped)\nlet liveStopMin = s.stopMinutes;\nif (!isRunning && s.stopStartTs) {\n    liveStopMin += (now - new Date(s.stopStartTs)) / 60000;\n}\n\n// Availability = fraction of ticks machine was running\nconst availability = s.totalTicks > 0\n    ? (s.runningTicks / s.totalTicks) * 100\n    : (isRunning ? 100 : 0);\n\n// ── PART COUNT DELTA ─────────────────────────────────────────────\n// part_count may be cumulative since machine power-on\n// We track the delta each reading to get parts this shift only\nif (s.lastPartCount === null) s.lastPartCount = p.part_count;\nconst partsDelta = Math.max(0, (p.part_count || 0) - s.lastPartCount);\ns.lastPartCount = p.part_count || 0;\ns.goodPartsShift  += partsDelta;   // all counted parts assumed good (no scrap sensor)\ns.totalPartsShift += partsDelta;\n\n// ── CUTTING TIME DELTA ───────────────────────────────────────────\nif (s.lastCuttingTotal === null) s.lastCuttingTotal = p.cutting_time_total_sec || 0;\nconst cuttingDelta = Math.max(0, (p.cutting_time_total_sec || 0) - s.lastCuttingTotal);\ns.lastCuttingTotal = p.cutting_time_total_sec || 0;\ns.totalCuttingThisShift += cuttingDelta;\n\n// ── PERFORMANCE ──────────────────────────────────────────────────\n// Formula: Ideal Cycle Time / Actual Cycle Time\n// raw_cycle_time_sec = programmed/ideal cycle time from CNC controller\n// last_cycle_time_sec = wall-clock time of last completed part cycle\nlet performance = s.lastPerformance;\nif (isRunning && p.last_cycle_time_sec > 0) {\n    const idealCycle = p.raw_cycle_time_sec > 0 ? p.raw_cycle_time_sec : IDEAL_CYCLE_SEC;\n    const rawPerf = (idealCycle / p.last_cycle_time_sec) * 100;\n    performance = Math.min(100, Math.max(0, rawPerf));\n    s.lastPerformance = performance;\n}\nif (!isRunning) performance = 0;\n\n// ── QUALITY ───────────────────────────────────────────────────────\n// Payload has no scrap counter — use configured rate\n// To improve: add a scrap counter input and calculate:\n//   quality = (goodPartsShift / totalPartsShift) * 100\nconst quality = isRunning ? QUALITY_RATE_PCT : 0;\n\n// ── OEE ───────────────────────────────────────────────────────────\nconst oee = (availability / 100) * (performance / 100) * (quality / 100) * 100;\n\n// ── SAVE STATE ────────────────────────────────────────────────────\nflow.set(STATE_KEY, s);\n\n// ── BUILD OUTPUT PAYLOAD ──────────────────────────────────────────\nmsg.cncRaw = { ...p };  // preserve original for raw store tab\nmsg.payload = {\n    // Shift info\n    SHIFT:        shiftId,\n    ELAPSED_MIN:  Math.round(elapsedMin),\n    REMAINING_MIN: Math.round(remainingMin),\n    PLANT_ID:     PLANT_ID,\n    // Plant OEE (= Machine 1 OEE for single-machine setup)\n    PLANT_OEE:          +oee.toFixed(2),\n    PLANT_AVAILABILITY: +availability.toFixed(2),\n    PLANT_PERFORMANCE:  +performance.toFixed(2),\n    PLANT_QUALITY:      +quality.toFixed(2),\n    // Line 1 = this CNC machine\n    L1_OEE:   +oee.toFixed(2),\n    L1_AVAIL: +availability.toFixed(2),\n    L1_PERF:  +performance.toFixed(2),\n    L1_QUAL:  +quality.toFixed(2),\n    // Line 2 = 0 (no second machine/line)\n    L2_OEE: 0, L2_AVAIL: 0, L2_PERF: 0, L2_QUAL: 0,\n    // Production counters (shift totals)\n    TOTAL_GOOD:     s.goodPartsShift,\n    TOTAL_SCRAP:    s.scrapPartsShift,\n    TOTAL_PARTS:    s.totalPartsShift,\n    TOTAL_STOPS:    s.stopCount,\n    TOTAL_STOP_MIN: +liveStopMin.toFixed(2),\n    // Energy meters — map your energy sensor to EM1_KW etc.\n    // These will show 0 until you connect energy meter nodes\n    EM1_KW: 0, EM1_KWH: 0, EM1_PF: 1.0, EM1_VOLTAGE: 415,\n    EM2_KW: 0, EM2_KWH: 0, EM2_PF: 1.0, EM2_VOLTAGE: 415,\n    EM3_KW: 0, EM3_KWH: 0, EM3_PF: 1.0, EM3_VOLTAGE: 415,\n    EM4_KW: 0, EM4_KWH: 0, EM4_PF: 1.0, EM4_VOLTAGE: 415,\n    EM5_KW: 0, EM5_KWH: 0, EM5_PF: 1.0, EM5_VOLTAGE: 415,\n    // Water meters — connect your flow sensors to W1_FLOW etc.\n    W1_FLOW: 0, W1_TOTAL: 0,\n    W2_FLOW: 0, W2_TOTAL: 0,\n    W3_FLOW: 0, W3_TOTAL: 0,\n    W4_FLOW: 0, W4_TOTAL: 0,\n    W5_FLOW: 0, W5_TOTAL: 0,\n    // Machine 1 = CNC machine data\n    M1_VIB:          0,               // Connect vibration sensor if available\n    M1_TEMP:         0,               // Coolant/ambient temp if available\n    M1_BEARING_TEMP: 0,\n    M1_CURRENT:      p.feed_rate || 0,  // Feed rate as proxy for load\n    M1_SPEED:        p.spindle_speed || 0,\n    M1_COOLANT_TEMP: 0,\n    M1_AIR_PRESSURE: 0,\n    M1_STATUS:       machineStatus,\n    // Machines 2–5 = not connected (set to 0/OK)\n    M2_VIB: 0, M2_TEMP: 0, M2_BEARING_TEMP: 0, M2_CURRENT: 0, M2_SPEED: 0, M2_COOLANT_TEMP: 0, M2_AIR_PRESSURE: 0, M2_STATUS: 'OK',\n    M3_VIB: 0, M3_TEMP: 0, M3_BEARING_TEMP: 0, M3_CURRENT: 0, M3_SPEED: 0, M3_COOLANT_TEMP: 0, M3_AIR_PRESSURE: 0, M3_STATUS: 'OK',\n    M4_VIB: 0, M4_TEMP: 0, M4_BEARING_TEMP: 0, M4_CURRENT: 0, M4_SPEED: 0, M4_COOLANT_TEMP: 0, M4_AIR_PRESSURE: 0, M4_STATUS: 'OK',\n    M5_VIB: 0, M5_TEMP: 0, M5_BEARING_TEMP: 0, M5_CURRENT: 0, M5_SPEED: 0, M5_COOLANT_TEMP: 0, M5_AIR_PRESSURE: 0, M5_STATUS: 'OK',\n};\n\n// ── Node status indicator ─────────────────────────────────────────\nnode.status({\n    fill:  isEmergency ? 'red' : isAlarm ? 'red' : isRunning ? 'green' : 'yellow',\n    shape: 'dot',\n    text:  `OEE:${oee.toFixed(1)}% A:${availability.toFixed(1)} P:${performance.toFixed(1)} Q:${quality.toFixed(1)} | Parts:${s.goodPartsShift} | ${shiftId}`\n});\n\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 500,
+    "y": 160,
+    "wires": [["sql_builder", "debug_oee", "link_out_raw"]]
+  },
+
+  {
+    "id": "debug_oee",
+    "type": "debug",
+    "z": "tab_cnc_oee_main",
+    "name": "📊 OEE Values (debug)",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload.PLANT_OEE",
+    "statusType": "auto",
+    "x": 750,
+    "y": 100,
+    "wires": []
+  },
+
+  {
+    "id": "sql_builder",
+    "type": "function",
+    "z": "tab_cnc_oee_main",
+    "name": "🔨 SQL Builder → plant_readings",
+    "func": "// ══════════════════════════════════════════════════════════════\n//  SQL BUILDER — Maps OEE payload to plant_readings INSERT\n//  Uses msg.topic = SQL, msg.params = values (postgresql node pattern)\n//  Table: oee_db.plant_readings\n//  Columns: 90 params (time=NOW() is set by DB)\n// ══════════════════════════════════════════════════════════════\n\nconst d = msg.payload;\n\nmsg.topic = `\nINSERT INTO plant_readings (\n  time, shift, elapsed_min, remaining_min,\n  plant_oee, plant_availability, plant_performance, plant_quality,\n  l1_oee, l1_avail, l1_perf, l1_qual,\n  l2_oee, l2_avail, l2_perf, l2_qual,\n  total_good, total_scrap, total_parts, total_stops, total_stop_min,\n  em1_kw, em1_kwh, em1_pf, em1_voltage,\n  em2_kw, em2_kwh, em2_pf, em2_voltage,\n  em3_kw, em3_kwh, em3_pf, em3_voltage,\n  em4_kw, em4_kwh, em4_pf, em4_voltage,\n  em5_kw, em5_kwh, em5_pf, em5_voltage,\n  w1_flow, w1_total, w2_flow, w2_total,\n  w3_flow, w3_total, w4_flow, w4_total, w5_flow, w5_total,\n  m1_vib, m1_temp, m1_bearing_temp, m1_current, m1_speed, m1_coolant_temp, m1_air_pressure, m1_status,\n  m2_vib, m2_temp, m2_bearing_temp, m2_current, m2_speed, m2_coolant_temp, m2_air_pressure, m2_status,\n  m3_vib, m3_temp, m3_bearing_temp, m3_current, m3_speed, m3_coolant_temp, m3_air_pressure, m3_status,\n  m4_vib, m4_temp, m4_bearing_temp, m4_current, m4_speed, m4_coolant_temp, m4_air_pressure, m4_status,\n  m5_vib, m5_temp, m5_bearing_temp, m5_current, m5_speed, m5_coolant_temp, m5_air_pressure, m5_status\n) VALUES (\n  NOW(), $1,$2,$3,\n  $4,$5,$6,$7,\n  $8,$9,$10,$11,\n  $12,$13,$14,$15,\n  $16,$17,$18,$19,$20,\n  $21,$22,$23,$24,\n  $25,$26,$27,$28,\n  $29,$30,$31,$32,\n  $33,$34,$35,$36,\n  $37,$38,$39,$40,\n  $41,$42,$43,$44,\n  $45,$46,$47,$48,$49,$50,\n  $51,$52,$53,$54,$55,$56,$57,$58,\n  $59,$60,$61,$62,$63,$64,$65,$66,\n  $67,$68,$69,$70,$71,$72,$73,$74,\n  $75,$76,$77,$78,$79,$80,$81,$82,\n  $83,$84,$85,$86,$87,$88,$89,$90\n)`;\n\nmsg.params = [\n  // $1-$3  Shift info\n  d.SHIFT, d.ELAPSED_MIN, d.REMAINING_MIN,\n  // $4-$7  Plant OEE\n  d.PLANT_OEE, d.PLANT_AVAILABILITY, d.PLANT_PERFORMANCE, d.PLANT_QUALITY,\n  // $8-$11 Line 1\n  d.L1_OEE, d.L1_AVAIL, d.L1_PERF, d.L1_QUAL,\n  // $12-$15 Line 2\n  d.L2_OEE, d.L2_AVAIL, d.L2_PERF, d.L2_QUAL,\n  // $16-$20 Production\n  d.TOTAL_GOOD, d.TOTAL_SCRAP, d.TOTAL_PARTS, d.TOTAL_STOPS, d.TOTAL_STOP_MIN,\n  // $21-$24 Energy Meter 1\n  d.EM1_KW, d.EM1_KWH, d.EM1_PF, d.EM1_VOLTAGE,\n  // $25-$28 Energy Meter 2\n  d.EM2_KW, d.EM2_KWH, d.EM2_PF, d.EM2_VOLTAGE,\n  // $29-$32 Energy Meter 3\n  d.EM3_KW, d.EM3_KWH, d.EM3_PF, d.EM3_VOLTAGE,\n  // $33-$36 Energy Meter 4\n  d.EM4_KW, d.EM4_KWH, d.EM4_PF, d.EM4_VOLTAGE,\n  // $37-$40 Energy Meter 5\n  d.EM5_KW, d.EM5_KWH, d.EM5_PF, d.EM5_VOLTAGE,\n  // $41-$50 Water meters (flow + totalizer each)\n  d.W1_FLOW, d.W1_TOTAL, d.W2_FLOW, d.W2_TOTAL,\n  d.W3_FLOW, d.W3_TOTAL, d.W4_FLOW, d.W4_TOTAL, d.W5_FLOW, d.W5_TOTAL,\n  // $51-$58 Machine 1 (CNC)\n  d.M1_VIB, d.M1_TEMP, d.M1_BEARING_TEMP, d.M1_CURRENT,\n  d.M1_SPEED, d.M1_COOLANT_TEMP, d.M1_AIR_PRESSURE, d.M1_STATUS,\n  // $59-$66 Machine 2\n  d.M2_VIB, d.M2_TEMP, d.M2_BEARING_TEMP, d.M2_CURRENT,\n  d.M2_SPEED, d.M2_COOLANT_TEMP, d.M2_AIR_PRESSURE, d.M2_STATUS,\n  // $67-$74 Machine 3\n  d.M3_VIB, d.M3_TEMP, d.M3_BEARING_TEMP, d.M3_CURRENT,\n  d.M3_SPEED, d.M3_COOLANT_TEMP, d.M3_AIR_PRESSURE, d.M3_STATUS,\n  // $75-$82 Machine 4\n  d.M4_VIB, d.M4_TEMP, d.M4_BEARING_TEMP, d.M4_CURRENT,\n  d.M4_SPEED, d.M4_COOLANT_TEMP, d.M4_AIR_PRESSURE, d.M4_STATUS,\n  // $83-$90 Machine 5\n  d.M5_VIB, d.M5_TEMP, d.M5_BEARING_TEMP, d.M5_CURRENT,\n  d.M5_SPEED, d.M5_COOLANT_TEMP, d.M5_AIR_PRESSURE, d.M5_STATUS\n];\n\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 760,
+    "y": 160,
+    "wires": [["pg_write_plant_readings"]]
+  },
+
+  {
+    "id": "pg_write_plant_readings",
+    "type": "postgresql",
+    "z": "tab_cnc_oee_main",
+    "name": "💾 Write → plant_readings",
+    "query": "",
+    "postgreSQLConfig": "db_config_cnc",
+    "split": false,
+    "rowsPerMsg": 1,
+    "outputs": 1,
+    "x": 1000,
+    "y": 160,
+    "wires": [["debug_db_success"]]
+  },
+
+  {
+    "id": "debug_db_success",
+    "type": "debug",
+    "z": "tab_cnc_oee_main",
+    "name": "✅ DB Write Success",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1220,
+    "y": 160,
+    "wires": []
+  },
+
+  {
+    "id": "catch_db_error",
+    "type": "catch",
+    "z": "tab_cnc_oee_main",
+    "name": "❌ DB Error Catcher",
+    "scope": ["pg_write_plant_readings"],
+    "uncaught": false,
+    "x": 1000,
+    "y": 240,
+    "wires": [["debug_db_error", "error_handler"]]
+  },
+
+  {
+    "id": "debug_db_error",
+    "type": "debug",
+    "z": "tab_cnc_oee_main",
+    "name": "❌ DB Error",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "error",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1190,
+    "y": 220,
+    "wires": []
+  },
+
+  {
+    "id": "error_handler",
+    "type": "function",
+    "z": "tab_cnc_oee_main",
+    "name": "🔧 Error Handler",
+    "func": "// Log the error with context for debugging\nconst errMsg = msg.error?.message || 'Unknown DB error';\nconst hint = errMsg.includes('column') ? '→ Check plant_readings schema has all required columns.' :\n             errMsg.includes('connect') ? '→ Check PostgreSQL is running: sudo systemctl status postgresql' :\n             errMsg.includes('auth') ? '→ Check credentials: oee_user / oee_pass123' :\n             errMsg.includes('does not exist') ? '→ Run: psql -h 127.0.0.1 -U oee_user -d oee_db to verify table' : '';\n\nnode.error(`DB Error: ${errMsg}\\n${hint}`, msg);\nnode.status({ fill: 'red', shape: 'ring', text: errMsg.substring(0, 50) });\nreturn null;  // stop message\n",
+    "outputs": 0,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1190,
+    "y": 260,
+    "wires": []
+  },
+
+  {
+    "id": "link_out_raw",
+    "type": "link out",
+    "z": "tab_cnc_oee_main",
+    "name": "→ Raw Store",
+    "mode": "link",
+    "links": ["link_in_raw"],
+    "x": 700,
+    "y": 220,
+    "wires": []
+  },
+
+  {
+    "id": "comment_oee_calc",
+    "type": "comment",
+    "z": "tab_cnc_oee_main",
+    "name": "📐 OEE FORMULA NOTES",
+    "info": "## OEE Calculation from CNC Payload\n\n### Availability\nTracked as rolling fraction of readings where machine was RUNNING:\n`availability = running_ticks / total_ticks × 100`\n- Resets at each shift boundary (06:00 / 14:00 / 22:00)\n- Stop events counted & timed automatically\n\n### Performance  \n`performance = raw_cycle_time_sec / last_cycle_time_sec × 100`\n- `raw_cycle_time_sec` = your CNC programmed/ideal cycle time (20.848s)\n- `last_cycle_time_sec` = actual last-cycle wall time (45.9s)\n- **Example**: 20.848 / 45.9 = 45.4% → machine running at half speed\n- If no last_cycle data, keeps previous performance value\n\n### Quality\n`quality = QUALITY_RATE_PCT` (default 98%)\n- Your payload has no scrap counter\n- To improve: add scrap counter input and calculate:\n  `quality = (total_good / total_parts) × 100`\n\n### OEE\n`oee = (availability/100) × (performance/100) × (quality/100) × 100`\n\n### Part Count\n`part_count` is cumulative from machine power-on\nFlow tracks the DELTA each interval to count parts per shift",
+    "x": 490,
+    "y": 280,
+    "wires": []
+  },
+
+  {
+    "id": "link_in_raw",
+    "type": "link in",
+    "z": "tab_cnc_raw_store",
+    "name": "← from OEE Calculator",
+    "links": ["link_out_raw"],
+    "x": 175,
+    "y": 120,
+    "wires": [["build_raw_sql"]]
+  },
+
+  {
+    "id": "build_raw_sql",
+    "type": "function",
+    "z": "tab_cnc_raw_store",
+    "name": "🔨 SQL Builder → cnc_machine_data",
+    "func": "// ══════════════════════════════════════════════════════════════\n//  Stores ORIGINAL CNC payload in cnc_machine_data table\n//  This table is created automatically on first write.\n//  Use for: detailed machine analysis, cycle time trending,\n//           spindle load analysis, alarm history\n// ══════════════════════════════════════════════════════════════\n\nconst raw = msg.cncRaw || {};   // original CNC payload\nconst oee = msg.payload || {};  // calculated OEE values\n\nmsg.topic = `\nCREATE TABLE IF NOT EXISTS cnc_machine_data (\n  id                BIGSERIAL PRIMARY KEY,\n  time              TIMESTAMPTZ DEFAULT NOW(),\n  machine_id        TEXT NOT NULL DEFAULT 'M1',\n  plant_id          TEXT NOT NULL DEFAULT 'plant_1',\n  shift             TEXT,\n  -- Machine state\n  connection_status TEXT,\n  machine_state     TEXT,\n  auto_mode         TEXT,\n  run_status        TEXT,\n  is_running        BOOLEAN,\n  emergency         BOOLEAN,\n  alarm_active      BOOLEAN,\n  program_no        INTEGER,\n  alarm_no          INTEGER,\n  -- Performance data\n  feed_rate         NUMERIC(10,3),\n  spindle_speed     NUMERIC(10,1),\n  raw_cycle_time_sec     NUMERIC(12,3),\n  last_cycle_time_sec    NUMERIC(12,3),\n  last_cutting_time_sec  NUMERIC(12,3),\n  cutting_time_delta_sec NUMERIC(12,3),\n  cutting_time_total_sec NUMERIC(18,3),\n  part_count        INTEGER,\n  -- Calculated OEE\n  calc_oee          NUMERIC(6,2),\n  calc_availability NUMERIC(6,2),\n  calc_performance  NUMERIC(6,2),\n  calc_quality      NUMERIC(6,2),\n  parts_this_shift  INTEGER,\n  stops_this_shift  INTEGER,\n  stop_min_this_shift NUMERIC(10,2)\n);\n\nSELECT 1`;\n\n// First create table, then insert\nflow.set('cnc_raw_pending', { raw, oee });\nmsg.params = [];\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 120,
+    "wires": [["pg_create_raw_table"]]
+  },
+
+  {
+    "id": "pg_create_raw_table",
+    "type": "postgresql",
+    "z": "tab_cnc_raw_store",
+    "name": "📋 Create table (if needed)",
+    "query": "",
+    "postgreSQLConfig": "db_config_cnc",
+    "split": false,
+    "rowsPerMsg": 1,
+    "outputs": 1,
+    "x": 640,
+    "y": 120,
+    "wires": [["insert_raw_record"]]
+  },
+
+  {
+    "id": "insert_raw_record",
+    "type": "function",
+    "z": "tab_cnc_raw_store",
+    "name": "🔨 Build INSERT → cnc_machine_data",
+    "func": "const { raw, oee } = flow.get('cnc_raw_pending') || {};\nif (!raw) { node.warn('No pending CNC raw data'); return null; }\n\nmsg.topic = `\nINSERT INTO cnc_machine_data (\n  time, machine_id, plant_id, shift,\n  connection_status, machine_state, auto_mode, run_status,\n  is_running, emergency, alarm_active, program_no, alarm_no,\n  feed_rate, spindle_speed,\n  raw_cycle_time_sec, last_cycle_time_sec, last_cutting_time_sec,\n  cutting_time_delta_sec, cutting_time_total_sec, part_count,\n  calc_oee, calc_availability, calc_performance, calc_quality,\n  parts_this_shift, stops_this_shift, stop_min_this_shift\n) VALUES (\n  COALESCE($1::timestamptz, NOW()), $2, $3, $4,\n  $5,$6,$7,$8,\n  $9,$10,$11,$12,$13,\n  $14,$15,\n  $16,$17,$18,$19,$20,$21,\n  $22,$23,$24,$25,\n  $26,$27,$28\n)`;\n\nmsg.params = [\n  raw.timestamp || null,\n  'M1',  // machine slot — change if you have multiple CNC machines\n  oee.PLANT_ID || 'plant_1',\n  oee.SHIFT,\n  raw.connection_status, raw.machine_state, raw.auto_mode, raw.run_status,\n  raw.is_running || false,\n  raw.emergency  || false,\n  raw.alarm_active || false,\n  raw.program_no || 0,\n  raw.alarm_no   || 0,\n  raw.feed_rate  || 0,\n  raw.spindle_speed || 0,\n  raw.raw_cycle_time_sec     || 0,\n  raw.last_cycle_time_sec    || 0,\n  raw.last_cutting_time_sec  || 0,\n  raw.cutting_time_delta_sec || 0,\n  raw.cutting_time_total_sec || 0,\n  raw.part_count || 0,\n  oee.PLANT_OEE, oee.PLANT_AVAILABILITY, oee.PLANT_PERFORMANCE, oee.PLANT_QUALITY,\n  oee.TOTAL_GOOD, oee.TOTAL_STOPS, oee.TOTAL_STOP_MIN\n];\n\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 900,
+    "y": 120,
+    "wires": [["pg_write_raw", "debug_raw_ok"]]
+  },
+
+  {
+    "id": "pg_write_raw",
+    "type": "postgresql",
+    "z": "tab_cnc_raw_store",
+    "name": "💾 Write → cnc_machine_data",
+    "query": "",
+    "postgreSQLConfig": "db_config_cnc",
+    "split": false,
+    "rowsPerMsg": 1,
+    "outputs": 1,
+    "x": 1160,
+    "y": 120,
+    "wires": []
+  },
+
+  {
+    "id": "debug_raw_ok",
+    "type": "debug",
+    "z": "tab_cnc_raw_store",
+    "name": "✅ Raw saved",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1150,
+    "y": 180,
+    "wires": []
+  },
+
+  {
+    "id": "inject_config",
+    "type": "inject",
+    "z": "tab_cnc_config",
+    "name": "⚙️ Set OEE Configuration",
+    "props": [{"p":"payload"}],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "topic": "",
+    "payload": "{}",
+    "payloadType": "json",
+    "x": 160,
+    "y": 100,
+    "wires": [["set_global_config"]]
+  },
+
+  {
+    "id": "set_global_config",
+    "type": "function",
+    "z": "tab_cnc_config",
+    "name": "⚙️ OEE Config — EDIT THESE VALUES",
+    "func": "// ══════════════════════════════════════════════════════════════\n//  OEE CONFIGURATION — Edit values below and deploy\n//  These are stored as global context variables used by the\n//  OEE Calculator function node.\n// ══════════════════════════════════════════════════════════════\n\n// ── Cycle Time ─────────────────────────────────────────────────\n// The IDEAL cycle time in seconds (your programmed/target time).\n// This is the denominator for Performance calculation.\n// From your payload: raw_cycle_time_sec=20.848 is already the ideal.\n// Set this to YOUR configured ideal — e.g. if target is 20 sec:\nglobal.set('cnc_ideal_cycle_sec', 20.848);\n\n// ── Quality Rate ───────────────────────────────────────────────\n// Default quality % when no scrap sensor is connected.\n// To improve accuracy: connect a scrap counter and override\n// the quality calculation in the OEE Calculator node.\nglobal.set('cnc_quality_rate_pct', 98.0);\n\n// ── Plant & Machine ID ─────────────────────────────────────────\n// Which plant slot this machine belongs to.\nglobal.set('cnc_plant_id', 'plant_1');\n\n// Which machine slot to use (1-5). m1_speed, m1_status etc.\nglobal.set('cnc_machine_slot', 1);\n\n// ── Spindle Max RPM ────────────────────────────────────────────\n// Maximum spindle speed for your machine (used for % calculations).\nglobal.set('cnc_spindle_max_rpm', 4000);\n\nnode.status({ fill:'green', shape:'dot',\n    text:`Config set — ideal:${global.get('cnc_ideal_cycle_sec')}s Q:${global.get('cnc_quality_rate_pct')}%` });\n\nnode.warn('⚙️ OEE Config applied:\\n' +\n    `  Ideal cycle: ${global.get('cnc_ideal_cycle_sec')} sec\\n` +\n    `  Quality rate: ${global.get('cnc_quality_rate_pct')}%\\n` +\n    `  Plant ID: ${global.get('cnc_plant_id')}\\n` +\n    `  Machine slot: M${global.get('cnc_machine_slot')}`);\n\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 440,
+    "y": 100,
+    "wires": []
+  },
+
+  {
+    "id": "comment_config",
+    "type": "comment",
+    "z": "tab_cnc_config",
+    "name": "📖 CONFIGURATION GUIDE",
+    "info": "## How to Configure\n\n### 1. Edit Config Node\nDouble-click the **OEE Config** function node above.\nChange the values for your machine.\n\n### 2. Key Settings\n| Setting | Default | Description |\n|---------|---------|-------------|\n| `cnc_ideal_cycle_sec` | 20.848 | Your CNC programmed cycle time (seconds) |\n| `cnc_quality_rate_pct` | 98.0 | Default quality % (no scrap sensor) |\n| `cnc_plant_id` | plant_1 | Which plant this machine is in |\n| `cnc_machine_slot` | 1 | Which M1-M5 slot to use in dashboard |\n\n### 3. Deploy & Reload\nClick Deploy in Node-RED. The config node runs once on deploy.\n\n### 4. Connect Multiple Machines\nTo add a second CNC machine:\n- Copy this entire flow\n- Set `cnc_machine_slot` to 2 (uses m2_* columns in dashboard)\n- Connect second machine's payload to its own Link-In node\n\n### 5. Improve Quality Tracking\nIf you have a scrap/reject counter:\n- Add its payload to the OEE Calculator function node\n- Change quality calculation from fixed rate to:\n  `quality = (goodPartsShift / totalPartsShift) * 100`\n\n### 6. Add Energy Meters\nIn the OEE Calculator, change:\n```\nEM1_KW: 0  →  EM1_KW: msg.energyPayload.kw_reading\nEM1_KWH: 0 →  EM1_KWH: msg.energyPayload.kwh_total\n```",
+    "x": 170,
+    "y": 200,
+    "wires": []
+  }
+]

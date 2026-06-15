@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Parameter Report — MACHINE-001 · Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+/* ── PAGE EXTRAS ── */
+.main-content{padding:20px;max-width:1600px;margin:0 auto}
+.page-title-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:900;letter-spacing:.3px}
+.page-subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+.export-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* Filter card extras */
+.filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.filter-row label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;white-space:nowrap}
+.filter-arrow{color:var(--muted);font-size:13px;font-weight:700}
+.quick-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.chip:hover,.chip.active{border-color:var(--cyan);color:var(--cyan);background:#00d4ff0d}
+
+/* Table pagination */
+.table-meta-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.table-header-title{font-size:12px;font-weight:700;color:var(--cyan)}
+.table-meta{font-size:10px;color:var(--muted)}
+.pagination{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.page-btn{padding:6px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+.page-btn:hover:not(:disabled){border-color:var(--cyan);color:var(--cyan);background:#00d4ff0a}
+.page-btn:disabled{opacity:.35;cursor:not-allowed}
+.page-info{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Toggle row for chart */
+.toggle-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.toggle-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.toggle-btn.active-blue{border-color:var(--blue);color:var(--blue);background:#4488ff14}
+.toggle-btn.active-green{border-color:var(--green);color:var(--green);background:#00ff8814}
+.toggle-btn.active-amber{border-color:var(--amber);color:var(--amber);background:#ffb30014}
+.toggle-btn.active-purple{border-color:var(--purple);color:var(--purple);background:#aa44ff14}
+.toggle-btn.active-cyan{border-color:var(--cyan);color:var(--cyan);background:#00d4ff14}
+.chart-wrap{position:relative;height:260px}
+
+/* Status chip */
+.status-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.chip-run{background:#00ff8820;color:var(--green);border:1px solid #00ff8840}
+.chip-stp{background:#ffb30020;color:var(--amber);border:1px solid #ffb30040}
+.chip-emg{background:#ff444420;color:var(--red);border:1px solid #ff444440}
+.chip-unk{background:#6b8cae20;color:var(--muted);border:1px solid #6b8cae40}
+
+/* No-data / loading */
+.no-data{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.loading-row{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.spinner-inline{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite;margin-right:5px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* input/select overrides */
+input[type=datetime-local],select{background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;outline:none;color-scheme:dark;font-family:'Segoe UI',sans-serif;transition:border-color .2s}
+input[type=datetime-local]:focus,select:focus{border-color:var(--cyan)}
+
+/* Print */
+@media print{
+  .z-header,.z-nav,.export-btns,.filter-row,.quick-chips,.toggle-row,.pagination{display:none!important}
+  body{background:#fff;color:#000}
+  .z-card{background:#fff;border:1px solid #ddd;border-radius:4px;box-shadow:none}
+  .main-content{padding:0}
+  .z-table{font-size:10px}
+}
+@media(max-width:1100px){.kpi-grid.cols-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.kpi-grid.cols-4{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="z-header">
+  <a href="/" class="z-logo">
+    <div class="z-logo-icon">Z</div>
+    <div>
+      <div class="z-logo-name">FACTORY-MIOS</div>
+      <div class="z-logo-sub">MACHINE-001</div>
+    </div>
+  </a>
+  <div class="z-hdr-right">
+    <span class="clock-txt" id="z-clock">--:--:--</span>
+    <span id="z-user-name" style="font-size:12px;color:var(--muted)"></span>
+    <button class="z-btn ghost" onclick="zLogout()" style="font-size:11px;padding:5px 12px">Sign Out</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="z-nav" id="z-nav-bar"></nav>
+
+<!-- MAIN -->
+<div class="main-content">
+
+  <!-- TITLE ROW -->
+  <div class="page-title-row">
+    <div>
+      <div class="page-title">Machine Parameter Report</div>
+      <div class="page-subtitle">Industrial CNC Controller · Demo Factory Plant · MACHINE-001</div>
+    </div>
+    <div class="export-btns">
+      <button class="z-btn ghost" onclick="exportCSV()">&#8595; Export CSV</button>
+      <button class="z-btn ghost" onclick="window.print()">&#128196; PDF / Print</button>
+    </div>
+  </div>
+
+  <!-- FILTER CARD -->
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="z-section"><span class="dot" style="background:var(--cyan)"></span>Filters</div>
+    <div class="filter-row">
+      <label>From</label>
+      <input type="datetime-local" id="fromDt"/>
+      <span class="filter-arrow">&#8594;</span>
+      <label>To</label>
+      <input type="datetime-local" id="toDt"/>
+      <label>Aggregation</label>
+      <select id="aggSel">
+        <option value="raw">Raw</option>
+        <option value="1min" selected>1 min avg</option>
+        <option value="5min">5 min avg</option>
+        <option value="15min">15 min avg</option>
+        <option value="30min">30 min avg</option>
+      </select>
+      <button class="z-btn cyan" id="applyBtn" onclick="applyFilter()">&#8635; Apply</button>
+    </div>
+    <div class="quick-chips">
+      <span style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Quick:</span>
+      <button class="chip" onclick="setQuick('1h')">Last hour</button>
+      <button class="chip active" id="chip-today" onclick="setQuick('today')">Today</button>
+      <button class="chip" onclick="setQuick('shift')">Current shift</button>
+      <button class="chip" onclick="setQuick('yesterday')">Yesterday</button>
+      <button class="chip" onclick="setQuick('7d')">Last 7 days</button>
+      <button class="chip" onclick="setQuick('30d')">Last 30 days</button>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid cols-4" style="margin-bottom:16px">
+    <div class="kpi-tile c-amber">
+      <div class="label">Total Parts</div>
+      <div class="value" id="kpiParts" style="color:var(--amber)">—</div>
+      <div class="sub">pieces produced</div>
+    </div>
+    <div class="kpi-tile c-cyan">
+      <div class="label">Avg Cycle Time</div>
+      <div class="value" id="kpiCycle" style="color:var(--cyan)">—</div>
+      <div class="sub">seconds per part</div>
+    </div>
+    <div class="kpi-tile c-green">
+      <div class="label">Runtime</div>
+      <div class="value" id="kpiRuntime" style="color:var(--green)">—</div>
+      <div class="sub">hours active</div>
+    </div>
+    <div class="kpi-tile c-blue">
+      <div class="label">Utilization</div>
+      <div class="value" id="kpiUtil" style="color:var(--blue)">—</div>
+      <div class="sub">% of selected period</div>
+    </div>
+  </div>
+
+  <!-- RAW DATA TABLE -->
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="table-meta-row">
+      <div class="table-header-title">&#128203; Raw Parameter Data</div>
+      <div class="table-meta" id="tableMeta">Showing 0 of 0 records</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="z-table">
+        <thead>
+          <tr>
+            <th>Timestamp (IST)</th>
+            <th>Status</th>
+            <th>Spindle RPM</th>
+            <th>Feed mm/min</th>
+            <th>Load %</th>
+            <th>Cycle s</th>
+            <th>Parts</th>
+            <th>Power kW</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable">
+          <tr><td colspan="8" class="loading-row"><span class="spinner-inline"></span>Loading data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <button class="page-btn" id="prevBtn" onclick="changePage(-1)" disabled>&#8592; Prev</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button class="page-btn" id="nextBtn" onclick="changePage(1)" disabled>Next &#8594;</button>
+    </div>
+  </div>
+
+  <!-- TREND CHART -->
+  <div class="z-card" style="margin-bottom:16px">
+    <div class="z-section"><span class="dot" style="background:var(--blue)"></span>Trend Visualization</div>
+    <div class="toggle-row" id="toggleRow">
+      <button class="toggle-btn active-blue"  id="tog-spindle" onclick="toggleSeries('spindle')">&#10003; Spindle</button>
+      <button class="toggle-btn active-green" id="tog-load"    onclick="toggleSeries('load')">&#10003; Load %</button>
+      <button class="toggle-btn"              id="tog-feed"    onclick="toggleSeries('feed')">Feed</button>
+      <button class="toggle-btn"              id="tog-power"   onclick="toggleSeries('power')">Power</button>
+      <button class="toggle-btn"              id="tog-cycle"   onclick="toggleSeries('cycle')">Cycle</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  parameter-report.html · FACTORY-MIOS · MACHINE-001
+// ══════════════════════════════════════════════════════════
+const MACHINE = 'MACHINE001';
+const ROWS_PER_PAGE = 8;
+const TARGET_CYCLE  = 45;
+
+let tableData  = [];
+let currentPage = 1;
+let totalPages  = 1;
+let trendChart  = null;
+let seriesVisible = { spindle:true, load:true, feed:false, power:false, cycle:false };
+
+// ── IST format ─────────────────────────────────────────────
+function toIST(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-IN',{
+    day:'2-digit',month:'short',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',
+    hour12:false, timeZone:'Asia/Kolkata'
+  });
+}
+function toISTTimeOnly(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'});
+}
+
+// ── Date helpers ───────────────────────────────────────────
+function dtLocalStr(d) {
+  const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0');
+  const h=String(d.getHours()).padStart(2,'0'),mn=String(d.getMinutes()).padStart(2,'0');
+  return y+'-'+mo+'-'+dy+'T'+h+':'+mn;
+}
+function dtISTStr(ms) {
+  const d=new Date(ms+5.5*3600*1000);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0')+'T'+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+}
+function setDefaultDates() {
+  const n=new Date(Date.now()+5.5*3600*1000),m=n.getUTCHours()*60+n.getUTCMinutes();
+  let s;
+  if(m>=7*60&&m<19*60) s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),1,30));
+  else if(m>=19*60) s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),13,30));
+  else s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()-1,13,30));
+  document.getElementById('fromDt').value=dtISTStr(s.getTime());
+  document.getElementById('toDt').value=dtISTStr(Date.now());
+}
+function setQuick(range) {
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  const now=new Date(); let from=new Date(now);
+  switch(range){
+    case '1h': from=new Date(now.getTime()-3600000); break;
+    case 'today': from=new Date(now); from.setHours(0,0,0,0); document.getElementById('chip-today').classList.add('active'); break;
+    case 'shift':{
+      const n=new Date(Date.now()+5.5*3600*1000),m=n.getUTCHours()*60+n.getUTCMinutes();
+      let s;
+      if(m>=7*60&&m<19*60) s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),1,30));
+      else if(m>=19*60) s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),13,30));
+      else s=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()-1,13,30));
+      document.getElementById('fromDt').value=dtISTStr(s.getTime());
+      document.getElementById('toDt').value=dtISTStr(Date.now());
+      applyFilter(); return;
+    }
+    case 'yesterday': from=new Date(now); from.setDate(from.getDate()-1); from.setHours(0,0,0,0);
+      const t2=new Date(now); t2.setHours(0,0,0,0); document.getElementById('toDt').value=dtLocalStr(t2); break;
+    case '7d': from=new Date(now.getTime()-7*86400000); break;
+    case '30d': from=new Date(now.getTime()-30*86400000); break;
+  }
+  document.getElementById('fromDt').value=dtLocalStr(from);
+  if(range!=='yesterday') document.getElementById('toDt').value=dtLocalStr(now);
+  applyFilter();
+}
+
+// ── Status chip ────────────────────────────────────────────
+function statusChip(state){
+  const s=(state||'').toUpperCase();
+  if(s==='RUNNING')   return '<span class="status-chip chip-run">&#9679; Running</span>';
+  if(s==='EMERGENCY') return '<span class="status-chip chip-emg">&#9888; Emergency</span>';
+  if(s==='STOPPED')   return '<span class="status-chip chip-stp">&#9679; Stopped</span>';
+  return '<span class="status-chip chip-unk">'+(s||'—')+'</span>';
+}
+
+// ── Render table ───────────────────────────────────────────
+function renderTable(){
+  const tbody=document.getElementById('dataTable');
+  totalPages=Math.max(1,Math.ceil(tableData.length/ROWS_PER_PAGE));
+  currentPage=Math.min(currentPage,totalPages);
+  const start=(currentPage-1)*ROWS_PER_PAGE;
+  const slice=tableData.slice(start,start+ROWS_PER_PAGE);
+  if(!slice.length){
+    tbody.innerHTML='<tr><td colspan="8" class="no-data">No data for selected range</td></tr>';
+    document.getElementById('tableMeta').textContent='Showing 0 of '+tableData.length+' records';
+    document.getElementById('pageInfo').textContent='Page 1 of 1';
+    document.getElementById('prevBtn').disabled=true;
+    document.getElementById('nextBtn').disabled=true;
+    return;
+  }
+  const agg=document.getElementById('aggSel').value;
+  document.getElementById('tableMeta').textContent='Showing '+(start+1)+'–'+Math.min(start+ROWS_PER_PAGE,tableData.length)+' of '+tableData.length+' records · '+agg+' avg';
+  tbody.innerHTML=slice.map(row=>{
+    const spindle=parseFloat(row.spindle_speed)||0;
+    const feed=parseFloat(row.feed_rate)||0;
+    const load=(spindle/2000*100).toFixed(0);
+    const power=(spindle*0.011).toFixed(1);
+    const cycle=parseFloat(row.last_cycle_time_sec)>0?parseFloat(row.last_cycle_time_sec).toFixed(1):'—';
+    const parts=row.part_count!=null?row.part_count:'—';
+    const ts=row.bucket||row.ts;
+    return `<tr>
+      <td style="color:var(--muted)">${toIST(ts)}</td>
+      <td>${statusChip(row.machine_state)}</td>
+      <td style="color:var(--blue)">${spindle.toFixed(0)}</td>
+      <td style="color:var(--amber)">${feed.toFixed(0)}</td>
+      <td style="color:var(--green)">${load}%</td>
+      <td style="color:${parseFloat(cycle)>TARGET_CYCLE?'var(--red)':'var(--text)'}">${cycle}</td>
+      <td style="color:var(--amber)">${parts}</td>
+      <td style="color:var(--purple)">${power}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pageInfo').textContent='Page '+currentPage+' of '+totalPages;
+  document.getElementById('prevBtn').disabled=currentPage<=1;
+  document.getElementById('nextBtn').disabled=currentPage>=totalPages;
+}
+
+function changePage(delta){ currentPage+=delta; renderTable(); }
+
+// ── KPIs ───────────────────────────────────────────────────
+async function computeKPIs(fromD,toD){
+  ['kpiParts','kpiCycle','kpiRuntime','kpiUtil'].forEach(id=>{document.getElementById(id).textContent='…';});
+  try{
+    const fromDate=fromD.toISOString().slice(0,10),toDate=toD.toISOString().slice(0,10);
+    const j=await zFetch('/api/cnc/report-summary?machine='+MACHINE+'&from='+fromDate+'&to='+toDate);
+    if(!j.ok) throw new Error(j.error||'API error');
+    document.getElementById('kpiParts').textContent   = j.total_parts!=null?j.total_parts.toLocaleString():'—';
+    document.getElementById('kpiCycle').textContent   = j.avg_cycle_sec>0?j.avg_cycle_sec.toFixed(1)+' s':'—';
+    document.getElementById('kpiRuntime').textContent = j.runtime_h+'h '+j.runtime_m+'m';
+    document.getElementById('kpiUtil').textContent    = j.utilization_pct>0?j.utilization_pct.toFixed(1)+'%':'0.0%';
+  }catch(e){
+    console.warn('[KPI]',e.message);
+    ['kpiParts','kpiCycle','kpiRuntime','kpiUtil'].forEach(id=>{document.getElementById(id).textContent='—';});
+  }
+}
+
+// ── Chart ──────────────────────────────────────────────────
+function initChart(){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  trendChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:[],
+      datasets:[
+        {label:'Spindle RPM',data:[],borderColor:'#4488ff',backgroundColor:'rgba(68,136,255,.06)',fill:false,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'yLeft',hidden:false},
+        {label:'Load %',data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,.06)',fill:false,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'yRight',hidden:false},
+        {label:'Feed mm/min',data:[],borderColor:'#ffb300',backgroundColor:'rgba(255,179,0,.06)',fill:false,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'yLeft',hidden:true},
+        {label:'Power kW',data:[],borderColor:'#aa44ff',backgroundColor:'rgba(170,68,255,.06)',fill:false,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'yRight',hidden:true},
+        {label:'Cycle s',data:[],borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.06)',fill:false,tension:.3,pointRadius:2,borderWidth:1.5,yAxisID:'yRight',hidden:true}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:true,labels:{color:'#6b8cae',font:{size:10},boxWidth:14}},
+        tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(1):'—')}}
+      },
+      scales:{
+        x:{ticks:{color:'#6b8cae',maxTicksLimit:10,font:{size:10}},grid:{color:'#1a2f5530'}},
+        yLeft:{type:'linear',position:'left',min:0,max:2000,title:{display:true,text:'RPM / mm/min',color:'#6b8cae',font:{size:10}},ticks:{color:'#6b8cae',font:{size:10}},grid:{color:'#1a2f5540'}},
+        yRight:{type:'linear',position:'right',min:0,max:100,title:{display:true,text:'%',color:'#6b8cae',font:{size:10}},ticks:{color:'#6b8cae',font:{size:10}},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+}
+
+const seriesMap={
+  spindle:{idx:0,toggleClass:'active-blue'},
+  load:{idx:1,toggleClass:'active-green'},
+  feed:{idx:2,toggleClass:'active-amber'},
+  power:{idx:3,toggleClass:'active-purple'},
+  cycle:{idx:4,toggleClass:'active-cyan'}
+};
+
+function toggleSeries(name){
+  const{idx,toggleClass}=seriesMap[name];
+  seriesVisible[name]=!seriesVisible[name];
+  trendChart.data.datasets[idx].hidden=!seriesVisible[name];
+  trendChart.update('none');
+  const btn=document.getElementById('tog-'+name);
+  if(seriesVisible[name]){btn.classList.add(toggleClass);btn.textContent='✓ '+btn.textContent.replace(/^[✓\s]+/,'');}
+  else{btn.classList.remove(toggleClass);btn.textContent=btn.textContent.replace(/^[✓\s]+/,'');}
+}
+
+function updateChart(rows){
+  if(!trendChart) return;
+  let sample=rows;
+  if(rows.length>200){const step=Math.floor(rows.length/200);sample=rows.filter((_,i)=>i%step===0);}
+  const asc=[...sample].reverse();
+  const labels=asc.map(r=>toISTTimeOnly(r.bucket||r.ts));
+  const spindle=asc.map(r=>parseFloat(r.spindle_speed)||0);
+  const load=asc.map(r=>parseFloat((parseFloat(r.spindle_speed)/2000*100).toFixed(1))||0);
+  const feed=asc.map(r=>parseFloat(r.feed_rate)||0);
+  const power=asc.map(r=>parseFloat((parseFloat(r.spindle_speed)*0.011/30*100).toFixed(1))||0);
+  const cycle=asc.map(r=>{const v=parseFloat(r.last_cycle_time_sec);return(v>0&&v<300)?v:null;});
+  trendChart.data.labels=labels;
+  trendChart.data.datasets[0].data=spindle; trendChart.data.datasets[0].hidden=!seriesVisible.spindle;
+  trendChart.data.datasets[1].data=load;    trendChart.data.datasets[1].hidden=!seriesVisible.load;
+  trendChart.data.datasets[2].data=feed;    trendChart.data.datasets[2].hidden=!seriesVisible.feed;
+  trendChart.data.datasets[3].data=power;   trendChart.data.datasets[3].hidden=!seriesVisible.power;
+  trendChart.data.datasets[4].data=cycle;   trendChart.data.datasets[4].hidden=!seriesVisible.cycle;
+  trendChart.update('none');
+}
+
+// ── Fetch ──────────────────────────────────────────────────
+async function applyFilter(){
+  const fromVal=document.getElementById('fromDt').value,toVal=document.getElementById('toDt').value;
+  if(!fromVal||!toVal){zToast('Please select both From and To dates.','warn');return;}
+  const fromD=new Date(fromVal),toD=new Date(toVal);
+  if(fromD>=toD){zToast('From date must be before To date.','warn');return;}
+  const btn=document.getElementById('applyBtn');
+  btn.disabled=true; btn.textContent='⏳ Loading…';
+  const diffMs=toD-fromD,minutes=Math.min(10080,Math.ceil(diffMs/60000));
+  document.getElementById('dataTable').innerHTML='<tr><td colspan="8" class="loading-row"><span class="spinner-inline"></span>Fetching '+minutes+' minutes of data…</td></tr>';
+  document.getElementById('tableMeta').textContent='Loading…';
+  try{
+    const aggVal = document.getElementById('aggSel')?.value || '1 min avg';
+    const interval = aggVal.includes('30') ? '30 seconds' : aggVal.includes('5') ? '5 minutes' : aggVal.includes('15') ? '15 minutes' : '1 minute';
+    const j=await zFetch('/api/cnc/history?machine='+MACHINE+'&from='+fromD.toISOString()+'&to='+toD.toISOString()+'&interval='+encodeURIComponent(interval));
+    if(!j.ok) throw new Error(j.error||'API error');
+    const filtered=(j.data||[]);
+    tableData=[...filtered].sort((a,b)=>new Date(b.bucket||b.ts)-new Date(a.bucket||a.ts));
+    currentPage=1; renderTable(); computeKPIs(fromD,toD); updateChart(filtered);
+  }catch(e){
+    console.error('[applyFilter]',e);
+    tableData=[]; renderTable();
+    document.getElementById('dataTable').innerHTML='<tr><td colspan="8" class="no-data">Error loading data: '+e.message+'</td></tr>';
+  }finally{btn.disabled=false;btn.textContent='↺ Apply';}
+}
+
+// ── CSV Export ─────────────────────────────────────────────
+function exportCSV(){
+  if(!tableData.length){zToast('No data to export. Apply a filter first.','warn');return;}
+  const header=['Timestamp (IST)','Status','Spindle RPM','Feed mm/min','Load %','Cycle s','Parts','Power kW'];
+  const rows=tableData.map(row=>{
+    const spindle=parseFloat(row.spindle_speed)||0,feed=parseFloat(row.feed_rate)||0;
+    const load=(spindle/2000*100).toFixed(0),power=(spindle*0.011).toFixed(1);
+    const cycle=parseFloat(row.last_cycle_time_sec)>0?parseFloat(row.last_cycle_time_sec).toFixed(1):'';
+    const parts=row.part_count!=null?row.part_count:'';
+    return [toIST(row.bucket||row.ts),row.machine_state||'',spindle.toFixed(0),feed.toFixed(0),load,cycle,parts,power].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+  });
+  const csv=[header.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='machine001-report-'+new Date().toLocaleDateString('en-CA')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Init ───────────────────────────────────────────────────
+initChart();
+setDefaultDates();
+applyFilter();
+</script>
+<script src="/_shared.js"></script>
+</body>
+</html>

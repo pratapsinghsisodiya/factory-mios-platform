@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Rejection Log — MACHINE-001</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+.page{padding:20px 24px 60px;}
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--border);}
+.filter-bar label{font-size:11px;color:var(--muted);font-weight:700;}
+.filter-bar input,.filter-bar select{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;outline:none;}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--cyan);}
+.qbtn{padding:5px 12px;border:1px solid var(--border);background:none;color:var(--muted);border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;}
+.qbtn:hover,.qbtn.active{background:rgba(0,212,255,.1);border-color:var(--cyan);color:var(--cyan);}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+.stat-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;font-weight:700;}
+.stat-card .num{font-size:28px;font-weight:800;}
+.stat-card .sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.chart-wrap{position:relative;height:200px;}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.section-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.btn-primary{padding:9px 18px;background:var(--cyan);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;transition:opacity .2s;}
+.btn-primary:hover{opacity:.85;}
+.btn-danger{padding:5px 10px;background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-danger:hover{background:rgba(255,68,68,.3);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{padding:8px 10px;text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.5px;}
+td{padding:9px 10px;border-bottom:1px solid rgba(26,47,85,.4);vertical-align:middle;}
+tr:hover td{background:rgba(0,212,255,.03);}
+tr:last-child td{border-bottom:none;}
+.scrap-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.scrap-ok{background:rgba(0,255,136,.1);color:var(--green);}
+.scrap-warn{background:rgba(255,179,0,.1);color:var(--amber);}
+.scrap-bad{background:rgba(255,68,68,.1);color:var(--red);}
+.pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;font-size:12px;color:var(--muted);}
+.page-btn{padding:5px 10px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-size:12px;}
+.page-btn:disabled{opacity:.35;cursor:default;}
+.page-btn.current{background:rgba(0,212,255,.1);border-color:var(--cyan);color:var(--cyan);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:900;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:min(600px,95vw);max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:16px;font-weight:800;color:var(--cyan);margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.f-group{display:flex;flex-direction:column;gap:5px;}
+.f-group label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;}
+.f-group input,.f-group select,.f-group textarea{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;}
+.f-group input:focus,.f-group select:focus,.f-group textarea:focus{border-color:var(--cyan);}
+.f-full{grid-column:span 3;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.btn-cancel{padding:10px 22px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+@media(max-width:700px){.stats-row,.charts-row{grid-template-columns:1fr;}.form-grid{grid-template-columns:1fr;}.f-full{grid-column:span 1;}}
+</style>
+</head>
+<body>
+<header class="z-header">
+  <a href="/" class="z-logo">
+    <div class="z-logo-icon">Z</div>
+    <div><div class="z-logo-name">FACTORY-MIOS</div><div class="z-logo-sub">MACHINE-001</div></div>
+  </a>
+  <div class="z-hdr-right">
+    <span id="z-clock" style="font-size:14px;font-variant-numeric:tabular-nums;color:var(--muted);"></span>
+    <button class="btn-primary" onclick="openModal()">+ Log Rejection</button>
+  </div>
+</header>
+<nav class="z-nav" id="z-nav"></nav>
+
+<div class="filter-bar">
+  <label>RANGE:</label>
+  <button class="qbtn active" onclick="setQuick('today',this)">Today</button>
+  <button class="qbtn" onclick="setQuick('yesterday',this)">Yesterday</button>
+  <button class="qbtn" onclick="setQuick('7days',this)">Last 7 Days</button>
+  <label>From:</label>
+  <input type="date" id="dateFrom"/>
+  <label>To:</label>
+  <input type="date" id="dateTo"/>
+  <label>Shift:</label>
+  <select id="filterShift"><option value="">Both</option><option value="A">Shift A</option><option value="B">Shift B</option></select>
+  <button class="qbtn" style="border-color:var(--cyan);color:var(--cyan);" onclick="loadAll()">Load</button>
+</div>
+
+<div class="page">
+  <div class="stats-row">
+    <div class="stat-card"><div class="lbl">Total Rejections</div><div class="num" id="statRej" style="color:var(--red)">--</div><div class="sub">Parts rejected</div></div>
+    <div class="stat-card"><div class="lbl">Good Parts</div><div class="num" id="statGood" style="color:var(--green)">--</div><div class="sub">Parts accepted</div></div>
+    <div class="stat-card"><div class="lbl">Scrap Rate</div><div class="num" id="statScrap" style="color:var(--amber)">--%</div><div class="sub">Rejection percentage</div></div>
+    <div class="stat-card"><div class="lbl">Worst Hour</div><div class="num" id="statWorst" style="color:var(--red)">--</div><div class="sub" id="statWorstSub">Most rejections</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="section">
+      <div class="section-title">Rejection by Reason (Pareto)</div>
+      <div class="chart-wrap"><canvas id="paretoChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Hourly Rejection Trend</div>
+      <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">
+      <span>Rejection Events</span>
+      <span id="tableCount" style="font-size:11px;"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Shift</th><th>Program</th><th>Good Parts</th><th>Rejected</th><th>Scrap Rate</th><th>Reason</th><th>Operator</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="rejTable"><tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rejModal">
+  <div class="modal">
+    <h2>Log Rejection Entry</h2>
+    <div class="form-grid">
+      <div class="f-group"><label>Machine ID</label><input type="text" id="f-machine" value="MACHINE-001" readonly/></div>
+      <div class="f-group"><label>Shift Date *</label><input type="date" id="f-date"/></div>
+      <div class="f-group"><label>Shift *</label>
+        <select id="f-shift"><option value="A">Shift A</option><option value="B">Shift B</option></select>
+      </div>
+      <div class="f-group"><label>Hour (0–23)</label><input type="number" id="f-hour" min="0" max="23" placeholder="e.g. 14"/></div>
+      <div class="f-group"><label>Program No</label><input type="text" id="f-prog" placeholder="e.g. O0001"/></div>
+      <div class="f-group"><label>Operator Name</label><input type="text" id="f-op" placeholder="Operator name"/></div>
+      <div class="f-group"><label>Good Parts *</label><input type="number" id="f-good" min="0" placeholder="0"/></div>
+      <div class="f-group"><label>Rejected Parts *</label><input type="number" id="f-rej" min="0" placeholder="0"/></div>
+      <div class="f-group"><label>Rejection Reason</label>
+        <select id="f-reason">
+          <option value="">-- Select --</option>
+          <option value="DIMENSION">Dimension Out of Tolerance</option>
+          <option value="SURFACE">Surface Finish</option>
+          <option value="TOOLWEAR">Tool Wear</option>
+          <option value="MATERIAL">Material Defect</option>
+          <option value="SETUP">Setup Error</option>
+          <option value="PROGRAM">Program Error</option>
+          <option value="OPERATOR">Operator Error</option>
+          <option value="FIXTURE">Fixture Issue</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="f-group f-full"><label>Notes</label><textarea id="f-notes" rows="2" placeholder="Additional details..."></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveRejection()">Save Rejection</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MACHINE = 'MACHINE001';
+const PAGE_SIZE = 20;
+let allRows = [];
+let currentPage = 1;
+let paretoChart, hourlyChart;
+
+function getIST() { return new Date(Date.now() + 5.5 * 3600000); }
+function getShift() {
+  const ist = getIST();
+  const min = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return (min >= 420 && min < 1140) ? 'A' : 'B';
+}
+function todayIST() { return getIST().toISOString().slice(0, 10); }
+
+(function initDates() {
+  const t = todayIST();
+  document.getElementById('dateFrom').value = t;
+  document.getElementById('dateTo').value = t;
+  document.getElementById('f-date').value = t;
+  document.getElementById('f-shift').value = getShift();
+})();
+
+function setQuick(range, btn) {
+  document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const today = getIST().toISOString().slice(0, 10);
+  if (range === 'today') {
+    document.getElementById('dateFrom').value = today;
+    document.getElementById('dateTo').value = today;
+  } else if (range === 'yesterday') {
+    const y = new Date(Date.now() + 5.5 * 3600000 - 86400000).toISOString().slice(0, 10);
+    document.getElementById('dateFrom').value = y;
+    document.getElementById('dateTo').value = y;
+  } else if (range === '7days') {
+    const w = new Date(Date.now() + 5.5 * 3600000 - 6 * 86400000).toISOString().slice(0, 10);
+    document.getElementById('dateFrom').value = w;
+    document.getElementById('dateTo').value = today;
+  }
+  loadAll();
+}
+
+async function loadAll() {
+  try {
+    const from = document.getElementById('dateFrom').value;
+    const to = document.getElementById('dateTo').value;
+    const shift = document.getElementById('filterShift').value;
+    let url = '/api/cnc/rejection-log?machine=' + MACHINE + '&limit=500';
+    if (from) url += '&from=' + from;
+    if (to) url += '&to=' + to;
+    if (shift) url += '&shift=' + shift;
+    const data = await zFetch(url);
+    allRows = Array.isArray(data) ? data : (data.data || data.rows || []);
+    currentPage = 1;
+    renderStats();
+    renderCharts();
+    renderTable();
+  } catch(e) {
+    zToast('Failed to load rejection data', 'error');
+  }
+}
+
+function renderStats() {
+  const totalRej = allRows.reduce((s, r) => s + (parseInt(r.rejected_parts) || 0), 0);
+  const totalGood = allRows.reduce((s, r) => s + (parseInt(r.good_parts) || 0), 0);
+  const totalAll = totalRej + totalGood;
+  const scrapPct = totalAll > 0 ? (totalRej / totalAll * 100) : 0;
+  const byHour = {};
+  allRows.forEach(r => {
+    const h = r.hour != null ? String(r.hour).padStart(2, '0') + ':00' : 'N/A';
+    byHour[h] = (byHour[h] || 0) + (parseInt(r.rejected_parts) || 0);
+  });
+  let worstH = '--', worstV = 0;
+  Object.entries(byHour).forEach(([h, v]) => { if (v > worstV) { worstV = v; worstH = h; } });
+
+  document.getElementById('statRej').textContent = fmtInt(totalRej);
+  document.getElementById('statGood').textContent = fmtInt(totalGood);
+  const scrapEl = document.getElementById('statScrap');
+  scrapEl.textContent = fmtPct(scrapPct);
+  scrapEl.style.color = scrapPct < 2 ? 'var(--green)' : scrapPct < 5 ? 'var(--amber)' : 'var(--red)';
+  document.getElementById('statWorst').textContent = worstH;
+  document.getElementById('statWorstSub').textContent = worstV > 0 ? worstV + ' rejections' : 'No rejections';
+}
+
+function renderCharts() {
+  const byReason = {};
+  allRows.forEach(r => {
+    const k = r.rejection_reason || 'OTHER';
+    byReason[k] = (byReason[k] || 0) + (parseInt(r.rejected_parts) || 0);
+  });
+  const sorted = Object.entries(byReason).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (paretoChart) paretoChart.destroy();
+  paretoChart = new Chart(document.getElementById('paretoChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(([k]) => k),
+      datasets: [{ label: 'Rejected Parts', data: sorted.map(([, v]) => v), backgroundColor: 'rgba(255,68,68,.7)', borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b8cae', font: { size: 10 } }, grid: { color: 'rgba(26,47,85,.5)' } },
+        y: { ticks: { color: '#6b8cae', font: { size: 10 } }, grid: { color: 'rgba(26,47,85,.5)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  const byHour = {};
+  for (let i = 0; i < 24; i++) byHour[i] = 0;
+  allRows.forEach(r => {
+    if (r.hour != null) byHour[parseInt(r.hour)] = (byHour[parseInt(r.hour)] || 0) + (parseInt(r.rejected_parts) || 0);
+  });
+  if (hourlyChart) hourlyChart.destroy();
+  hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(byHour).map(h => String(h).padStart(2,'0') + 'h'),
+      datasets: [{ label: 'Rejections', data: Object.values(byHour), backgroundColor: 'rgba(255,179,0,.7)', borderRadius: 3 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b8cae', font: { size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(26,47,85,.5)' } },
+        y: { ticks: { color: '#6b8cae', font: { size: 10 } }, grid: { color: 'rgba(26,47,85,.5)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const total = allRows.length;
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  currentPage = Math.min(currentPage, pages);
+  const slice = allRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  document.getElementById('tableCount').textContent = total + ' events (page ' + currentPage + '/' + pages + ')';
+  const tbody = document.getElementById('rejTable');
+  if (!slice.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No rejection events found</td></tr>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = slice.map(r => {
+    const good = parseInt(r.good_parts) || 0;
+    const rej = parseInt(r.rejected_parts) || 0;
+    const tot = good + rej;
+    const scrapPct = tot > 0 ? (rej / tot * 100) : 0;
+    const scrapCls = scrapPct < 2 ? 'scrap-ok' : scrapPct < 5 ? 'scrap-warn' : 'scrap-bad';
+    return `<tr>
+      <td>${r.shift_date || '--'}</td>
+      <td><b>Shift ${r.shift || '--'}</b></td>
+      <td style="color:var(--cyan);font-family:monospace;">${r.program_no || '--'}</td>
+      <td style="color:var(--green);font-weight:700;">${fmtInt(good)}</td>
+      <td style="color:var(--red);font-weight:700;">${fmtInt(rej)}</td>
+      <td><span class="scrap-pill ${scrapCls}">${fmtPct(scrapPct)}</span></td>
+      <td>${r.rejection_reason || '--'}</td>
+      <td>${r.operator_name || '--'}</td>
+      <td><button class="btn-danger" onclick="delRow(${r.id})">Delete</button></td>
+    </tr>`;
+  }).join('');
+
+  let pHtml = `<span>${total} total</span>`;
+  pHtml += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>&laquo; Prev</button>`;
+  for (let i = 1; i <= pages; i++) {
+    if (pages <= 7 || Math.abs(i - currentPage) <= 2 || i === 1 || i === pages) {
+      pHtml += `<button class="page-btn ${i === currentPage ? 'current' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+  }
+  pHtml += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage >= pages ? 'disabled' : ''}>Next &raquo;</button>`;
+  document.getElementById('pagination').innerHTML = pHtml;
+}
+
+function changePage(p) { currentPage = p; renderTable(); }
+
+async function delRow(id) {
+  if (!confirm('Delete this rejection entry?')) return;
+  try {
+    await zFetch('/api/cnc/rejection-log/' + id, { method: 'DELETE' });
+    zToast('Entry deleted', 'success');
+    loadAll();
+  } catch(e) { zToast('Delete failed', 'error'); }
+}
+
+function openModal() { document.getElementById('rejModal').classList.add('open'); }
+function closeModal() {
+  document.getElementById('rejModal').classList.remove('open');
+  ['f-good','f-rej','f-prog','f-op','f-notes','f-hour'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('f-reason').value = '';
+}
+
+async function saveRejection() {
+  const body = {
+    machine_id: 'MACHINE001',
+    shift_date: document.getElementById('f-date').value,
+    shift: document.getElementById('f-shift').value,
+    hour: parseInt(document.getElementById('f-hour').value) || null,
+    program_no: document.getElementById('f-prog').value || null,
+    good_parts: parseInt(document.getElementById('f-good').value) || 0,
+    rejected_parts: parseInt(document.getElementById('f-rej').value) || 0,
+    rejection_reason: document.getElementById('f-reason').value || null,
+    operator_name: document.getElementById('f-op').value || null
+  };
+  if (!body.shift_date || !body.shift) { zToast('Date and Shift are required', 'error'); return; }
+  if (body.rejected_parts <= 0) { zToast('Enter at least 1 rejected part', 'error'); return; }
+  try {
+    const r = await zFetch('/api/cnc/rejection-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r && (r.ok || r.id || r.success)) {
+      zToast('Rejection logged', 'success');
+      closeModal();
+      loadAll();
+    } else {
+      zToast('Error: ' + (r.error || 'Save failed'), 'error');
+    }
+  } catch(e) { zToast('Network error', 'error'); }
+}
+
+loadAll();
+</script>
+<script src="/_shared.js"></script>
+</body>
+</html>

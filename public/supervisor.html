@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Supervisor View · Factory-MIOS</title>
+  <link rel="stylesheet" href="/_shared.css"/>
+  <script src="/js/chart.min.js"></script>
+  <style>
+    .shift-compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+    .shift-compare-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; }
+    .shift-compare-label { font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    .shift-compare-oee   { font-size:2.8rem; font-weight:900; line-height:1; }
+    .shift-compare-sub   { font-size:.82rem; color:var(--muted); margin-top:6px; }
+    .shift-compare-delta { font-size:1rem; font-weight:700; margin-top:8px; }
+
+    .sup-kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .sup-kpi-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; }
+    .sup-kpi-label { font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+    .sup-kpi-val   { font-size:1.9rem; font-weight:800; line-height:1; }
+    .sup-kpi-sub   { font-size:.78rem; color:var(--muted); margin-top:6px; }
+
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+    .tables-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+
+    @media (max-width:1000px) {
+      .sup-kpi-grid { grid-template-columns:repeat(2,1fr); }
+      .charts-row, .tables-row, .shift-compare { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="z-nav"></nav>
+  <main class="z-page">
+
+    <div class="z-page-header">
+      <div>
+        <h1 class="z-page-title">Supervisor View</h1>
+        <div class="z-page-sub">Demo CNC Machine · Shift performance overview</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="z-badge info" id="sup-shift-badge">Shift A</span>
+        <span class="live-dot">LIVE</span>
+      </div>
+    </div>
+
+    <!-- Shift Comparison -->
+    <div class="shift-compare">
+      <div class="shift-compare-card">
+        <div class="shift-compare-label">Current Shift OEE</div>
+        <div class="shift-compare-oee" id="sup-current-oee" style="color:var(--muted)">--%</div>
+        <div class="shift-compare-sub">
+          A: <span id="sup-c-avail">--</span>% &nbsp; P: <span id="sup-c-perf">--</span>% &nbsp; Q: <span id="sup-c-qual">--</span>%
+        </div>
+        <div class="shift-compare-delta" id="sup-oee-delta" style="color:var(--muted)">vs previous shift: --</div>
+        <div class="z-bar thick" style="margin-top:12px">
+          <div class="z-bar-fill" id="sup-oee-bar" style="width:0%;--fill-color:var(--cyan)"></div>
+        </div>
+      </div>
+      <div class="shift-compare-card">
+        <div class="shift-compare-label">Previous Shift OEE</div>
+        <div class="shift-compare-oee" id="sup-prev-oee" style="color:var(--muted)">--%</div>
+        <div class="shift-compare-sub">
+          <span id="sup-prev-date">--</span> &nbsp; Shift <span id="sup-prev-shift">--</span>
+        </div>
+        <div style="margin-top:8px">
+          A: <span id="sup-p-avail" style="color:var(--muted)">--</span>% &nbsp;
+          P: <span id="sup-p-perf"  style="color:var(--muted)">--</span>% &nbsp;
+          Q: <span id="sup-p-qual"  style="color:var(--muted)">--</span>%
+        </div>
+        <div class="z-bar thick" style="margin-top:12px">
+          <div class="z-bar-fill" id="sup-prev-oee-bar" style="width:0%;--fill-color:var(--muted)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 KPI Cards -->
+    <div class="sup-kpi-grid">
+      <div class="sup-kpi-card">
+        <div class="sup-kpi-label">Parts Made</div>
+        <div class="sup-kpi-val" id="sup-parts" style="color:var(--cyan)">--</div>
+        <div class="sup-kpi-sub">Target: <span id="sup-target">900</span> &nbsp;|&nbsp; Attainment: <span id="sup-attainment" style="color:var(--cyan)">--%</span></div>
+        <div class="z-bar" style="margin-top:8px"><div class="z-bar-fill" id="sup-parts-bar" style="width:0%;--fill-color:var(--cyan)"></div></div>
+      </div>
+      <div class="sup-kpi-card">
+        <div class="sup-kpi-label">Downtime</div>
+        <div class="sup-kpi-val" id="sup-downtime" style="color:var(--amber)">--</div>
+        <div class="sup-kpi-sub">minutes this shift &nbsp;|&nbsp; Major: <span id="sup-major-dt">--</span> min</div>
+        <div class="z-bar" style="margin-top:8px"><div class="z-bar-fill" id="sup-dt-bar" style="width:0%;--fill-color:var(--amber)"></div></div>
+      </div>
+      <div class="sup-kpi-card">
+        <div class="sup-kpi-label">Quality Rate</div>
+        <div class="sup-kpi-val" id="sup-quality" style="color:var(--green)">--%</div>
+        <div class="sup-kpi-sub">Good parts / Total parts</div>
+      </div>
+      <div class="sup-kpi-card">
+        <div class="sup-kpi-label">Alarms</div>
+        <div class="sup-kpi-val" id="sup-alarms" style="color:var(--red)">--</div>
+        <div class="sup-kpi-sub">This shift &nbsp;|&nbsp; Avg cycle: <span id="sup-avg-cycle">--</span>s</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">24-Hour Production (parts/hour)</span>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="sup-hourly-chart"></canvas>
+        </div>
+      </div>
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Top 5 Downtime Reasons (Pareto)</span>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="sup-pareto-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tables -->
+    <div class="tables-row">
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Recent Downtime Entries</span>
+          <a href="/downtime-log.html" class="z-btn ghost sm">Log More</a>
+        </div>
+        <div class="z-table-wrap">
+          <table class="z-table">
+            <thead><tr><th>Date</th><th>Shift</th><th>Duration</th><th>Type</th><th>Sub-type</th></tr></thead>
+            <tbody id="sup-dt-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="z-card">
+        <div class="z-card-header">
+          <span class="z-card-title">Recent Quality Issues</span>
+          <a href="/quality-entry.html" class="z-btn ghost sm">Log More</a>
+        </div>
+        <div class="z-table-wrap">
+          <table class="z-table">
+            <thead><tr><th>Date</th><th>Shift</th><th>Rejected</th><th>Rej%</th><th>Type</th></tr></thead>
+            <tbody id="sup-qual-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  <div id="z-toasts"></div>
+  <script src="/_shared.js"></script>
+  <script>
+  const MACHINE = 'MACHINE001';
+  let hourlyChart, paretoChart;
+
+  Chart.defaults.color = '#6b8cae';
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+
+  function cDef() {
+    return {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#0d1e35',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8f4fd',bodyColor:'#6b8cae'} }
+    };
+  }
+
+  function setupCharts() {
+    hourlyChart = new Chart(document.getElementById('sup-hourly-chart'), {
+      type:'bar',
+      data:{ labels:[], datasets:[{ label:'Parts', data:[], backgroundColor:'rgba(0,180,255,.45)', borderColor:'#00d4ff', borderWidth:1, borderRadius:4 }] },
+      options:Object.assign(cDef(),{ scales:{ x:{grid:{color:'rgba(255,255,255,.04)'}}, y:{min:0,grid:{color:'rgba(255,255,255,.04)'}} } })
+    });
+    paretoChart = new Chart(document.getElementById('sup-pareto-chart'), {
+      type:'bar',
+      data:{ labels:[], datasets:[{ label:'Minutes', data:[], backgroundColor:['rgba(255,68,68,.6)','rgba(255,179,0,.6)','rgba(68,136,255,.6)','rgba(168,85,247,.6)','rgba(0,212,255,.6)'], borderRadius:4 }] },
+      options:Object.assign(cDef(),{
+        indexAxis:'y',
+        scales:{ x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{callback:v=>v+'m'}}, y:{grid:{display:false}} }
+      })
+    });
+  }
+
+  function renderOEE(d) {
+    if(!d||!d.ok) return;
+    const v=d.oee, color=oeeColor(v);
+    const el=document.getElementById('sup-current-oee');
+    if(el){el.textContent=fmtPct(v);el.style.color=color;}
+    const bar=document.getElementById('sup-oee-bar');
+    if(bar){bar.style.width=Math.min(100,v||0)+'%';bar.style.setProperty('--fill-color',color);}
+    zSet('sup-c-avail', fmtNum(d.availability,1));
+    zSet('sup-c-perf',  fmtNum(d.performance,1));
+    zSet('sup-c-qual',  fmtNum(d.quality,1));
+    zSet('sup-parts',   fmtInt(d.parts_produced));
+    zSet('sup-target',  d.target_parts||900);
+    const att = d.parts_attainment||( d.target_parts>0?d.parts_produced/d.target_parts*100:0 );
+    zSet('sup-attainment', fmtPct(att));
+    const pb=document.getElementById('sup-parts-bar');
+    if(pb) pb.style.width=Math.min(100,att||0)+'%';
+    zSet('sup-downtime',   fmtNum(d.downtime_min,0));
+    zSet('sup-major-dt',   fmtNum(d.major_downtime_min,0));
+    const dtBar=document.getElementById('sup-dt-bar');
+    if(dtBar) dtBar.style.width=Math.min(100,(d.downtime_min||0)/720*100)+'%';
+    const qualEl=document.getElementById('sup-quality');
+    if(qualEl){qualEl.textContent=fmtPct(d.quality);qualEl.style.color=oeeColor(d.quality);}
+    zSet('sup-alarms',    d.alarm_count!=null?d.alarm_count:'--');
+    zSet('sup-avg-cycle', d.avg_cycle_time!=null?fmtNum(d.avg_cycle_time,1):'--');
+    const badge=document.getElementById('sup-shift-badge');
+    if(badge) badge.textContent='Shift '+(d.shift||zCurrentShift());
+
+    if(d.prev_shift) {
+      const pv = parseFloat(d.prev_shift.oee);
+      const pColor = oeeColor(pv);
+      const pEl = document.getElementById('sup-prev-oee');
+      if(pEl){pEl.textContent=fmtPct(pv);pEl.style.color=pColor;}
+      const pBar=document.getElementById('sup-prev-oee-bar');
+      if(pBar){pBar.style.width=Math.min(100,pv||0)+'%';pBar.style.setProperty('--fill-color',pColor);}
+      zSet('sup-prev-date',  d.prev_shift.date||d.prev_shift.shift_date||'--');
+      zSet('sup-prev-shift', d.prev_shift.shift||'--');
+      zSet('sup-p-avail', fmtNum(d.prev_shift.availability,1));
+      zSet('sup-p-perf',  fmtNum(d.prev_shift.performance,1));
+      zSet('sup-p-qual',  fmtNum(d.prev_shift.quality,1));
+      const delta = v - pv;
+      const dEl = document.getElementById('sup-oee-delta');
+      if(dEl){ dEl.textContent=(delta>=0?'▲ +':'▼ ')+fmtNum(Math.abs(delta),1)+'% vs previous shift'; dEl.style.color=delta>=0?'var(--green)':'var(--red)'; }
+    }
+  }
+
+  function renderHourlyChart(rows) {
+    if(!hourlyChart||!rows) return;
+    hourlyChart.data.labels = rows.map(r=>{ try{return new Date(r.bucket).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});}catch{return '';} });
+    hourlyChart.data.datasets[0].data = rows.map(r=>parseInt(r.parts_made)||0);
+    hourlyChart.update('none');
+  }
+
+  function renderDowntimePareto(rows) {
+    if(!paretoChart||!rows) return;
+    const agg = {};
+    rows.forEach(r=>{ const k=r.subtype||r.downtime_subtype||'Other'; agg[k]=(agg[k]||0)+(parseFloat(r.duration_min)||0); });
+    const sorted = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    paretoChart.data.labels = sorted.map(e=>e[0]);
+    paretoChart.data.datasets[0].data = sorted.map(e=>Math.round(e[1]));
+    paretoChart.update('none');
+  }
+
+  function renderDTTable(rows) {
+    const tbody=document.getElementById('sup-dt-tbody');
+    if(!tbody) return;
+    if(!rows||!rows.length){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No entries</td></tr>'; return; }
+    tbody.innerHTML=rows.slice(0,10).map(r=>`<tr>
+      <td style="font-size:.8rem">${r.date||'--'}</td>
+      <td><span class="z-badge ${r.shift==='A'?'info':'purple'}">Shift ${r.shift||'--'}</span></td>
+      <td style="font-weight:700;color:var(--amber)">${r.duration_min!=null?Math.round(r.duration_min)+'m':'--'}</td>
+      <td><span class="z-badge ${r.downtime_type==='Planned'?'info':'warning'}">${r.downtime_type||'--'}</span></td>
+      <td style="font-size:.82rem">${r.subtype||r.downtime_subtype||'--'}</td>
+    </tr>`).join('');
+  }
+
+  function renderQualTable(rows) {
+    const tbody=document.getElementById('sup-qual-tbody');
+    if(!tbody) return;
+    if(!rows||!rows.length){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No entries</td></tr>'; return; }
+    tbody.innerHTML=rows.slice(0,10).map(r=>{
+      const g=parseInt(r.good_parts)||0, rej=parseInt(r.rejected_parts)||0;
+      const total=g+rej, pct=total>0?rej/total*100:0;
+      return `<tr>
+        <td style="font-size:.8rem">${r.date||'--'}</td>
+        <td><span class="z-badge ${r.shift==='A'?'info':'purple'}">Shift ${r.shift||'--'}</span></td>
+        <td style="color:var(--red);font-weight:700">${fmtInt(rej)}</td>
+        <td style="color:${pct>5?'var(--red)':pct>2?'var(--amber)':'var(--green)'};font-weight:700">${fmtPct(pct)}</td>
+        <td style="font-size:.82rem">${r.rejection_type||'--'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function fetchAll() {
+    const shift = zCurrentShift();
+    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    zFetch('/api/cnc/oee?machine='+MACHINE+'&shift='+shift+'&date='+today)
+      .then(d=>{ if(d&&d.ok) renderOEE(d); }).catch(()=>{});
+    // 24h hourly
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate()-1);
+    const yDate = yesterday.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    zFetch('/api/cnc/hourly-shift?date='+today+'&shift='+shift+'&machine='+MACHINE)
+      .then(d=>{ if(d&&d.ok&&d.rows) renderHourlyChart(d.rows); }).catch(()=>{});
+    zFetch('/api/cnc/downtime-log?machine='+MACHINE+'&limit=50')
+      .then(d=>{ if(d&&d.rows){ renderDowntimePareto(d.rows); renderDTTable(d.rows); } }).catch(()=>{});
+    zFetch('/api/cnc/rejection-log?machine='+MACHINE+'&limit=20')
+      .then(d=>{ if(d&&d.rows) renderQualTable(d.rows); }).catch(()=>{});
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setupCharts();
+    zParticles();
+    fetchAll();
+    setInterval(fetchAll, 30000);
+  });
+  </script>
+</body>
+</html>

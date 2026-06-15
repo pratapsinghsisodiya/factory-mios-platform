@@ -1,0 +1,50 @@
+{
+  "users": [
+    {
+      "id": "1780895070626",
+      "username": "testadmin",
+      "password_hash": "$2a$10$XkNQNjbmebnXSro3.JPrVe4JnW9I1WMzz.V/Zxxwn/P7vJhmVrsam",
+      "name": "Platform Super Admin",
+      "role": "superadmin",
+      "email": "test@example.com",
+      "phone": "",
+      "alerts": "both",
+      "plant_ids": [],
+      "tenant_id": null,
+      "tenant_slug": null,
+      "active": true,
+      "created_at": "2026-06-08T05:04:30.626Z"
+    },
+    {
+      "id": "admin",
+      "username": "admin",
+      "password_hash": "$2a$10$6GT2xoNclPoGr8WvnuZ3yujhogidMGsPUmPz/d1IblkvPn4b0/AGe",
+      "name": "Demo Factory Administrator",
+      "role": "admin",
+      "email": "",
+      "phone": "",
+      "alerts": "both",
+      "plant_ids": [],
+      "tenant_id": 1,
+      "tenant_slug": "factory-mios-demo",
+      "active": true,
+      "created_at": "2026-06-08T05:09:40.815Z"
+    },
+    {
+      "id": "superadmin",
+      "username": "superadmin",
+      "password_hash": "$2a$10$IBIOcSyDL6ZjJLCXKxiw8OlQC6XmougK15jWBeCblxkO7oX/.4bu.",
+      "name": "Super Administrator",
+      "role": "superadmin",
+      "email": "superadmin@factory-mios.local",
+      "phone": "",
+      "alerts": "both",
+      "plant_ids": [],
+      "tenant_id": null,
+      "tenant_slug": null,
+      "default_page": "/saas-platform",
+      "active": true,
+      "created_at": "2026-06-08T05:09:40.920Z"
+    }
+  ]
+}

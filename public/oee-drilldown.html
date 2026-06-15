@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OEE Drilldown — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+.page{max-width:1600px;margin:0 auto;padding:20px 24px 80px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.mb{margin-bottom:16px;}
+
+/* selector bar */
+.selector-bar{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;
+}
+.selector-bar label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.selector-bar input,.selector-bar select{
+  background:var(--panel);border:1px solid var(--border);color:var(--text);
+  padding:7px 12px;border-radius:8px;font-size:12px;outline:none;cursor:pointer;
+  transition:border-color .2s;font-family:inherit;
+}
+.selector-bar input:focus,.selector-bar select:focus{border-color:var(--cyan);}
+.selector-bar .sep{width:1px;height:30px;background:var(--border);}
+
+/* z-card */
+.z-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.z-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.z-card-sub{font-size:10px;color:var(--muted);margin-bottom:16px;}
+
+/* badge */
+.z-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.3px;}
+.z-badge.ok{background:rgba(0,255,136,.15);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.z-badge.warn{background:rgba(255,179,0,.15);color:var(--amber);border:1px solid rgba(255,179,0,.25);}
+.z-badge.err{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.25);}
+.z-badge.info{background:rgba(0,212,255,.15);color:var(--cyan);border:1px solid rgba(0,212,255,.25);}
+
+/* kpi tiles */
+.kpi-tile{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px;text-align:center;transition:all .3s;
+}
+.kpi-tile.c-cyan{border-color:rgba(0,212,255,.3);box-shadow:0 0 20px rgba(0,212,255,.08);}
+.kpi-tile.c-green{border-color:rgba(0,255,136,.3);box-shadow:0 0 20px rgba(0,255,136,.08);}
+.kpi-tile.c-blue{border-color:rgba(68,136,255,.3);box-shadow:0 0 20px rgba(68,136,255,.08);}
+.kpi-tile.c-purple{border-color:rgba(170,68,255,.3);box-shadow:0 0 20px rgba(170,68,255,.08);}
+.kpi-gauge{display:flex;justify-content:center;margin-bottom:8px;}
+.kpi-val{font-size:26px;font-weight:900;line-height:1;margin-bottom:4px;}
+.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+.kpi-grade{font-size:9px;font-weight:700;}
+
+/* waterfall */
+.waterfall{display:flex;align-items:flex-end;gap:0;height:200px;position:relative;margin:16px 0;}
+.wf-col{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;position:relative;}
+.wf-bar-wrap{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;padding:0 4px;}
+.wf-bar{width:100%;border-radius:6px 6px 0 0;position:relative;transition:height .8s ease;min-height:4px;}
+.wf-bar::after{content:attr(data-pct);position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;white-space:nowrap;color:var(--text);}
+.wf-label{font-size:10px;color:var(--muted);text-align:center;padding:4px 2px;line-height:1.3;}
+.wf-arrow{position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);z-index:1;}
+
+/* time breakdown legend */
+.pie-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.pie-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.pie-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* z-table */
+.z-table{width:100%;border-collapse:collapse;}
+.z-table th{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;}
+.z-table td{padding:9px 12px;font-size:12px;border-bottom:1px solid rgba(26,47,85,.5);}
+.z-table tr:last-child td{border:none;}
+.z-table tbody tr:hover{background:rgba(255,255,255,.02);}
+
+/* btn */
+.z-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;transition:all .2s;background:transparent;}
+.z-btn.primary{background:rgba(0,212,255,.15);border-color:var(--cyan);color:var(--cyan);}
+.z-btn.primary:hover{background:rgba(0,212,255,.25);}
+.z-btn.ghost{border-color:var(--border);color:var(--muted);}
+.z-btn.ghost:hover{border-color:var(--muted);color:var(--text);}
+
+/* live pill */
+.live-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;}
+.live-pill.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.live-pill.err{background:rgba(255,68,68,.12);color:var(--red);border:1px solid rgba(255,68,68,.25);}
+.live-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* skel */
+.skel{background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.08),rgba(255,255,255,.04));background-size:200% 100%;animation:sk 1.5s infinite;border-radius:6px;}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@media(max-width:1000px){.grid4{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
+@media(max-width:600px){.grid4{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<header class="z-header">
+  <a class="z-logo" href="/">
+    <div class="z-logo-icon">Z</div>
+    <div>
+      <div class="z-logo-name">FACTORY-MIOS</div>
+      <div class="z-logo-sub">MACHINE-001</div>
+    </div>
+  </a>
+  <div class="z-hdr-center">
+    <span id="z-clock" style="font-size:16px;font-weight:700;color:var(--cyan);letter-spacing:2px;font-variant-numeric:tabular-nums;"></span>
+  </div>
+  <div class="z-hdr-right">
+    <span class="live-pill ok" id="z-db-pill">LIVE</span>
+    <span id="z-user-name" style="font-size:12px;font-weight:600;color:var(--muted);">User</span>
+    <button class="z-btn ghost" onclick="zLogout()" style="padding:5px 10px;font-size:11px;">Logout</button>
+  </div>
+</header>
+<nav class="z-nav" id="z-nav"></nav>
+
+<div class="page">
+
+  <!-- Date + Shift selector -->
+  <div class="selector-bar">
+    <div>
+      <label>Date</label>
+      <input type="date" id="sel-date"/>
+    </div>
+    <div class="sep"></div>
+    <div>
+      <label>Shift</label>
+      <select id="sel-shift">
+        <option value="A">Shift A (07:00–19:00)</option>
+        <option value="B">Shift B (19:00–07:00)</option>
+      </select>
+    </div>
+    <button class="z-btn primary" onclick="loadAll()">Apply</button>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted);" id="last-update">--</div>
+  </div>
+
+  <!-- 4 KPI tiles -->
+  <div class="grid4 mb" id="kpi-row">
+    <div class="kpi-tile c-cyan"><div class="kpi-gauge" id="g-oee"></div><div class="kpi-val" id="v-oee" style="color:var(--cyan);">--%</div><div class="kpi-lbl">OEE</div><div id="grade-oee" class="kpi-grade"></div></div>
+    <div class="kpi-tile c-green"><div class="kpi-gauge" id="g-avail"></div><div class="kpi-val" id="v-avail" style="color:var(--green);">--%</div><div class="kpi-lbl">Availability</div></div>
+    <div class="kpi-tile c-blue"><div class="kpi-gauge" id="g-perf"></div><div class="kpi-val" id="v-perf" style="color:var(--blue);">--%</div><div class="kpi-lbl">Performance</div></div>
+    <div class="kpi-tile c-purple"><div class="kpi-gauge" id="g-qual"></div><div class="kpi-val" id="v-qual" style="color:var(--purple);">--%</div><div class="kpi-lbl">Quality</div></div>
+  </div>
+
+  <!-- Waterfall -->
+  <div class="z-card mb">
+    <div class="z-card-title">📊 OEE Waterfall — Time Loss Analysis</div>
+    <div class="z-card-sub">Planned Time → Available → Running → Producing → Net OEE (720 min shift)</div>
+    <div class="waterfall" id="waterfall-vis">
+      <div class="wf-col"><div class="wf-bar-wrap"><div class="wf-bar skel" style="height:100%;"></div></div><div class="wf-label">Loading</div></div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:10px;">
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block;"></span>Planned Time</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;display:inline-block;"></span>Available</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--cyan);border-radius:2px;display:inline-block;"></span>Running</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--amber);border-radius:2px;display:inline-block;"></span>Producing</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;background:var(--purple);border-radius:2px;display:inline-block;"></span>OEE</span>
+    </div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="grid2 mb">
+    <!-- Time breakdown pie -->
+    <div class="z-card">
+      <div class="z-card-title">🥧 Time Breakdown</div>
+      <div class="z-card-sub">PRODUCING vs MINOR_STOP vs IDLE vs DOWNTIME</div>
+      <div style="height:200px;position:relative;">
+        <canvas id="pie-chart"></canvas>
+      </div>
+      <div class="pie-legend" id="pie-legend"></div>
+    </div>
+    <!-- Hourly OEE bar chart -->
+    <div class="z-card">
+      <div class="z-card-title">📈 Hourly OEE</div>
+      <div class="z-card-sub">OEE percentage by hour for selected shift</div>
+      <div style="height:200px;position:relative;">
+        <canvas id="hourly-oee-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="grid2 mb">
+    <!-- Cycle time histogram -->
+    <div class="z-card">
+      <div class="z-card-title">📊 Cycle Time Distribution</div>
+      <div class="z-card-sub">Histogram of cycle times — ideal target: 45s</div>
+      <div style="height:200px;position:relative;">
+        <canvas id="hist-chart"></canvas>
+      </div>
+    </div>
+    <!-- Pareto chart -->
+    <div class="z-card">
+      <div class="z-card-title">📉 Downtime Pareto Analysis</div>
+      <div class="z-card-sub">Top downtime reasons by cumulative impact</div>
+      <div style="height:200px;position:relative;">
+        <canvas id="pareto-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shift comparison table -->
+  <div class="z-card mb">
+    <div class="z-card-title">📅 7-Day Shift Comparison</div>
+    <div class="z-card-sub">OEE and production data for last 7 days (both shifts)</div>
+    <div style="overflow-x:auto;">
+      <table class="z-table" id="shift-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Shift</th><th>OEE</th><th>Avail</th><th>Perf</th><th>Qual</th><th>Parts</th><th>Avg Cycle</th><th>Downtime</th><th>Grade</th>
+          </tr>
+        </thead>
+        <tbody id="shift-tbody">
+          <tr><td colspan="10" class="skel" style="height:40px;"></td></tr>
+          <tr><td colspan="10" class="skel" style="height:40px;margin-top:4px;"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+zCheckAuth();
+zRenderNav('oee-drilldown');
+zStartClock();
+
+// Default to today
+const todayISO = new Date().toISOString().split('T')[0];
+document.getElementById('sel-date').value = todayISO;
+document.getElementById('sel-shift').value = zCurrentShift();
+
+let charts = {};
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+async function loadOEE(date, shift) {
+  try {
+    const d = await zFetch(`/api/cnc/oee?machine=MACHINE001&date=${date}&shift=${shift}`);
+    const oee = parseFloat(d.oee)||0, avail = parseFloat(d.availability)||0;
+    const perf = parseFloat(d.performance)||0, qual = parseFloat(d.quality)||0;
+    document.getElementById('v-oee').textContent = fmtPct(oee);
+    document.getElementById('v-avail').textContent = fmtPct(avail);
+    document.getElementById('v-perf').textContent = fmtPct(perf);
+    document.getElementById('v-qual').textContent = fmtPct(qual);
+    document.getElementById('v-oee').style.color = oeeColor(oee);
+    document.getElementById('g-oee').innerHTML = zDonut(oee, oeeColor(oee), 80, 8);
+    document.getElementById('g-avail').innerHTML = zDonut(avail, 'var(--green)', 80, 8);
+    document.getElementById('g-perf').innerHTML = zDonut(perf, 'var(--blue)', 80, 8);
+    document.getElementById('g-qual').innerHTML = zDonut(qual, 'var(--purple)', 80, 8);
+    const g = oeeGrade(oee);
+    document.getElementById('grade-oee').innerHTML = `<span class="z-badge ${g.cls}">${g.label}</span>`;
+    renderWaterfall(avail, perf, qual, oee);
+    return d;
+  } catch {
+    // Demo
+    const oee=74.2, avail=89.5, perf=86.1, qual=96.4;
+    document.getElementById('v-oee').textContent = fmtPct(oee);
+    document.getElementById('v-avail').textContent = fmtPct(avail);
+    document.getElementById('v-perf').textContent = fmtPct(perf);
+    document.getElementById('v-qual').textContent = fmtPct(qual);
+    document.getElementById('v-oee').style.color = oeeColor(oee);
+    document.getElementById('g-oee').innerHTML = zDonut(oee, oeeColor(oee), 80, 8);
+    document.getElementById('g-avail').innerHTML = zDonut(avail, 'var(--green)', 80, 8);
+    document.getElementById('g-perf').innerHTML = zDonut(perf, 'var(--blue)', 80, 8);
+    document.getElementById('g-qual').innerHTML = zDonut(qual, 'var(--purple)', 80, 8);
+    const g = oeeGrade(oee);
+    document.getElementById('grade-oee').innerHTML = `<span class="z-badge ${g.cls}">${g.label}</span>`;
+    renderWaterfall(avail, perf, qual, oee);
+  }
+}
+
+function renderWaterfall(avail, perf, qual, oee) {
+  const planned = 100;
+  const available = avail;
+  const running = avail * (perf / 100);
+  const producing = avail * (perf / 100) * (qual / 100);
+  const oeePct = oee;
+  const steps = [
+    { label:'Planned\n720 min', pct:planned, color:'var(--blue)', loss:0 },
+    { label:'Available\nAfter DT', pct:available, color:'var(--green)', loss:planned - available },
+    { label:'Running\nAfter Speed', pct:running, color:'var(--cyan)', loss:available - running },
+    { label:'Producing\nAfter Quality', pct:producing, color:'var(--amber)', loss:running - producing },
+    { label:'Net OEE', pct:oeePct, color:'var(--purple)', loss:0 }
+  ];
+  const wf = document.getElementById('waterfall-vis');
+  wf.innerHTML = steps.map((s, i) => {
+    const heightPct = s.pct;
+    return `<div class="wf-col">
+      <div class="wf-bar-wrap">
+        <div class="wf-bar" style="height:${heightPct}%;background:${s.color};box-shadow:0 0 12px ${s.color}55;" data-pct="${fmtPct(s.pct)}">
+        </div>
+      </div>
+      <div class="wf-label" style="font-size:9px;color:var(--muted);">${s.label.replace('\n','<br>')}</div>
+      ${i < steps.length-1 ? '<div class="wf-arrow">→</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderPieChart(producing, minorStop, idle, downtime) {
+  destroyChart('pie');
+  const total = producing + minorStop + idle + downtime;
+  const ctx = document.getElementById('pie-chart').getContext('2d');
+  const labels = ['PRODUCING','MINOR STOP','IDLE','DOWNTIME'];
+  const data = [producing, minorStop, idle, downtime];
+  const colors = ['var(--green)','var(--amber)','var(--cyan)','var(--red)'];
+  charts.pie = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:['rgba(0,255,136,.7)','rgba(255,179,0,.7)','rgba(0,212,255,.7)','rgba(255,68,68,.7)'], borderColor:['var(--green)','var(--amber)','var(--cyan)','var(--red)'], borderWidth:1 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{
+      legend:{ display:false },
+      tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.parsed.toFixed(1)} min (${((ctx.parsed/total)*100).toFixed(1)}%)` } }
+    }, cutout:'60%' }
+  });
+  document.getElementById('pie-legend').innerHTML = labels.map((l,i) =>
+    `<div class="pie-item"><div class="pie-dot" style="background:${colors[i]};"></div>${l}: ${data[i].toFixed(0)} min</div>`).join('');
+}
+
+async function loadHourly(date, shift) {
+  let labels, oeeData;
+  try {
+    const d = await zFetch(`/api/cnc/hourly-shift?date=${date}&shift=${shift}`);
+    if (!d || !d.length) throw new Error('empty');
+    labels = d.map(r => r.hour || r.time_bucket || '?');
+    oeeData = d.map(r => parseFloat(r.oee) || 0);
+  } catch {
+    labels = shift === 'A' ? ['07','08','09','10','11','12','13','14','15','16','17','18'] : ['19','20','21','22','23','00','01','02','03','04','05','06'];
+    oeeData = [76,79,82,74,68,71,75,80,77,73,69,72];
+  }
+  destroyChart('hourlyOee');
+  charts.hourlyOee = new Chart(document.getElementById('hourly-oee-chart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: labels.map(l=>l+'h'),
+      datasets:[{
+        label:'OEE%', data:oeeData,
+        backgroundColor: oeeData.map(v => v>=80 ? 'rgba(0,255,136,.6)' : v>=65 ? 'rgba(255,179,0,.6)' : 'rgba(255,68,68,.6)'),
+        borderColor: oeeData.map(v => v>=80 ? 'var(--green)' : v>=65 ? 'var(--amber)' : 'var(--red)'),
+        borderWidth:1, borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, annotation:{} },
+      scales:{
+        x:{ticks:{color:'#6b8cae',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{min:0,max:100,ticks:{color:'#6b8cae',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'},
+          afterDataLimits(axis){axis.max=100;}
+        }
+      }
+    }
+  });
+  // time breakdown — demo
+  const totalMin = 720;
+  const avgOee = oeeData.reduce((s,v)=>s+v,0)/oeeData.length;
+  const downtime = totalMin * (1 - parseFloat((oeeData.filter(v=>v>0).length/oeeData.length)||1));
+  renderPieChart(totalMin*0.62, totalMin*0.08, totalMin*0.12, totalMin*0.18);
+}
+
+function renderHistogram() {
+  // Simulated cycle time distribution
+  const bins = ['<80s','80–90','90–100','100–110','110–120','120+'];
+  const counts = [8, 32, 198, 156, 42, 18];
+  destroyChart('hist');
+  charts.hist = new Chart(document.getElementById('hist-chart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: bins,
+      datasets:[{
+        label:'Cycles', data:counts,
+        backgroundColor:['rgba(255,68,68,.6)','rgba(255,179,0,.6)','rgba(0,212,255,.6)','rgba(0,212,255,.5)','rgba(255,179,0,.5)','rgba(255,68,68,.6)'],
+        borderColor:['var(--red)','var(--amber)','var(--cyan)','var(--cyan)','var(--amber)','var(--red)'],
+        borderWidth:1, borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false },
+        tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.y} cycles (${((ctx.parsed.y/454)*100).toFixed(1)}%)` } }
+      },
+      scales:{
+        x:{ticks:{color:'#6b8cae',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{ticks:{color:'#6b8cae',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Cycles',color:'#6b8cae',font:{size:10}}}
+      }
+    }
+  });
+}
+
+function renderPareto() {
+  const reasons = ['Tool Change','Setup','Breakdown','Material Wait','Quality Hold','Operator'];
+  const mins = [48, 35, 28, 22, 15, 8];
+  const total = mins.reduce((s,v)=>s+v,0);
+  const cumPct = mins.map((v,i,a) => a.slice(0,i+1).reduce((s,x)=>s+x,0)/total*100);
+  destroyChart('pareto');
+  charts.pareto = new Chart(document.getElementById('pareto-chart').getContext('2d'), {
+    data:{
+      labels: reasons,
+      datasets:[
+        { type:'bar', label:'Minutes', data:mins, yAxisID:'y1', backgroundColor:'rgba(68,136,255,.5)', borderColor:'var(--blue)', borderWidth:1, borderRadius:4 },
+        { type:'line', label:'Cumulative %', data:cumPct, yAxisID:'y2', borderColor:'var(--cyan)', backgroundColor:'transparent', borderWidth:2, pointRadius:4, tension:.1 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#6b8cae', font:{size:10}, boxWidth:10 } } },
+      scales:{
+        x:{ticks:{color:'#6b8cae',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+        y1:{type:'linear',position:'left',ticks:{color:'var(--blue)',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Minutes',color:'#6b8cae',font:{size:10}}},
+        y2:{type:'linear',position:'right',min:0,max:100,ticks:{color:'var(--cyan)',font:{size:10},callback:v=>v+'%'},grid:{display:false}}
+      }
+    }
+  });
+}
+
+async function loadShiftHistory() {
+  const tbody = document.getElementById('shift-tbody');
+  try {
+    const d = await zFetch('/api/cnc/shifts?machine=MACHINE001&limit=14');
+    if (!d || !d.length) throw new Error('empty');
+    tbody.innerHTML = d.slice(0,14).map(s => {
+      const oee = parseFloat(s.oee)||0;
+      const g = oeeGrade(oee);
+      return `<tr>
+        <td>${s.date||'--'}</td>
+        <td><span class="z-badge info">${s.shift||'--'}</span></td>
+        <td style="color:${oeeColor(oee)};font-weight:700;">${fmtPct(oee)}</td>
+        <td>${fmtPct(s.availability)}</td>
+        <td>${fmtPct(s.performance)}</td>
+        <td>${fmtPct(s.quality)}</td>
+        <td>${fmtInt(s.parts||s.part_count)}</td>
+        <td>${fmtNum(s.avg_cycle,1)}s</td>
+        <td>${fmtNum(s.downtime_min,0)} min</td>
+        <td><span class="z-badge ${g.cls}">${g.label}</span></td>
+      </tr>`;
+    }).join('');
+  } catch {
+    const demo = [
+      {date:'2025-05-28',shift:'A',oee:74.2,availability:89.5,performance:86.1,quality:96.4,parts:818,avg_cycle:46.3,downtime_min:78},
+      {date:'2025-05-28',shift:'B',oee:61.8,availability:82.3,performance:79.1,quality:95.0,parts:682,avg_cycle:51.2,downtime_min:127},
+      {date:'2025-05-27',shift:'A',oee:81.5,availability:93.1,performance:88.2,quality:98.8,parts:899,avg_cycle:44.8,downtime_min:49},
+      {date:'2025-05-27',shift:'B',oee:68.4,availability:87.2,performance:82.0,quality:95.6,parts:755,avg_cycle:48.6,downtime_min:92},
+      {date:'2025-05-26',shift:'A',oee:77.3,availability:91.0,performance:85.4,quality:99.5,parts:853,avg_cycle:45.9,downtime_min:65},
+      {date:'2025-05-26',shift:'B',oee:70.1,availability:88.5,performance:83.7,quality:94.6,parts:774,avg_cycle:47.4,downtime_min:82},
+    ];
+    tbody.innerHTML = demo.map(s => {
+      const g = oeeGrade(s.oee);
+      return `<tr>
+        <td>${s.date}</td>
+        <td><span class="z-badge info">${s.shift}</span></td>
+        <td style="color:${oeeColor(s.oee)};font-weight:700;">${fmtPct(s.oee)}</td>
+        <td>${fmtPct(s.availability)}</td>
+        <td>${fmtPct(s.performance)}</td>
+        <td>${fmtPct(s.quality)}</td>
+        <td>${s.parts}</td>
+        <td>${s.avg_cycle.toFixed(1)}s</td>
+        <td>${s.downtime_min} min</td>
+        <td><span class="z-badge ${g.cls}">${g.label}</span></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+async function loadAll() {
+  const date = document.getElementById('sel-date').value || todayISO;
+  const shift = document.getElementById('sel-shift').value || 'A';
+  document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  await Promise.allSettled([loadOEE(date, shift), loadHourly(date, shift)]);
+  renderHistogram();
+  renderPareto();
+  await loadShiftHistory();
+}
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

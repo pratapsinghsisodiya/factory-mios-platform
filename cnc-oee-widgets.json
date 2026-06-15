@@ -1,0 +1,120 @@
+{
+  "widgetsBundle": {
+    "alias": "cnc_oee_bundle",
+    "title": "CNC OEE Widgets",
+    "image": null,
+    "description": "Custom real-time OEE monitoring widgets for Industrial CNC machines"
+  },
+  "widgetTypes": [
+    {
+      "alias": "cnc_kpi_card",
+      "name": "CNC KPI Card",
+      "image": null,
+      "description": "Custom OEE widget: CNC KPI Card",
+      "tags": [
+        "cnc",
+        "oee"
+      ],
+      "descriptor": {
+        "type": "latest",
+        "sizeX": 6,
+        "sizeY": 4,
+        "resources": [],
+        "templateHtml": "<div class=\"cw-root\">\n  <div class=\"cw-top-bar\" ng-style=\"{'background': barColor}\"></div>\n  <div class=\"cw-icon-row\">\n    <span class=\"cw-icon\">{{iconText}}</span>\n  </div>\n  <div class=\"cw-value\" ng-style=\"{'color': valueColor}\">{{displayVal}}</div>\n  <div class=\"cw-unit\">{{unitText}}</div>\n  <div class=\"cw-label\">{{labelText}}</div>\n  <div class=\"cw-status-dot\" ng-style=\"{'background': barColor}\"></div>\n</div>",
+        "templateCss": ".cw-root{position:relative;width:100%;height:100%;background:#0f172a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;overflow:hidden;border:1px solid rgba(255,255,255,0.07);box-sizing:border-box;padding:6px 8px;}\n.cw-top-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;transition:background .4s;}\n.cw-icon-row{margin-bottom:4px;}\n.cw-icon{font-size:20px;}\n.cw-value{font-size:clamp(22px,4.5vw,38px);font-weight:800;color:#fff;line-height:1;text-align:center;}\n.cw-unit{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;}\n.cw-label{font-size:10px;color:rgba(255,255,255,0.55);margin-top:6px;text-transform:uppercase;letter-spacing:.07em;text-align:center;}\n.cw-status-dot{position:absolute;bottom:8px;right:10px;width:8px;height:8px;border-radius:50%;transition:background .4s;}",
+        "controllerScript": "var ctx;\nself.onInit = function() {\n  ctx = self.ctx;\n  ctx.$scope.displayVal = '--';\n  ctx.$scope.unitText = ctx.widgetConfig.units || '';\n  ctx.$scope.labelText = ctx.widgetConfig.title || 'Value';\n  ctx.$scope.iconText = (ctx.settings && ctx.settings.icon) || '\ud83d\udcca';\n  ctx.$scope.barColor = '#334155';\n  ctx.$scope.valueColor = '#ffffff';\n};\nself.onDataUpdated = function() {\n  try {\n    if (!ctx.data || !ctx.data.length) return;\n    var d = ctx.data[0];\n    if (!d || !d.data || !d.data.length) return;\n    var raw = d.data[d.data.length - 1][1];\n    var num = parseFloat(raw);\n    if (!isNaN(num)) {\n      var dec = (ctx.widgetConfig.decimals !== undefined && ctx.widgetConfig.decimals !== null) ? ctx.widgetConfig.decimals : 1;\n      ctx.$scope.displayVal = num.toFixed(dec);\n      var maxV = (ctx.settings && ctx.settings.maxVal) ? parseFloat(ctx.settings.maxVal) : 100;\n      var pct = Math.min(100, (num / maxV) * 100);\n      if (pct >= 75) { ctx.$scope.barColor = '#00e676'; ctx.$scope.valueColor = '#00e676'; }\n      else if (pct >= 40) { ctx.$scope.barColor = '#ffb300'; ctx.$scope.valueColor = '#ffb300'; }\n      else { ctx.$scope.barColor = '#ff5252'; ctx.$scope.valueColor = '#ff5252'; }\n    } else {\n      ctx.$scope.displayVal = raw || '--';\n      ctx.$scope.barColor = '#3b82f6';\n      ctx.$scope.valueColor = '#3b82f6';\n    }\n    ctx.detectChanges();\n  } catch(e) {}\n};\nself.onDestroy = function() {};",
+        "settingsSchema": null,
+        "dataKeySettingsSchema": null,
+        "defaultConfig": "{\"datasources\": [{\"type\": \"entity\", \"name\": \"\", \"entityAliasId\": null, \"filterId\": null, \"dataKeys\": [{\"name\": \"spindle_speed\", \"type\": \"timeseries\", \"label\": \"Spindle Speed\", \"color\": \"#00e676\", \"settings\": {}}]}], \"showTitle\": true, \"title\": \"CNC KPI Card\", \"settings\": {}, \"actions\": {}}"
+      }
+    },
+    {
+      "alias": "cnc_status_card",
+      "name": "CNC Status Card",
+      "image": null,
+      "description": "Custom OEE widget: CNC Status Card",
+      "tags": [
+        "cnc",
+        "oee"
+      ],
+      "descriptor": {
+        "type": "latest",
+        "sizeX": 6,
+        "sizeY": 6,
+        "resources": [],
+        "templateHtml": "<div class=\"ms-root\">\n  <div class=\"ms-ring\" ng-style=\"{'border-color': ringColor, 'box-shadow': '0 0 18px '+ringColor+'66'}\">\n    <span class=\"ms-state\">{{stateText}}</span>\n  </div>\n  <div class=\"ms-label\">Machine Status</div>\n  <div class=\"ms-badge\" ng-style=\"{'background': ringColor}\">{{stateText}}</div>\n</div>",
+        "templateCss": ".ms-root{width:100%;height:100%;background:#0f172a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;border:1px solid rgba(255,255,255,0.07);box-sizing:border-box;padding:8px;}\n.ms-ring{width:80px;height:80px;border-radius:50%;border:4px solid #334155;display:flex;align-items:center;justify-content:center;transition:all .5s;margin-bottom:8px;}\n.ms-state{font-size:9px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:4px;}\n.ms-label{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}\n.ms-badge{color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;}",
+        "controllerScript": "var ctx;\nvar stateColors = {\n  'RUNNING': '#00e676', 'running': '#00e676', '1': '#00e676',\n  'STOPPED': '#ff5252', 'stopped': '#ff5252', '0': '#ff5252',\n  'IDLE': '#ffb300', 'idle': '#ffb300',\n  'ALARM': '#ff1744', 'alarm': '#ff1744',\n  'FAULT': '#ff1744', 'fault': '#ff1744',\n  'AUTO': '#00e676', 'auto': '#00e676'\n};\nself.onInit = function() {\n  ctx = self.ctx;\n  ctx.$scope.stateText = '---';\n  ctx.$scope.ringColor = '#334155';\n};\nself.onDataUpdated = function() {\n  try {\n    if (!ctx.data || !ctx.data.length || !ctx.data[0].data || !ctx.data[0].data.length) return;\n    var raw = String(ctx.data[0].data[ctx.data[0].data.length - 1][1]);\n    ctx.$scope.stateText = raw.toUpperCase().substring(0, 10);\n    ctx.$scope.ringColor = stateColors[raw] || stateColors[raw.toUpperCase()] || '#3b82f6';\n    ctx.detectChanges();\n  } catch(e) {}\n};\nself.onDestroy = function() {};",
+        "settingsSchema": null,
+        "dataKeySettingsSchema": null,
+        "defaultConfig": "{\"datasources\": [{\"type\": \"entity\", \"name\": \"\", \"entityAliasId\": null, \"filterId\": null, \"dataKeys\": [{\"name\": \"machine_state\", \"type\": \"timeseries\", \"label\": \"Machine State\", \"color\": \"#00e676\", \"settings\": {}}]}], \"showTitle\": true, \"title\": \"CNC Status Card\", \"settings\": {}, \"actions\": {}}"
+      }
+    },
+    {
+      "alias": "cnc_oee_ring",
+      "name": "CNC OEE Ring Gauge",
+      "image": null,
+      "description": "Custom OEE widget: CNC OEE Ring Gauge",
+      "tags": [
+        "cnc",
+        "oee"
+      ],
+      "descriptor": {
+        "type": "latest",
+        "sizeX": 6,
+        "sizeY": 6,
+        "resources": [],
+        "templateHtml": "<div class=\"og-root\">\n  <svg class=\"og-svg\" viewBox=\"0 0 120 120\">\n    <circle class=\"og-bg\" cx=\"60\" cy=\"60\" r=\"50\"/>\n    <circle class=\"og-arc\" cx=\"60\" cy=\"60\" r=\"50\"\n      ng-attr-stroke-dasharray=\"{{arcLen}} 314\"\n      ng-attr-stroke=\"{{arcColor}}\"\n      stroke-width=\"10\" fill=\"none\"\n      stroke-linecap=\"round\"\n      transform=\"rotate(-90 60 60)\"/>\n    <text x=\"60\" y=\"55\" class=\"og-pct\" text-anchor=\"middle\" ng-attr-fill=\"{{arcColor}}\">{{pctText}}</text>\n    <text x=\"60\" y=\"70\" class=\"og-sub\" text-anchor=\"middle\" fill=\"rgba(255,255,255,0.4)\">{{labelText}}</text>\n  </svg>\n  <div class=\"og-bottom\">\n    <span class=\"og-zone\" ng-style=\"{'background': arcColor}\">{{zoneText}}</span>\n  </div>\n</div>",
+        "templateCss": ".og-root{width:100%;height:100%;background:#0f172a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;border:1px solid rgba(255,255,255,0.07);box-sizing:border-box;padding:8px;}\n.og-svg{width:min(100%,130px);height:min(100%,130px);}\n.og-bg{stroke:#1e293b;stroke-width:10;fill:none;}\n.og-arc{transition:stroke-dasharray .6s ease,stroke .4s;}\n.og-pct{font-size:20px;font-weight:800;fill:#fff;}\n.og-sub{font-size:7px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;}\n.og-bottom{margin-top:4px;}\n.og-zone{color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;}",
+        "controllerScript": "var ctx;\nself.onInit = function() {\n  ctx = self.ctx;\n  ctx.$scope.pctText = '--';\n  ctx.$scope.arcColor = '#334155';\n  ctx.$scope.arcLen = 0;\n  ctx.$scope.labelText = ctx.widgetConfig.title || 'OEE';\n  ctx.$scope.zoneText = 'NO DATA';\n};\nself.onDataUpdated = function() {\n  try {\n    if (!ctx.data || !ctx.data.length || !ctx.data[0].data || !ctx.data[0].data.length) return;\n    var raw = parseFloat(ctx.data[0].data[ctx.data[0].data.length - 1][1]);\n    if (isNaN(raw)) return;\n    var pct = Math.max(0, Math.min(100, raw));\n    ctx.$scope.pctText = pct.toFixed(1) + '%';\n    ctx.$scope.arcLen = (pct / 100) * 314;\n    if (pct >= 75) { ctx.$scope.arcColor = '#00e676'; ctx.$scope.zoneText = 'WORLD CLASS'; }\n    else if (pct >= 50) { ctx.$scope.arcColor = '#ffb300'; ctx.$scope.zoneText = 'IMPROVING'; }\n    else { ctx.$scope.arcColor = '#ff5252'; ctx.$scope.zoneText = 'ACTION NEEDED'; }\n    ctx.detectChanges();\n  } catch(e) {}\n};\nself.onDestroy = function() {};",
+        "settingsSchema": null,
+        "dataKeySettingsSchema": null,
+        "defaultConfig": "{\"datasources\": [{\"type\": \"entity\", \"name\": \"\", \"entityAliasId\": null, \"filterId\": null, \"dataKeys\": [{\"name\": \"oee_today\", \"type\": \"timeseries\", \"label\": \"OEE %\", \"color\": \"#00e676\", \"settings\": {}}]}], \"showTitle\": true, \"title\": \"CNC OEE Ring Gauge\", \"settings\": {}, \"actions\": {}}"
+      }
+    },
+    {
+      "alias": "cnc_production_card",
+      "name": "CNC Production Card",
+      "image": null,
+      "description": "Custom OEE widget: CNC Production Card",
+      "tags": [
+        "cnc",
+        "oee"
+      ],
+      "descriptor": {
+        "type": "latest",
+        "sizeX": 8,
+        "sizeY": 5,
+        "resources": [],
+        "templateHtml": "<div class=\"pp-root\">\n  <div class=\"pp-header\">\n    <span class=\"pp-icon\">\ud83c\udfed</span>\n    <span class=\"pp-title\">{{titleText}}</span>\n  </div>\n  <div class=\"pp-main\">\n    <span class=\"pp-count\" ng-style=\"{'color': barColor}\">{{partsVal}}</span>\n    <span class=\"pp-sep\">/</span>\n    <span class=\"pp-target\">{{targetVal}}</span>\n  </div>\n  <div class=\"pp-unit\">parts produced / target</div>\n  <div class=\"pp-bar-bg\">\n    <div class=\"pp-bar-fill\" ng-style=\"{'width': fillPct+'%', 'background': barColor}\"></div>\n  </div>\n  <div class=\"pp-attain\" ng-style=\"{'color': barColor}\">{{attainText}} attainment</div>\n</div>",
+        "templateCss": ".pp-root{width:100%;height:100%;background:#0f172a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;border:1px solid rgba(255,255,255,0.07);box-sizing:border-box;padding:10px 14px;}\n.pp-header{display:flex;align-items:center;gap:6px;margin-bottom:6px;width:100%;}\n.pp-icon{font-size:16px;}\n.pp-title{font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.07em;}\n.pp-main{display:flex;align-items:baseline;gap:4px;margin-bottom:2px;}\n.pp-count{font-size:clamp(20px,4vw,34px);font-weight:800;transition:color .4s;}\n.pp-sep{font-size:18px;color:rgba(255,255,255,0.3);}\n.pp-target{font-size:18px;font-weight:600;color:rgba(255,255,255,0.5);}\n.pp-unit{font-size:9px;color:rgba(255,255,255,0.3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}\n.pp-bar-bg{width:100%;height:6px;background:#1e293b;border-radius:6px;overflow:hidden;margin-bottom:4px;}\n.pp-bar-fill{height:100%;border-radius:6px;transition:width .6s ease,background .4s;}\n.pp-attain{font-size:10px;font-weight:700;letter-spacing:.05em;}",
+        "controllerScript": "var ctx;\nself.onInit = function() {\n  ctx = self.ctx;\n  ctx.$scope.partsVal = '--';\n  ctx.$scope.targetVal = '--';\n  ctx.$scope.fillPct = 0;\n  ctx.$scope.barColor = '#334155';\n  ctx.$scope.attainText = '0%';\n  ctx.$scope.titleText = ctx.widgetConfig.title || 'Production';\n};\nself.onDataUpdated = function() {\n  try {\n    var parts = 0, target = 0;\n    if (ctx.data && ctx.data.length >= 1 && ctx.data[0].data && ctx.data[0].data.length) {\n      parts = parseFloat(ctx.data[0].data[ctx.data[0].data.length - 1][1]) || 0;\n    }\n    if (ctx.data && ctx.data.length >= 2 && ctx.data[1].data && ctx.data[1].data.length) {\n      target = parseFloat(ctx.data[1].data[ctx.data[1].data.length - 1][1]) || 0;\n    }\n    ctx.$scope.partsVal = Math.round(parts);\n    ctx.$scope.targetVal = target > 0 ? Math.round(target) : '?';\n    var pct = target > 0 ? Math.min(100, (parts / target) * 100) : 0;\n    ctx.$scope.fillPct = pct;\n    ctx.$scope.attainText = pct.toFixed(1) + '%';\n    if (pct >= 90) ctx.$scope.barColor = '#00e676';\n    else if (pct >= 70) ctx.$scope.barColor = '#ffb300';\n    else ctx.$scope.barColor = '#ff5252';\n    ctx.detectChanges();\n  } catch(e) {}\n};\nself.onDestroy = function() {};",
+        "settingsSchema": null,
+        "dataKeySettingsSchema": null,
+        "defaultConfig": "{\"datasources\": [{\"type\": \"entity\", \"name\": \"\", \"entityAliasId\": null, \"filterId\": null, \"dataKeys\": [{\"name\": \"parts_today\", \"type\": \"timeseries\", \"label\": \"Parts\", \"color\": \"#3b82f6\", \"settings\": {}}, {\"name\": \"target_today\", \"type\": \"timeseries\", \"label\": \"Target\", \"color\": \"#64748b\", \"settings\": {}}]}], \"showTitle\": true, \"title\": \"CNC Production Card\", \"settings\": {}, \"actions\": {}}"
+      }
+    },
+    {
+      "alias": "cnc_bool_status",
+      "name": "CNC Boolean Status Grid",
+      "image": null,
+      "description": "Custom OEE widget: CNC Boolean Status Grid",
+      "tags": [
+        "cnc",
+        "oee"
+      ],
+      "descriptor": {
+        "type": "latest",
+        "sizeX": 6,
+        "sizeY": 6,
+        "resources": [],
+        "templateHtml": "<div class=\"bg-root\">\n  <div class=\"bg-title\">{{titleText}}</div>\n  <div class=\"bg-grid\">\n    <div class=\"bg-item\" ng-for=\"item in items\" ng-repeat=\"item in items\">\n      <div class=\"bg-dot\" ng-style=\"{'background': item.color, 'box-shadow': '0 0 8px '+item.color+'88'}\"></div>\n      <span class=\"bg-key\">{{item.label}}</span>\n      <span class=\"bg-val\" ng-style=\"{'color': item.color}\">{{item.val}}</span>\n    </div>\n  </div>\n</div>",
+        "templateCss": ".bg-root{width:100%;height:100%;background:#0f172a;border-radius:12px;display:flex;flex-direction:column;align-items:flex-start;font-family:'Segoe UI',sans-serif;border:1px solid rgba(255,255,255,0.07);box-sizing:border-box;padding:10px 12px;overflow:hidden;}\n.bg-title{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}\n.bg-grid{width:100%;display:flex;flex-direction:column;gap:6px;}\n.bg-item{display:flex;align-items:center;gap:8px;width:100%;}\n.bg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s;}\n.bg-key{font-size:11px;color:rgba(255,255,255,0.6);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}\n.bg-val{font-size:11px;font-weight:700;white-space:nowrap;}",
+        "controllerScript": "var ctx;\nvar keyLabels = {\n  'is_running':'Running','auto_mode':'Auto Mode','alarm_active':'Alarm',\n  'motion_status':'In Motion','run_status':'Run Status','connection_status':'Connected',\n  'emergency':'Emergency'\n};\nself.onInit = function() {\n  ctx = self.ctx;\n  ctx.$scope.titleText = ctx.widgetConfig.title || 'Status';\n  ctx.$scope.items = [];\n};\nself.onDataUpdated = function() {\n  try {\n    var items = [];\n    for (var i = 0; i < ctx.data.length; i++) {\n      var d = ctx.data[i];\n      if (!d || !d.data || !d.data.length) continue;\n      var raw = d.data[d.data.length - 1][1];\n      var keyName = d.dataKey ? d.dataKey.name : ('key' + i);\n      var label = keyLabels[keyName] || keyName.replace(/_/g,' ');\n      var num = parseFloat(raw);\n      var isOn = (!isNaN(num) && num > 0) || raw === true || raw === 'true' || raw === '1' || raw === 'RUNNING' || raw === 'ON';\n      var color = isOn ? '#00e676' : '#ff5252';\n      if (keyName === 'alarm_active' && isOn) color = '#ff1744';\n      if (keyName === 'emergency' && isOn) color = '#ff1744';\n      items.push({ label: label, val: isOn ? 'ON' : 'OFF', color: color });\n    }\n    ctx.$scope.items = items;\n    ctx.detectChanges();\n  } catch(e) {}\n};\nself.onDestroy = function() {};",
+        "settingsSchema": null,
+        "dataKeySettingsSchema": null,
+        "defaultConfig": "{\"datasources\": [{\"type\": \"entity\", \"name\": \"\", \"entityAliasId\": null, \"filterId\": null, \"dataKeys\": [{\"name\": \"is_running\", \"type\": \"timeseries\", \"label\": \"Running\", \"color\": \"#00e676\", \"settings\": {}}, {\"name\": \"auto_mode\", \"type\": \"timeseries\", \"label\": \"Auto Mode\", \"color\": \"#00e676\", \"settings\": {}}, {\"name\": \"alarm_active\", \"type\": \"timeseries\", \"label\": \"Alarm\", \"color\": \"#ff5252\", \"settings\": {}}, {\"name\": \"motion_status\", \"type\": \"timeseries\", \"label\": \"Motion\", \"color\": \"#ffb300\", \"settings\": {}}]}], \"showTitle\": true, \"title\": \"CNC Boolean Status Grid\", \"settings\": {}, \"actions\": {}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Dashboards — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+.page{max-width:1400px;margin:0 auto;padding:20px 24px 80px;}
+.pg-hdr{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+.pg-title{font-size:22px;font-weight:800;}
+.pg-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.pg-actions{margin-left:auto;display:flex;gap:8px;}
+.create-btn{background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;border-radius:10px;padding:9px 18px;color:#0a0e1a;font-size:12px;font-weight:800;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:7px;}
+.create-btn:hover{transform:scale(1.03);box-shadow:0 0 20px rgba(0,212,255,.3);}
+
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;}
+
+.dash-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .2s;animation:fadeInUp .3s ease forwards;}
+.dash-card:hover{border-color:rgba(0,212,255,.3);transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+
+.dash-preview{height:120px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.dash-preview-logo{position:absolute;top:10px;left:12px;max-height:28px;max-width:80px;opacity:.85;}
+.dash-preview-count{font-size:42px;font-weight:900;opacity:.15;position:absolute;}
+.dash-preview-icon{font-size:38px;opacity:.8;}
+
+.dash-body{padding:14px 16px;}
+.dash-name{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.dash-desc{font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.dash-meta{font-size:10px;color:var(--muted);margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;}
+.vis-badge{font-size:9px;padding:2px 7px;border-radius:6px;font-weight:700;}
+.vis-badge.draft{background:rgba(255,179,0,.12);color:var(--amber);}
+.vis-badge.published{background:rgba(0,212,255,.12);color:var(--cyan);}
+.vis-badge.all{background:rgba(0,255,136,.12);color:var(--green);}
+
+.dash-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;}
+.da-btn{padding:7px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid transparent;transition:all .2s;text-align:center;text-decoration:none;display:block;}
+.da-view{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.2);color:var(--cyan);}
+.da-view:hover{background:rgba(0,212,255,.2);}
+.da-edit{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--muted);}
+.da-edit:hover{color:var(--text);}
+.da-del{background:rgba(255,68,68,.08);border-color:rgba(255,68,68,.15);color:var(--red);padding:7px 10px;}
+.da-del:hover{background:rgba(255,68,68,.18);}
+
+/* Create new card */
+.new-card{background:rgba(255,255,255,.02);border:2px dashed rgba(255,255,255,.1);border-radius:16px;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;text-decoration:none;}
+.new-card:hover{border-color:rgba(0,212,255,.3);background:rgba(0,212,255,.04);}
+.new-card-icon{font-size:40px;opacity:.3;margin-bottom:10px;}
+.new-card-lbl{font-size:13px;font-weight:700;color:var(--muted);}
+.new-card-sub{font-size:11px;color:var(--muted2,#444);margin-top:4px;}
+
+.empty-state{text-align:center;padding:80px 20px;color:var(--muted);}
+.empty-icon{font-size:56px;opacity:.25;margin-bottom:16px;}
+.empty-title{font-size:18px;font-weight:700;margin-bottom:8px;}
+.empty-sub{font-size:13px;margin-bottom:24px;}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="z-nav"></div>
+<div class="page">
+  <div class="pg-hdr">
+    <div>
+      <div class="pg-title">📋 My Dashboards</div>
+      <div class="pg-sub">Your saved and published custom dashboard views</div>
+    </div>
+    <div class="pg-actions">
+      <a href="/dashboard-builder.html" class="create-btn">➕ Create Dashboard</a>
+    </div>
+  </div>
+
+  <div id="dash-container">
+    <div class="dash-grid" id="dash-grid">
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">
+        <div style="font-size:24px;margin-bottom:8px">⟳</div>Loading…
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+const THEME_GRADIENTS = [
+  'linear-gradient(135deg,#0a1628,#0d2040)',
+  'linear-gradient(135deg,#0d2040,#1a3a6e)',
+  'linear-gradient(135deg,#1a0a28,#2d1060)',
+  'linear-gradient(135deg,#0a2015,#103828)',
+  'linear-gradient(135deg,#201008,#402010)',
+  'linear-gradient(135deg,#080a20,#101840)',
+];
+
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getBg(d, idx) {
+  var t = d.theme || {};
+  if (t.bgImage) return 'url(' + escH(t.bgImage) + ') center/cover';
+  if (t.bgColor) return t.bgColor;
+  return THEME_GRADIENTS[idx % THEME_GRADIENTS.length];
+}
+
+function getAccent(d) {
+  var t = d.theme || {};
+  return t.accentColor || 'var(--cyan)';
+}
+
+function renderDashboards(list) {
+  var grid = document.getElementById('dash-grid');
+  grid.innerHTML = '';
+
+  if (!list.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1">' +
+      '<div class="empty-state">' +
+      '<div class="empty-icon">📋</div>' +
+      '<div class="empty-title">No dashboards yet</div>' +
+      '<div class="empty-sub">Create your first custom dashboard in the Builder</div>' +
+      '<a href="/dashboard-builder.html" class="create-btn" style="display:inline-flex;margin:0 auto">➕ Open Builder</a>' +
+      '</div></div>';
+    // Still add the "create new" card
+    addNewCard(grid);
+    return;
+  }
+
+  list.forEach(function(d, idx) {
+    var dt  = new Date(d.published_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+    var wc  = (d.widgets || []).length;
+    var vis = d.visibility || 'all';
+    var visBadge = vis === 'draft'
+      ? '<span class="vis-badge draft">🔒 Draft</span>'
+      : vis === 'all' || vis === 'public'
+        ? '<span class="vis-badge all">🌐 Public</span>'
+        : '<span class="vis-badge published">🔗 Link</span>';
+    var bg = getBg(d, idx);
+    var accent = getAccent(d);
+    var logo = d.theme && d.theme.logoUrl ? '<img src="' + escH(d.theme.logoUrl) + '" class="dash-preview-logo" onerror="this.remove()"/>' : '';
+
+    var card = document.createElement('div');
+    card.className = 'dash-card';
+    card.setAttribute('style', '--card-accent:' + accent);
+    card.innerHTML =
+      '<div class="dash-preview" style="background:' + bg + '">' +
+        logo +
+        '<div class="dash-preview-count">' + wc + '</div>' +
+        '<div class="dash-preview-icon">' + (d.theme && d.theme.icon || '📊') + '</div>' +
+      '</div>' +
+      '<div class="dash-body">' +
+        '<div class="dash-name">' + escH(d.name) + visBadge + '</div>' +
+        (d.description ? '<div class="dash-desc">' + escH(d.description) + '</div>' : '') +
+        '<div class="dash-meta">' +
+          '<span>' + wc + ' widget' + (wc !== 1 ? 's' : '') + '</span>' +
+          '<span>Saved ' + dt + '</span>' +
+        '</div>' +
+        '<div class="dash-actions">' +
+          '<a href="/view/' + escH(d.slug) + '" class="da-btn da-view" target="_blank">👁 View</a>' +
+          '<a href="/dashboard-builder.html?load=' + escH(d.slug) + '" class="da-btn da-edit">✏️ Edit</a>' +
+          '<button class="da-btn da-del" onclick="deleteDash(\'' + escH(d.slug) + '\',this)">✕</button>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+
+  addNewCard(grid);
+}
+
+function addNewCard(grid) {
+  var a = document.createElement('a');
+  a.href = '/dashboard-builder.html';
+  a.className = 'new-card';
+  a.innerHTML = '<div class="new-card-icon">+</div><div class="new-card-lbl">Create New Dashboard</div><div class="new-card-sub">Open the Builder</div>';
+  grid.appendChild(a);
+}
+
+function deleteDash(slug, btn) {
+  if (!confirm('Delete dashboard "' + slug + '"?')) return;
+  btn.disabled = true; btn.textContent = '…';
+  fetch('/api/dashboards/' + slug, { method: 'DELETE', headers: zAuthHeader ? zAuthHeader() : {} })
+    .then(function(r){ return r.json(); })
+    .then(function(){ loadDashboards(); zToast('Dashboard deleted', 'success'); })
+    .catch(function(){ btn.disabled = false; btn.textContent = '✕'; zToast('Delete failed', 'err'); });
+}
+
+function loadDashboards() {
+  fetch('/api/dashboards/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ renderDashboards((d && d.dashboards) || []); })
+    .catch(function(){ renderDashboards([]); });
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  if (typeof zRenderNav === 'function') zRenderNav('z-nav');
+  if (typeof zStartClock === 'function') zStartClock('z-clock');
+  if (typeof zCheckAuth === 'function') zCheckAuth();
+  loadDashboards();
+});
+</script>
+</body>
+</html>

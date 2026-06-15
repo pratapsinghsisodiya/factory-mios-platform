@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Plant Manager — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+body { display:flex; flex-direction:column; }
+.page { flex:1; max-width:1600px; margin:0 auto; padding:20px 24px 60px; width:100%; position:relative; z-index:1; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex; align-items:center; gap:10px; flex-wrap:wrap;
+  position: sticky; top: 106px; z-index:300;
+}
+.toolbar-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.search-box {
+  display:flex; align-items:center; gap:8px;
+  background: rgba(255,255,255,.04); border:1px solid var(--border);
+  border-radius:8px; padding:6px 12px; flex:1; max-width:280px;
+}
+.search-box input { background:none; border:none; color:var(--text); font-size:12px; outline:none; width:100%; }
+.search-box input::placeholder { color:var(--muted2); }
+
+/* ── SUMMARY KPI TILES ── */
+.summary-grid {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;
+}
+
+/* ── PLANT GRID ── */
+.plant-grid { display:grid; gap:16px; }
+.plant-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  overflow: hidden;
+  transition: border-color var(--trans), box-shadow var(--trans), transform var(--trans);
+  position: relative;
+  animation: fadeInUp .4s ease forwards;
+}
+.plant-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  transform: translateY(-2px);
+}
+.plant-card-accent {
+  height: 3px;
+  background: linear-gradient(90deg, var(--cyan), var(--blue));
+}
+.plant-card-accent.online { background: linear-gradient(90deg, var(--green), var(--teal)); }
+.plant-card-accent.offline { background: linear-gradient(90deg, var(--amber), var(--red)); }
+
+.plant-card-body { padding: 20px 24px; }
+
+.plant-head {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px;
+}
+.plant-info {}
+.plant-name { font-size:17px; font-weight:800; margin-bottom:4px; }
+.plant-id-txt { font-family:monospace; font-size:10px; color:var(--muted); margin-bottom:3px; }
+.plant-loc { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+
+.plant-status-col { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+
+/* ── STATUS INDICATOR ── */
+.status-indicator {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700;
+}
+.status-indicator.online {
+  background: rgba(0,255,136,.1); border:1px solid rgba(0,255,136,.25); color:var(--green);
+}
+.status-indicator.offline {
+  background: rgba(255,179,0,.1); border:1px solid rgba(255,179,0,.25); color:var(--amber);
+}
+.status-indicator .pulse {
+  width:8px; height:8px; border-radius:50%; background:currentColor;
+  flex-shrink:0;
+}
+.status-indicator.online .pulse { animation:blink 1.5s infinite; }
+
+/* ── PLANT METRICS ── */
+.plant-metrics {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+  background: rgba(255,255,255,.02); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px 18px; margin-bottom:16px;
+}
+.metric-item {}
+.metric-label { font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:4px; }
+.metric-val { font-size:20px; font-weight:900; line-height:1; }
+.metric-sub { font-size:9px; color:var(--muted); margin-top:2px; }
+
+/* ── OEE BAR ── */
+.oee-bar-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.oee-bar-label { font-size:10px; color:var(--muted); min-width:28px; font-weight:700; }
+.oee-bar-track { flex:1; height:6px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; }
+.oee-bar-fill { height:100%; border-radius:3px; transition:width 1s ease; }
+.oee-bar-pct { font-size:11px; font-weight:800; min-width:40px; text-align:right; }
+
+/* ── DEVICE CHIPS ── */
+.device-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.device-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  background: rgba(255,255,255,.04); border:1px solid var(--border);
+  border-radius:20px; padding:4px 12px;
+  font-size:11px; color:var(--muted);
+  transition: border-color var(--trans);
+}
+.device-chip:hover { border-color:var(--cyan); color:var(--text); }
+.device-chip .dc-icon { font-size:12px; }
+
+/* ── PLANT ACTIONS ── */
+.plant-actions {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding-top:14px; border-top:1px solid var(--border);
+}
+.plant-actions .schema-lbl { font-size:10px; font-family:monospace; color:var(--muted2); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align:center; padding:80px 40px;
+  background: var(--card); border:1px dashed var(--border);
+  border-radius:var(--radius-lg);
+}
+.empty-state .empty-icon { font-size:56px; margin-bottom:16px; display:block; }
+.empty-state h3 { font-size:20px; font-weight:700; margin-bottom:8px; }
+.empty-state p { font-size:13px; color:var(--muted); margin-bottom:24px; }
+
+/* ── MODAL ── */
+.z-form-row { display:grid; gap:12px; margin-bottom:12px; }
+.z-form-row.g2 { grid-template-columns:1fr 1fr; }
+.z-form-row.g3 { grid-template-columns:1fr 1fr 1fr; }
+.z-form-group { display:flex; flex-direction:column; gap:5px; }
+
+/* ── DELETE CONFIRM ── */
+.del-zone {
+  background: rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:10px; padding:16px; margin-bottom:12px;
+}
+.del-zone.danger { border-color:rgba(255,68,68,.3); }
+.del-zone-title { font-size:12px; font-weight:700; margin-bottom:6px; }
+.del-zone-desc { font-size:11px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+
+/* ── LOADING ── */
+.loading-block { display:flex; align-items:center; justify-content:center; gap:12px; padding:60px; color:var(--muted); font-size:13px; }
+.spin-ring { width:22px; height:22px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .8s linear infinite; }
+
+@media(max-width:900px) {
+  .summary-grid { grid-template-columns:repeat(3,1fr); }
+  .plant-metrics { grid-template-columns:repeat(3,1fr); }
+}
+@media(max-width:600px) {
+  .summary-grid { grid-template-columns:repeat(2,1fr); }
+  .plant-metrics { grid-template-columns:repeat(2,1fr); }
+  .plant-head { flex-direction:column; }
+  .plant-status-col { align-items:flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div id="z-header-mount"></div>
+
+<div class="toolbar">
+  <span class="toolbar-title">Plant Manager</span>
+  <div class="search-box">
+    <span style="color:var(--muted)">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search plants…" oninput="filterPlants(this.value)"/>
+  </div>
+  <select class="z-select" id="statusFilter" onchange="filterPlants()">
+    <option value="">All Status</option>
+    <option value="active">Active</option>
+    <option value="inactive">Inactive</option>
+  </select>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <button class="z-btn ghost" onclick="refreshAll()">↻ Refresh</button>
+    <a href="/device-setup" class="z-btn primary">＋ Register Plant</a>
+  </div>
+</div>
+
+<main class="page">
+
+  <!-- SUMMARY KPI TILES -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="kpi-tile c-cyan">
+      <div class="label">Total Plants</div>
+      <div class="value skeleton" id="st-plants" style="min-height:26px">--</div>
+      <div class="sub">registered</div>
+    </div>
+    <div class="kpi-tile c-green">
+      <div class="label">Online Now</div>
+      <div class="value" id="st-online" style="color:var(--green)">--</div>
+      <div class="sub">active plants</div>
+    </div>
+    <div class="kpi-tile c-amber">
+      <div class="label">Total Machines</div>
+      <div class="value" id="st-machines">--</div>
+      <div class="sub">devices</div>
+    </div>
+    <div class="kpi-tile c-blue">
+      <div class="label">Parameters</div>
+      <div class="value" id="st-params">--</div>
+      <div class="sub">data points</div>
+    </div>
+    <div class="kpi-tile c-purple">
+      <div class="label">Tenant</div>
+      <div class="value" id="st-tenant" style="font-size:14px;margin-top:4px">--</div>
+      <div class="sub">tenant ID</div>
+    </div>
+  </div>
+
+  <!-- PLANT LIST -->
+  <div id="plantListWrap">
+    <div class="loading-block">
+      <div class="spin-ring"></div>
+      Loading plants…
+    </div>
+  </div>
+
+</main>
+
+<!-- ── DELETE MODAL ── -->
+<div class="z-modal-overlay" id="deleteModal">
+  <div class="z-modal" style="max-width:560px;">
+    <div class="z-modal-title">
+      <span>🗑️</span> Delete Plant
+      <button class="z-modal-close" onclick="closeDeleteModal()">✕</button>
+    </div>
+    <p id="deleteMsg" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;"></p>
+
+    <div class="del-zone">
+      <div class="del-zone-title" style="color:var(--amber)">Registry Only (Safe)</div>
+      <div class="del-zone-desc">Removes plant from registry and stops data collection. <strong style="color:var(--green)">Database schema and all readings preserved.</strong></div>
+      <button class="z-btn ghost" onclick="confirmDelete(false)" style="border-color:var(--amber);color:var(--amber);">Remove from Registry</button>
+    </div>
+
+    <div class="del-zone danger">
+      <div class="del-zone-title" style="color:var(--red)">💥 Delete Everything (Permanent)</div>
+      <div class="del-zone-desc"><strong style="color:var(--red)">Drops entire database schema and ALL readings.</strong> Cannot be undone. Type Plant ID to confirm.</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input class="z-input" type="text" id="confirmPlantId" placeholder="Type Plant ID to confirm…" style="font-family:monospace;border-color:var(--red)44;"/>
+        <button class="z-btn danger" onclick="confirmDelete(true)" style="white-space:nowrap;flex-shrink:0;">💥 Delete All</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-start;margin-top:4px;">
+      <button class="z-btn ghost" onclick="closeDeleteModal()">✕ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+document.getElementById('z-header-mount').innerHTML = zRenderHeader('PLANT MANAGER');
+
+let registry = null;
+let allPlants = [];
+let deleteTargetId = null;
+let deleteTargetName = null;
+
+const DEVICE_ICONS = {
+  CNC:'🔩', VMC:'🔩', HMC:'🔩', Lathe:'⚙️', Press:'🗜️', Welding:'🔥',
+  Conveyor:'🔄', CMM:'📐', Laser:'⚡', Bender:'🔧', Deburring:'🔧',
+  energy_meter:'⚡', water_meter:'💧', machine:'🔧', plc:'🖥️', sensor:'📡', Robot:'🤖'
+};
+
+// ── WS LIVE UPDATES ──────────────────────────────────────────────────
+zWS(msg => {
+  try {
+    const d = JSON.parse(msg.data);
+    if (d.type === 'plant_update') refreshAll();
+  } catch {}
+});
+
+// ── LOAD ─────────────────────────────────────────────────────────────
+async function loadPlants() {
+  try {
+    const data = await zFetch('/api/devices');
+    registry = data.registry;
+    allPlants = registry.plants || [];
+    renderSummary(registry);
+    renderPlants(allPlants);
+  } catch (e) {
+    document.getElementById('plantListWrap').innerHTML =
+      `<div class="empty-state"><span class="empty-icon">⚠️</span><h3>Could not load plants</h3><p>${e.message}</p><a href="/device-setup" class="z-btn primary">Register First Plant</a></div>`;
+  }
+}
+
+function refreshAll() {
+  document.getElementById('plantListWrap').innerHTML =
+    '<div class="loading-block"><div class="spin-ring"></div> Refreshing…</div>';
+  loadPlants();
+}
+
+function renderSummary(reg) {
+  const plants  = reg.plants || [];
+  const online  = plants.filter(p => p.active).length;
+  const devices = plants.reduce((a,p) => a + (p.devices?.length || 0), 0);
+  const params  = plants.reduce((a,p) => a + (p.devices||[]).reduce((b,d) => b + (d.parameters?.length || 0), 0), 0);
+  setText('st-plants',  plants.length);
+  setText('st-online',  online);
+  setText('st-machines',devices);
+  setText('st-params',  params);
+  setText('st-tenant',  reg.tenant_id || '—');
+  // remove skeleton
+  document.getElementById('st-plants').classList.remove('skeleton');
+}
+
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+
+// ── FILTER ───────────────────────────────────────────────────────────
+function filterPlants(q) {
+  const query  = (q || document.getElementById('searchInput').value || '').toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+  const filtered = allPlants.filter(p => {
+    const matchQ = !query ||
+      (p.plant_name||'').toLowerCase().includes(query) ||
+      (p.plant_id||'').toLowerCase().includes(query) ||
+      (p.location||'').toLowerCase().includes(query);
+    const matchS = !status ||
+      (status === 'active' && p.active) ||
+      (status === 'inactive' && !p.active);
+    return matchQ && matchS;
+  });
+  renderPlants(filtered);
+}
+
+function renderPlants(plants) {
+  const wrap = document.getElementById('plantListWrap');
+  if (!plants.length) {
+    wrap.innerHTML = `<div class="empty-state">
+      <span class="empty-icon">🏭</span>
+      <h3>No Plants Found</h3>
+      <p>Try adjusting your search or register a new plant.</p>
+      <a href="/device-setup" class="z-btn primary">＋ Register New Plant</a>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="plant-grid">${plants.map(plantCard).join('')}</div>`;
+}
+
+function plantCard(p) {
+  const isOnline    = p.active;
+  const deviceCount = p.devices?.length || 0;
+  const paramCount  = (p.devices||[]).reduce((a,d) => a + (d.parameters?.length||0), 0);
+  const shiftCount  = p.shifts?.length || 0;
+  const schema      = p.unique_db_schema || `${registry?.tenant_id||'tenant'}_${p.plant_id}`;
+  const created     = p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—';
+
+  // Fake OEE for display (would come from live API in production)
+  const oee   = Math.round(65 + Math.random() * 25);
+  const avail = Math.round(oee + Math.random() * 8);
+  const perf  = Math.round(oee + Math.random() * 6);
+  const qual  = Math.round(95 + Math.random() * 4);
+
+  const deviceChips = (p.devices||[]).slice(0,8).map(d =>
+    `<div class="device-chip">
+      <span class="dc-icon">${DEVICE_ICONS[d.type]||DEVICE_ICONS[d.device_type]||'📦'}</span>
+      ${d.name||d.device_name||'Device'}
+    </div>`
+  ).join('');
+
+  return `
+  <div class="plant-card fade-in" id="card_${p.plant_id}">
+    <div class="plant-card-accent ${isOnline?'online':'offline'}"></div>
+    <div class="plant-card-body">
+
+      <div class="plant-head">
+        <div class="plant-info">
+          <div class="plant-name">${p.plant_name}</div>
+          <div class="plant-id-txt">ID: ${p.plant_id} &nbsp;·&nbsp; Schema: <span style="color:var(--teal)">${schema}</span></div>
+          <div class="plant-loc">📍 ${p.location||'—'}${p.gps?.lat?` (${p.gps.lat}, ${p.gps.lng})`:''}</div>
+        </div>
+        <div class="plant-status-col">
+          <div class="status-indicator ${isOnline?'online':'offline'}">
+            <div class="pulse"></div>
+            ${isOnline?'ONLINE':'OFFLINE'}
+          </div>
+          <div style="font-size:10px;color:var(--muted)">Created ${created}</div>
+          ${(p.users||[]).map(u=>`<div style="font-size:11px;color:var(--muted)">👤 ${u.username} <span style="color:var(--muted2)">(${u.role})</span></div>`).join('')}
+        </div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="plant-metrics">
+        <div class="metric-item">
+          <div class="metric-label">OEE</div>
+          <div class="metric-val" style="color:${oeeColor(oee)}">${oee}%</div>
+          <div class="metric-sub">today</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Devices</div>
+          <div class="metric-val" style="color:var(--cyan)">${deviceCount}</div>
+          <div class="metric-sub">registered</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Parameters</div>
+          <div class="metric-val" style="color:var(--blue)">${paramCount}</div>
+          <div class="metric-sub">data points</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Shifts</div>
+          <div class="metric-val" style="color:var(--purple)">${shiftCount}</div>
+          <div class="metric-sub">configured</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Timezone</div>
+          <div class="metric-val" style="font-size:11px;color:var(--text)">${p.timezone||'IST'}</div>
+          <div class="metric-sub">${p.production_lines?p.production_lines+' lines':'—'}</div>
+        </div>
+      </div>
+
+      <!-- OEE BARS -->
+      <div style="margin-bottom:14px;">
+        ${oeeBarRow('OEE', oee)}
+        ${oeeBarRow('AVL', avail)}
+        ${oeeBarRow('PRF', perf)}
+        ${oeeBarRow('QLT', qual)}
+      </div>
+
+      <!-- DEVICE CHIPS -->
+      ${deviceChips ? `<div class="device-chips">${deviceChips}</div>` : ''}
+
+      <!-- ACTIONS -->
+      <div class="plant-actions">
+        <span class="schema-lbl">🗄️ ${schema}.device_readings</span>
+        <div style="flex:1"></div>
+        <button class="z-btn ghost" onclick="checkStatus('${p.plant_id}')">📊 DB Status</button>
+        <button class="z-btn ghost" style="color:var(--teal);border-color:var(--teal)33;" onclick="pushToNodeRed('${schema}')">⚡ Node-RED</button>
+        <a href="/device-setup?edit=${p.plant_id}" class="z-btn primary">✏️ Edit</a>
+        <button class="z-btn danger" onclick="openDeleteModal('${p.plant_id}','${p.plant_name.replace(/'/g,"\\'")}')">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function oeeBarRow(label, pct) {
+  const color = oeeColor(pct);
+  return `<div class="oee-bar-row">
+    <div class="oee-bar-label" style="color:var(--muted)">${label}</div>
+    <div class="oee-bar-track">
+      <div class="oee-bar-fill" style="width:${pct}%;background:${color};box-shadow:0 0 6px ${color}66"></div>
+    </div>
+    <div class="oee-bar-pct" style="color:${color}">${pct}%</div>
+  </div>`;
+}
+
+// ── API ACTIONS ───────────────────────────────────────────────────────
+async function checkStatus(plantId) {
+  try {
+    const data = await zFetch(`/api/plant/${plantId}/status`);
+    if (data.ok) zToast(`${data.plant_name}: ${(data.total_rows||0).toLocaleString()} rows in DB`, 'ok');
+    else zToast('Error: ' + data.error, 'err');
+  } catch (e) { zToast('Could not reach server', 'err'); }
+}
+
+async function pushToNodeRed(schema) {
+  try {
+    const data = await zFetch(`/api/nodered/push-flow/${schema}`, { method:'POST' });
+    if (data.ok) zToast(`Flow pushed to Node-RED: ${schema}`, 'ok');
+    else zToast('Push failed: ' + data.error, 'err');
+  } catch (e) { zToast('Error: ' + e.message, 'err'); }
+}
+
+// ── DELETE MODAL ──────────────────────────────────────────────────────
+function openDeleteModal(plantId, plantName) {
+  deleteTargetId   = plantId;
+  deleteTargetName = plantName;
+  document.getElementById('confirmPlantId').value = '';
+  document.getElementById('deleteMsg').innerHTML =
+    `You are about to delete <strong style="color:var(--text)">${plantName}</strong>
+     <span style="font-family:monospace;color:var(--muted)">(${plantId})</span>.
+     Choose how to delete:`;
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+  deleteTargetId = null;
+  deleteTargetName = null;
+}
+
+async function confirmDelete(hardDelete = false) {
+  if (!deleteTargetId) return;
+  if (hardDelete) {
+    const typed = document.getElementById('confirmPlantId').value.trim();
+    if (typed !== deleteTargetId) {
+      document.getElementById('confirmPlantId').style.borderColor = 'var(--red)';
+      document.getElementById('confirmPlantId').focus();
+      zToast('Plant ID does not match', 'err');
+      return;
+    }
+  }
+  const plantId   = deleteTargetId;
+  const plantName = deleteTargetName;
+  closeDeleteModal();
+
+  try {
+    const url = hardDelete ? `/api/plant/${plantId}?hard=true` : `/api/plant/${plantId}`;
+    const res = await fetch(url, { method:'DELETE', headers: zAuthHeader() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Delete failed');
+    document.getElementById(`card_${plantId}`)?.remove();
+    zToast(hardDelete ? `${plantName} permanently deleted` : `${plantName} removed from registry`, hardDelete?'warn':'ok');
+    loadPlants();
+  } catch (e) { zToast('Error: ' + e.message, 'err'); }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────
+zParticles();
+loadPlants();
+setInterval(loadPlants, 60000);
+</script>
+</body>
+</html>

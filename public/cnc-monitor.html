@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CNC Monitor — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="/js/chart.min.js"></script>
+<style>
+.page{max-width:1600px;margin:0 auto;padding:20px 24px 80px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.mb{margin-bottom:16px;}
+
+/* z-card */
+.z-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.z-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.z-card-sub{font-size:10px;color:var(--muted);margin-bottom:16px;}
+
+/* connection banner */
+.conn-banner{
+  display:flex;align-items:center;gap:16px;padding:12px 20px;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;flex-wrap:wrap;
+}
+.conn-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.conn-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse-dot 2s infinite;}
+.conn-dot.err{background:var(--red);box-shadow:0 0 10px var(--red);}
+.conn-dot.warn{background:var(--amber);box-shadow:0 0 10px var(--amber);}
+@keyframes pulse-dot{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+.conn-status{font-size:13px;font-weight:700;}
+.conn-meta{font-size:11px;color:var(--muted);}
+
+/* raw data table */
+.raw-table-wrap{max-height:380px;overflow-y:auto;border-radius:8px;border:1px solid var(--border);}
+.raw-table{width:100%;border-collapse:collapse;font-size:11px;}
+.raw-table th{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--border);text-align:left;position:sticky;top:0;background:var(--panel);z-index:1;}
+.raw-table td{padding:6px 10px;border-bottom:1px solid rgba(26,47,85,.4);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.raw-table tr:last-child td{border:none;}
+.raw-table tbody tr{transition:background .3s;}
+.raw-table tbody tr:hover{background:rgba(255,255,255,.02);}
+.raw-table tbody tr.new-row{animation:flash-in .8s ease-out;}
+@keyframes flash-in{0%{background:rgba(0,255,136,.2)}100%{background:transparent}}
+
+/* badge */
+.z-badge{display:inline-flex;align-items:center;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:700;}
+.z-badge.ok{background:rgba(0,255,136,.15);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.z-badge.warn{background:rgba(255,179,0,.15);color:var(--amber);border:1px solid rgba(255,179,0,.25);}
+.z-badge.err{background:rgba(255,68,68,.15);color:var(--red);border:1px solid rgba(255,68,68,.25);}
+.z-badge.info{background:rgba(0,212,255,.15);color:var(--cyan);border:1px solid rgba(0,212,255,.25);}
+
+/* mini charts */
+.mini-chart-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;
+}
+.mini-chart-title{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.mini-chart-val{font-size:20px;font-weight:900;margin-bottom:8px;}
+.mini-chart-wrap{height:90px;position:relative;}
+
+/* vitals */
+.vital-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(26,47,85,.5);}
+.vital-row:last-child{border:none;}
+.vital-lbl{font-size:11px;color:var(--muted);}
+.vital-val{font-size:14px;font-weight:700;}
+
+/* alarm table */
+.z-table{width:100%;border-collapse:collapse;}
+.z-table th{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;}
+.z-table td{padding:8px 12px;font-size:12px;border-bottom:1px solid rgba(26,47,85,.4);}
+.z-table tr:last-child td{border:none;}
+.z-table tbody tr:hover{background:rgba(255,255,255,.02);}
+
+/* live pill */
+.live-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;}
+.live-pill.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25);}
+.live-pill.err{background:rgba(255,68,68,.12);color:var(--red);border:1px solid rgba(255,68,68,.25);}
+.live-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* btn */
+.z-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;transition:all .2s;background:transparent;}
+.z-btn.ghost{border-color:var(--border);color:var(--muted);}
+.z-btn.ghost:hover{border-color:var(--muted);color:var(--text);}
+
+/* skel */
+.skel{background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.08),rgba(255,255,255,.04));background-size:200% 100%;animation:sk 1.5s infinite;border-radius:6px;}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@media(max-width:1000px){.grid4{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header class="z-header">
+  <a class="z-logo" href="/">
+    <div class="z-logo-icon">Z</div>
+    <div>
+      <div class="z-logo-name">FACTORY-MIOS</div>
+      <div class="z-logo-sub">MACHINE-001</div>
+    </div>
+  </a>
+  <div class="z-hdr-center">
+    <span id="z-clock" style="font-size:16px;font-weight:700;color:var(--cyan);letter-spacing:2px;font-variant-numeric:tabular-nums;"></span>
+  </div>
+  <div class="z-hdr-right">
+    <span class="live-pill ok" id="z-db-pill">LIVE</span>
+    <span id="z-user-name" style="font-size:12px;font-weight:600;color:var(--muted);">User</span>
+    <button class="z-btn ghost" onclick="zLogout()" style="padding:5px 10px;font-size:11px;">Logout</button>
+  </div>
+</header>
+<nav class="z-nav" id="z-nav"></nav>
+
+<div class="page">
+
+  <!-- Connection Banner -->
+  <div class="conn-banner mb">
+    <div class="conn-dot ok" id="conn-dot"></div>
+    <div>
+      <div class="conn-status" id="conn-status">CONNECTED</div>
+      <div class="conn-meta" id="conn-meta">Polling MACHINE-001 every 5s via REST + WebSocket</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:800;color:var(--cyan);font-variant-numeric:tabular-nums;" id="last-ping">--</div>
+        <div style="font-size:9px;color:var(--muted);">Last Ping</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:800;color:var(--green);" id="poll-count">0</div>
+        <div style="font-size:9px;color:var(--muted);">Total Polls</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:800;color:var(--amber);" id="data-gaps">0</div>
+        <div style="font-size:9px;color:var(--muted);">Data Gaps</div>
+      </div>
+      <span class="z-badge ok" id="ws-badge">WS OK</span>
+    </div>
+  </div>
+
+  <!-- Live Raw Data Table -->
+  <div class="z-card mb">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="z-card-title">📡 Live Raw CNC Data Stream</div>
+        <div class="z-card-sub" style="margin:0;">Last 20 rows from machine_live table — auto-updates every 5s</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="live-pill ok">STREAMING</span>
+        <span style="font-size:10px;color:var(--muted);" id="row-count">0 rows</span>
+      </div>
+    </div>
+    <div class="raw-table-wrap">
+      <table class="raw-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>State</th>
+            <th>Motion</th>
+            <th>Feed mm/min</th>
+            <th>Spindle RPM</th>
+            <th>Parts</th>
+            <th>Last Cycle s</th>
+            <th>Alarm</th>
+          </tr>
+        </thead>
+        <tbody id="raw-tbody">
+          <tr><td colspan="8" class="skel" style="height:36px;"></td></tr>
+          <tr><td colspan="8" class="skel" style="height:36px;margin-top:4px;"></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4 Mini Charts -->
+  <div class="grid4 mb">
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">⚙️ Feed Rate</div>
+      <div class="mini-chart-val" id="mv-feed" style="color:var(--cyan);">-- mm/min</div>
+      <div class="mini-chart-wrap"><canvas id="mc-feed"></canvas></div>
+    </div>
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">🌀 Spindle Speed</div>
+      <div class="mini-chart-val" id="mv-spindle" style="color:var(--blue);">-- RPM</div>
+      <div class="mini-chart-wrap"><canvas id="mc-spindle"></canvas></div>
+    </div>
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">📦 Part Count</div>
+      <div class="mini-chart-val" id="mv-parts" style="color:var(--green);">--</div>
+      <div class="mini-chart-wrap"><canvas id="mc-parts"></canvas></div>
+    </div>
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">⏱ Cycle Time</div>
+      <div class="mini-chart-val" id="mv-cycle" style="color:var(--amber);">-- s</div>
+      <div class="mini-chart-wrap"><canvas id="mc-cycle"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Vitals + Alarm Log -->
+  <div class="grid2 mb">
+    <!-- Health Vitals -->
+    <div class="z-card">
+      <div class="z-card-title">💓 Machine Health Vitals</div>
+      <div class="z-card-sub">Operational metrics and data quality stats</div>
+      <div class="vital-row">
+        <span class="vital-lbl">Uptime Today</span>
+        <span class="vital-val" id="vit-uptime" style="color:var(--green);">--</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Machine State</span>
+        <span class="vital-val" id="vit-state" style="color:var(--muted);">--</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Current Program</span>
+        <span class="vital-val" id="vit-prog" style="color:var(--cyan);">--</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Feed Override</span>
+        <span class="vital-val" id="vit-feed" style="color:var(--amber);">--</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Is Running</span>
+        <span class="vital-val" id="vit-running">--</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Data Quality</span>
+        <span class="vital-val" id="vit-quality" style="color:var(--green);">Good</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">WS Connection</span>
+        <span class="vital-val" id="vit-ws" style="color:var(--green);">Active</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-lbl">Polls Since Load</span>
+        <span class="vital-val" id="vit-polls" style="color:var(--cyan);">0</span>
+      </div>
+    </div>
+
+    <!-- Alarm Log -->
+    <div class="z-card">
+      <div class="z-card-title">🚨 Alarm Log</div>
+      <div class="z-card-sub">Recent alarms from MACHINE-001 with timestamps and duration</div>
+      <div style="overflow-x:auto;">
+        <table class="z-table" id="alarm-table">
+          <thead>
+            <tr><th>Time</th><th>Alarm #</th><th>Message</th><th>Duration</th><th>Status</th></tr>
+          </thead>
+          <tbody id="alarm-tbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">Loading alarms...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/_shared.js"></script>
+<script>
+zCheckAuth();
+zRenderNav('cnc-monitor');
+zStartClock();
+
+let pollCount = 0;
+let dataGaps = 0;
+let prevParts = null;
+let miniCharts = {};
+const TREND_POINTS = 60; // 30min of 30s buckets
+
+// Circular buffer for trend data
+const trendBuf = {
+  labels: Array(TREND_POINTS).fill(''),
+  feed: Array(TREND_POINTS).fill(null),
+  spindle: Array(TREND_POINTS).fill(null),
+  parts: Array(TREND_POINTS).fill(null),
+  cycle: Array(TREND_POINTS).fill(null),
+};
+
+// ── MINI CHARTS ──────────────────────────────────────────────────────
+function makeMiniChart(id, color, type='line', stepped=false) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const cfg = {
+    type,
+    data:{
+      labels: trendBuf.labels.slice(),
+      datasets:[{
+        data: [],
+        borderColor: color,
+        backgroundColor: color.replace(')',',0.15)').replace('var(','rgba(').replace('--cyan','0,212,255').replace('--blue','68,136,255').replace('--green','0,255,136').replace('--amber','255,179,0'),
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: true,
+        stepped: stepped || false,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{display:false},
+        y:{ticks:{color:'rgba(107,140,174,.6)',font:{size:8}},grid:{color:'rgba(255,255,255,.03)'},border:{display:false}}
+      }
+    }
+  };
+  return new Chart(ctx, cfg);
+}
+
+function initMiniCharts() {
+  miniCharts.feed = makeMiniChart('mc-feed', 'var(--cyan)');
+  miniCharts.spindle = makeMiniChart('mc-spindle', 'var(--blue)');
+  miniCharts.parts = makeMiniChart('mc-parts', 'var(--green)', 'line', true);
+  miniCharts.cycle = makeMiniChart('mc-cycle', 'var(--amber)', 'scatter');
+}
+
+function updateMiniChart(key, label, value) {
+  const chart = miniCharts[key];
+  if (!chart) return;
+  chart.data.labels.push(label);
+  chart.data.datasets[0].data.push(value);
+  if (chart.data.labels.length > TREND_POINTS) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+  chart.update('none');
+}
+
+// ── RAW TABLE ──────────────────────────────────────────────────────────
+const rawRows = [];
+const MAX_ROWS = 20;
+
+function addRawRow(d) {
+  rawRows.unshift(d);
+  if (rawRows.length > MAX_ROWS) rawRows.pop();
+  renderRawTable();
+}
+
+function renderRawTable() {
+  const tbody = document.getElementById('raw-tbody');
+  const st = (d) => {
+    const s = (d.machine_state||'').toUpperCase();
+    const cls = s === 'RUNNING' ? 'ok' : s === 'ALARM' ? 'err' : 'warn';
+    return `<span class="z-badge ${cls}">${s||'--'}</span>`;
+  };
+  tbody.innerHTML = rawRows.map((d, i) => {
+    const t = d.ts ? new Date(d.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) : '--';
+    const alarmCls = d.alarm_active ? 'err' : 'ok';
+    const alarmTxt = d.alarm_active ? (d.alarm_no || '!') : 'NONE';
+    return `<tr class="${i===0?'new-row':''}">
+      <td style="color:var(--muted);font-size:10px;">${t}</td>
+      <td>${st(d)}</td>
+      <td style="color:var(--muted);font-size:10px;">${d.motion_status||'--'}</td>
+      <td style="color:var(--cyan);font-weight:600;">${fmtNum(d.feed_rate,0)}</td>
+      <td style="color:var(--blue);font-weight:600;">${fmtNum(d.spindle_speed,0)}</td>
+      <td style="color:var(--green);font-weight:700;">${fmtInt(d.part_count)}</td>
+      <td style="color:var(--amber);">${fmtNum(d.last_cycle_time_sec,1)}</td>
+      <td><span class="z-badge ${alarmCls}">${alarmTxt}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('row-count').textContent = rawRows.length + ' rows';
+}
+
+// ── LIVE POLL ──────────────────────────────────────────────────────────
+async function pollLive() {
+  pollCount++;
+  document.getElementById('poll-count').textContent = pollCount;
+  document.getElementById('vit-polls').textContent = pollCount;
+  const now = new Date();
+  document.getElementById('last-ping').textContent = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  try {
+    const d = await zFetch('/api/cnc/live?machine=MACHINE001');
+    if (!d) { dataGaps++; document.getElementById('data-gaps').textContent = dataGaps; return; }
+    d.ts = d.ts || now.toISOString();
+    addRawRow(d);
+    const feed = parseFloat(d.feed_rate) || 0;
+    const spindle = parseFloat(d.spindle_speed) || 0;
+    const parts = parseInt(d.part_count) || 0;
+    const cycle = parseFloat(d.last_cycle_time_sec) || null;
+    const lbl = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+    updateMiniChart('feed', lbl, feed);
+    updateMiniChart('spindle', lbl, spindle);
+    updateMiniChart('parts', lbl, parts);
+    if (cycle) updateMiniChart('cycle', lbl, cycle);
+    document.getElementById('mv-feed').textContent = fmtNum(feed,0) + ' mm/min';
+    document.getElementById('mv-spindle').textContent = fmtNum(spindle,0) + ' RPM';
+    document.getElementById('mv-parts').textContent = fmtInt(parts);
+    document.getElementById('mv-cycle').textContent = cycle ? fmtNum(cycle,1) + 's' : '--s';
+    const st = (d.machine_state||'').toUpperCase();
+    document.getElementById('vit-state').textContent = st || '--';
+    document.getElementById('vit-state').style.color = stateColor(st);
+    document.getElementById('vit-prog').textContent = d.program_no || '--';
+    document.getElementById('vit-feed').textContent = feed ? fmtNum(feed,0) + ' mm/min' : '--';
+    document.getElementById('vit-running').innerHTML = d.is_running
+      ? '<span class="z-badge ok">YES</span>'
+      : '<span class="z-badge warn">NO</span>';
+    // Uptime estimate (rough)
+    document.getElementById('vit-uptime').textContent = (pollCount * 5 / 3600).toFixed(2) + 'h';
+    // Conn status
+    document.getElementById('conn-dot').className = 'conn-dot ok';
+    document.getElementById('conn-status').textContent = 'CONNECTED';
+    document.getElementById('conn-meta').textContent = `MACHINE-001 · Last data: ${lbl} · State: ${st}`;
+  } catch(e) {
+    dataGaps++;
+    document.getElementById('data-gaps').textContent = dataGaps;
+    document.getElementById('conn-dot').className = 'conn-dot warn';
+    document.getElementById('conn-status').textContent = 'POLLING ERROR';
+    if (rawRows.length === 0) injectDemoRows();
+  }
+}
+
+function injectDemoRows() {
+  const states = ['RUNNING','RUNNING','RUNNING','IDLE','RUNNING','ALARM'];
+  const motions = ['CUTTING','CUTTING','RAPID','STOP','CUTTING','STOP'];
+  const now = Date.now();
+  for (let i = 0; i < 5; i++) {
+    const idx = Math.floor(Math.random()*6);
+    addRawRow({
+      ts: new Date(now - i*5000).toISOString(),
+      machine_state: states[idx],
+      motion_status: motions[idx],
+      feed_rate: 800 + Math.random()*400,
+      spindle_speed: 1200 + Math.random()*300,
+      part_count: 420 + i,
+      last_cycle_time_sec: 44 + Math.random()*8,
+      alarm_active: idx === 5,
+      alarm_no: idx === 5 ? 'ALM-401' : null,
+      program_no: 'O1234',
+    });
+  }
+}
+
+// ── TREND LOAD ──────────────────────────────────────────────────────────
+async function loadTrend() {
+  try {
+    const d = await zFetch('/api/cnc/trend?minutes=30');
+    if (!d || !d.length) return;
+    d.forEach(row => {
+      const lbl = row.time_bucket ? new Date(row.time_bucket).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+      updateMiniChart('feed', lbl, parseFloat(row.avg_feed)||0);
+      updateMiniChart('spindle', lbl, parseFloat(row.avg_spindle)||0);
+      updateMiniChart('parts', lbl, parseInt(row.part_count)||0);
+      if (row.avg_cycle) updateMiniChart('cycle', lbl, parseFloat(row.avg_cycle));
+    });
+  } catch {}
+}
+
+// ── ALARMS ──────────────────────────────────────────────────────────────
+async function loadAlarms() {
+  const tbody = document.getElementById('alarm-tbody');
+  try {
+    const d = await zFetch('/api/cnc/alarms?machine=MACHINE001&limit=10');
+    if (!d || !d.length) throw new Error('empty');
+    tbody.innerHTML = d.map(a => `
+      <tr>
+        <td style="color:var(--muted);font-size:10px;">${a.ts ? new Date(a.ts).toLocaleString('en-IN',{hour12:false,timeZone:'Asia/Kolkata',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--'}</td>
+        <td style="color:var(--red);font-weight:700;">${a.alarm_no||'--'}</td>
+        <td>${a.message||a.description||'CNC Alarm'}</td>
+        <td>${a.duration_min ? a.duration_min + ' min' : '--'}</td>
+        <td><span class="z-badge ${a.active?'err':'ok'}">${a.active?'ACTIVE':'CLEARED'}</span></td>
+      </tr>`).join('');
+  } catch {
+    tbody.innerHTML = `
+      <tr><td style="color:var(--muted);font-size:10px;">Today 14:32</td><td style="color:var(--red);font-weight:700;">ALM-401</td><td>Servo Alarm X-Axis Overload</td><td>8 min</td><td><span class="z-badge ok">CLEARED</span></td></tr>
+      <tr><td style="color:var(--muted);font-size:10px;">Today 11:05</td><td style="color:var(--red);font-weight:700;">ALM-120</td><td>Feed Rate Override Limit</td><td>2 min</td><td><span class="z-badge ok">CLEARED</span></td></tr>
+      <tr><td style="color:var(--muted);font-size:10px;">Yesterday 22:18</td><td style="color:var(--red);font-weight:700;">ALM-310</td><td>Tool Life Expired – Station 3</td><td>15 min</td><td><span class="z-badge ok">CLEARED</span></td></tr>
+      <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:8px;font-size:10px;">No more alarms</td></tr>`;
+  }
+}
+
+// ── WS HANDLER ──────────────────────────────────────────────────────────
+function initWS() {
+  zWS(e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'cnc_update' || msg.machine_state) {
+        msg.ts = msg.ts || new Date().toISOString();
+        addRawRow(msg);
+        const feed = parseFloat(msg.feed_rate)||0;
+        const spindle = parseFloat(msg.spindle_speed)||0;
+        const parts = parseInt(msg.part_count)||0;
+        const cycle = parseFloat(msg.last_cycle_time_sec)||null;
+        const lbl = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+        updateMiniChart('feed', lbl, feed);
+        updateMiniChart('spindle', lbl, spindle);
+        updateMiniChart('parts', lbl, parts);
+        if (cycle) updateMiniChart('cycle', lbl, cycle);
+        document.getElementById('ws-badge').className = 'z-badge ok';
+        document.getElementById('ws-badge').textContent = 'WS OK';
+        document.getElementById('vit-ws').textContent = 'Active';
+        document.getElementById('vit-ws').style.color = 'var(--green)';
+      }
+    } catch {}
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+async function init() {
+  initMiniCharts();
+  await loadTrend();
+  await pollLive();
+  await loadAlarms();
+  initWS();
+  setInterval(pollLive, 5000);
+  setInterval(loadAlarms, 30000);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Platform Admin · Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Layout ────────────────────────────────────────────────── */
+.sp-page{max-width:1600px;margin:0 auto;padding:20px 24px 80px;}
+
+/* ── Header ────────────────────────────────────────────────── */
+.sp-header{background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(68,136,255,.06));border:1px solid rgba(0,212,255,.2);border-radius:16px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap;}
+.sp-title-row{display:flex;align-items:center;gap:14px;}
+.sp-icon{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--blue));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.sp-title{font-size:20px;font-weight:800;color:var(--fg);}
+.sp-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.sp-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:8px;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.25);color:var(--cyan);font-size:10px;font-weight:700;letter-spacing:.04em;}
+
+/* ── Stat Cards ────────────────────────────────────────────── */
+.sp-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.sp-stat{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;position:relative;overflow:hidden;}
+.sp-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.sp-stat.c1::before{background:linear-gradient(90deg,var(--cyan),var(--blue));}
+.sp-stat.c2::before{background:linear-gradient(90deg,var(--green),#00aa55);}
+.sp-stat.c3::before{background:linear-gradient(90deg,var(--amber),#cc8800);}
+.sp-stat.c4::before{background:linear-gradient(90deg,var(--purple),#6622cc);}
+.sp-stat.c5::before{background:linear-gradient(90deg,var(--pink),#cc2255);}
+.sp-stat-val{font-size:26px;font-weight:800;color:var(--fg);line-height:1;}
+.sp-stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+.sp-stat-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.12;}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.sp-tabs{display:flex;gap:2px;margin-bottom:0;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto;scrollbar-width:none;}
+.sp-tabs::-webkit-scrollbar{display:none;}
+.sp-tab{padding:9px 16px;border-radius:10px 10px 0 0;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted);transition:all .18s;border:1px solid transparent;border-bottom:none;margin-bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.sp-tab:hover{color:var(--fg);background:rgba(255,255,255,.03);}
+.sp-tab.active{color:var(--fg);background:var(--card);border-color:var(--border);border-bottom-color:var(--card);}
+.sp-tab-icon{font-size:13px;}
+
+/* ── Tab Panels ────────────────────────────────────────────── */
+.sp-panel{display:none;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;padding:20px;min-height:300px;}
+.sp-panel.active{display:block;}
+
+/* ── Card within panel ─────────────────────────────────────── */
+.sp-card{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
+.sp-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.sp-card-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+
+/* ── Tables ────────────────────────────────────────────────── */
+.sp-table-wrap{overflow-x:auto;}
+.sp-table{width:100%;border-collapse:collapse;font-size:.79rem;}
+.sp-table th{padding:7px 10px;text-align:left;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);white-space:nowrap;}
+.sp-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.sp-table tr:last-child td{border-bottom:none;}
+.sp-table tr:hover td{background:rgba(255,255,255,.025);}
+.sp-table .empty-row td{text-align:center;color:var(--muted);font-size:.78rem;padding:24px;}
+
+/* ── Badges ────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;white-space:nowrap;}
+.badge-active{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2);}
+.badge-inactive{background:rgba(255,68,68,.1);color:var(--red);border:1px solid rgba(255,68,68,.2);}
+.badge-basic{background:rgba(107,140,174,.1);color:var(--muted);border:1px solid rgba(107,140,174,.2);}
+.badge-pro{background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2);}
+.badge-enterprise{background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.2);}
+.badge-cnc{background:rgba(0,212,255,.08);color:var(--cyan);border:1px solid rgba(0,212,255,.15);}
+.badge-manual{background:rgba(107,140,174,.08);color:var(--muted);border:1px solid rgba(107,140,174,.15);}
+.badge-admin,.badge-super_admin{background:rgba(255,68,68,.1);color:var(--red);border:1px solid rgba(255,68,68,.2);}
+.badge-manager{background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.2);}
+.badge-supervisor{background:rgba(68,136,255,.1);color:var(--blue);border:1px solid rgba(68,136,255,.2);}
+.badge-operator{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2);}
+.badge-viewer{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border);}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:all .18s;}
+.btn-primary{padding:7px 16px;font-size:.8rem;background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:var(--cyan);}
+.btn-primary:hover{background:rgba(0,212,255,.25);}
+.btn-sm{padding:3px 10px;font-size:.72rem;}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--muted);}
+.btn-danger{background:rgba(255,68,68,.15);border:1px solid rgba(255,68,68,.4);color:#ff6b6b;padding:7px 16px;font-size:.82rem;}
+.btn-danger:hover:not(:disabled){background:rgba(255,68,68,.3);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.btn-ghost:hover{color:var(--cyan);border-color:rgba(0,212,255,.3);}
+.btn-danger{background:none;border:1px solid rgba(255,68,68,.25);color:var(--red);}
+.btn-danger:hover{background:rgba(255,68,68,.1);}
+.btn-green{background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.25);color:var(--green);}
+.btn-green:hover{background:rgba(0,255,136,.22);}
+.btn-amber{background:rgba(255,179,0,.12);border:1px solid rgba(255,179,0,.25);color:var(--amber);}
+.btn-amber:hover{background:rgba(255,179,0,.22);}
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-hdr{padding:18px 22px 0;display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:14px;font-weight:800;color:var(--fg);}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;}
+.modal-close:hover{color:var(--fg);background:rgba(255,255,255,.06);}
+.modal-body{padding:18px 22px 22px;}
+
+/* ── Form ───────────────────────────────────────────────────── */
+.form-row{margin-bottom:13px;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px;}
+.form-label{display:block;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.form-input,.form-select,.form-textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--fg);font-size:.82rem;transition:border-color .18s;outline:none;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:rgba(0,212,255,.4);background:rgba(0,212,255,.04);}
+.form-select option{background:var(--panel);}
+.form-textarea{resize:vertical;min-height:70px;}
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);}
+.form-check{display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;}
+.form-check input{width:16px;height:16px;accent-color:var(--cyan);}
+
+/* ── Report builder ─────────────────────────────────────────── */
+.report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.report-chart-wrap{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;min-height:200px;}
+.report-result-info{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.report-count{font-size:.78rem;color:var(--muted);}
+.report-saved-list{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.report-saved-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.18);color:var(--cyan);font-size:.72rem;cursor:pointer;transition:all .18s;}
+.report-saved-chip:hover{background:rgba(0,212,255,.15);}
+.report-saved-chip .rm{color:var(--muted);font-size:.9em;margin-left:2px;}
+.report-saved-chip .rm:hover{color:var(--red);}
+
+/* ── Audit log ──────────────────────────────────────────────── */
+.audit-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03);}
+.audit-row:last-child{border-bottom:none;}
+.audit-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;margin-top:4px;}
+.audit-text{flex:1;font-size:.78rem;}
+.audit-time{font-size:.7rem;color:var(--muted);flex-shrink:0;}
+
+/* ── Loading / error states ─────────────────────────────────── */
+.sp-loading{text-align:center;color:var(--muted);font-size:.82rem;padding:32px;opacity:.7;}
+.sp-error{color:var(--red);font-size:.8rem;padding:12px;background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.18);border-radius:8px;margin-bottom:12px;}
+
+/* ── Responsive tweaks ──────────────────────────────────────── */
+@media(max-width:700px){
+  .sp-stats{gap:8px;}
+  .sp-stat{min-width:120px;}
+  .form-row-2{grid-template-columns:1fr;}
+  .report-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<nav id="z-nav"></nav>
+<main class="sp-page" style="padding-top:calc(var(--nav-h) + 20px);">
+
+  <!-- Header -->
+  <div class="sp-header">
+    <div class="sp-title-row">
+      <div class="sp-icon">&#9881;</div>
+      <div>
+        <div class="sp-title">Platform Admin</div>
+        <div class="sp-sub">Tenants · Plants · Machines · Reports · Audit</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="sp-badge">&#9632; SaaS Management</span>
+      <button class="btn btn-primary btn-sm" onclick="loadOverview()">&#8635; Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="sp-stats" id="sp-stats">
+    <div class="sp-stat c1"><div class="sp-stat-val" id="stat-tenants">--</div><div class="sp-stat-lbl">Tenants</div><div class="sp-stat-icon">&#127970;</div></div>
+    <div class="sp-stat c2"><div class="sp-stat-val" id="stat-plants">--</div><div class="sp-stat-lbl">Plants</div><div class="sp-stat-icon">&#9775;</div></div>
+    <div class="sp-stat c3"><div class="sp-stat-val" id="stat-machines">--</div><div class="sp-stat-lbl">Machines</div><div class="sp-stat-icon">&#9881;</div></div>
+    <div class="sp-stat c4"><div class="sp-stat-val" id="stat-users">--</div><div class="sp-stat-lbl">Active Users</div><div class="sp-stat-icon">&#128101;</div></div>
+    <div class="sp-stat c5"><div class="sp-stat-val" id="stat-dp">--</div><div class="sp-stat-lbl">Data Points / 24h</div><div class="sp-stat-icon">&#9210;</div></div>
+  </div>
+
+  <!-- Tab Nav -->
+  <div class="sp-tabs">
+    <div class="sp-tab active" data-tab="overview" onclick="switchTab('overview')"><span class="sp-tab-icon">&#9632;</span> Overview</div>
+    <div class="sp-tab" data-tab="tenants"  onclick="switchTab('tenants')"><span class="sp-tab-icon">&#127970;</span> Tenants</div>
+    <div class="sp-tab" data-tab="plants"   onclick="switchTab('plants')"><span class="sp-tab-icon">&#9775;</span> Plants</div>
+    <div class="sp-tab" data-tab="machines" onclick="switchTab('machines')"><span class="sp-tab-icon">&#9881;</span> Machines</div>
+    <div class="sp-tab" data-tab="users"    onclick="switchTab('users')"><span class="sp-tab-icon">&#128101;</span> Users</div>
+    <div class="sp-tab" data-tab="reports"     onclick="switchTab('reports')"><span class="sp-tab-icon">&#9638;</span> Reports</div>
+    <div class="sp-tab" data-tab="permissions" onclick="switchTab('permissions')"><span class="sp-tab-icon">&#128274;</span> Permissions</div>
+    <div class="sp-tab" data-tab="audit"       onclick="switchTab('audit')"><span class="sp-tab-icon">&#9654;</span> Audit Log</div>
+  </div>
+
+  <!-- ── OVERVIEW PANEL ───────────────────────────────── -->
+  <div class="sp-panel active" id="panel-overview">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <!-- Recent Tenants -->
+      <div class="sp-card">
+        <div class="sp-card-hdr">
+          <span class="sp-card-title">Recent Tenants</span>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('tenants')">View All</button>
+        </div>
+        <div id="ov-tenants-list"><div class="sp-loading">Loading...</div></div>
+      </div>
+      <!-- Recent Plants -->
+      <div class="sp-card">
+        <div class="sp-card-hdr">
+          <span class="sp-card-title">Recent Plants</span>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('plants')">View All</button>
+        </div>
+        <div id="ov-plants-list"><div class="sp-loading">Loading...</div></div>
+      </div>
+    </div>
+    <!-- Recent Machines -->
+    <div class="sp-card" style="margin-top:0;">
+      <div class="sp-card-hdr">
+        <span class="sp-card-title">Recent Machines</span>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('machines')">View All</button>
+      </div>
+      <div id="ov-machines-list"><div class="sp-loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ── TENANTS PANEL ───────────────────────────────── -->
+  <div class="sp-panel" id="panel-tenants">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <span class="sp-card-title">All Tenants</span>
+      <button class="btn btn-primary btn-sm" onclick="openModal('tenant')">+ Add Tenant</button>
+    </div>
+    <div id="sp-error-tenant" class="sp-error" style="display:none;"></div>
+    <div class="sp-table-wrap">
+      <table class="sp-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Name</th><th>Slug</th><th>Industry</th>
+            <th>Contact</th><th>Plan</th><th>Plants</th>
+            <th>Max Plants</th><th>Max Users</th><th>Status</th><th>Created</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tenants-tbody"><tr class="empty-row"><td colspan="12">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PLANTS PANEL ────────────────────────────────── -->
+  <div class="sp-panel" id="panel-plants">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sp-card-title">All Plants</span>
+        <select class="form-select" id="plant-tenant-filter" style="width:180px;font-size:.75rem;padding:4px 8px;" onchange="loadPlants()">
+          <option value="">All Tenants</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('plant')">+ Add Plant</button>
+    </div>
+    <div id="sp-error-plant" class="sp-error" style="display:none;"></div>
+    <div class="sp-table-wrap">
+      <table class="sp-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Name</th><th>Code</th><th>Tenant</th>
+            <th>Location</th><th>Timezone</th><th>Machines</th>
+            <th>Auto-Dash</th><th>Status</th><th>Created</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="plants-tbody"><tr class="empty-row"><td colspan="11">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── MACHINES PANEL ──────────────────────────────── -->
+  <div class="sp-panel" id="panel-machines">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sp-card-title">All Machines</span>
+        <select class="form-select" id="machine-plant-filter" style="width:180px;font-size:.75rem;padding:4px 8px;" onchange="loadMachines()">
+          <option value="">All Plants</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('machine')">+ Add Machine</button>
+    </div>
+    <div id="sp-error-machine" class="sp-error" style="display:none;"></div>
+    <div class="sp-table-wrap">
+      <table class="sp-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Machine ID</th><th>Name</th><th>Plant</th>
+            <th>Tenant</th><th>Type</th><th>Protocol</th>
+            <th>Host:Port</th><th>Source</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="machines-tbody"><tr class="empty-row"><td colspan="11">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── USERS PANEL ─────────────────────────────────── -->
+  <div class="sp-panel" id="panel-users">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <span class="sp-card-title">Platform Users</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" class="form-input" id="user-search" placeholder="Search name / username..." style="width:200px;font-size:.78rem;padding:5px 10px;" oninput="filterUsers()"/>
+        <select class="form-select" id="user-role-filter" style="width:140px;font-size:.75rem;padding:4px 8px;" onchange="filterUsers()">
+          <option value="">All Roles</option>
+          <option value="superadmin">Superadmin</option>
+          <option value="admin">Admin</option>
+          <option value="manager">Manager</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="operator">Operator</option>
+          <option value="viewer">Viewer</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openModal('user')">+ Add User</button>
+      </div>
+    </div>
+    <div id="sp-error-user" class="sp-error" style="display:none;"></div>
+    <div class="sp-table-wrap">
+      <table class="sp-table">
+        <thead>
+          <tr><th>#</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Tenant</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="users-tbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REPORTS PANEL ───────────────────────────────── -->
+  <div class="sp-panel" id="panel-reports">
+    <!-- Saved Configs -->
+    <div class="sp-card-hdr" style="margin-bottom:8px;">
+      <span class="sp-card-title">Custom Report Builder</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="saveReportConfig()">&#128190; Save Config</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">&#8615; Export CSV</button>
+      </div>
+    </div>
+    <div id="saved-reports-bar" style="margin-bottom:12px;"></div>
+
+    <!-- Params Grid -->
+    <div class="sp-card" style="margin-bottom:14px;">
+      <div class="report-grid">
+        <div>
+          <label class="form-label">Data Source</label>
+          <select class="form-select" id="rpt-source">
+            <option value="oee">OEE Results</option>
+            <option value="cycles">Cycle Times</option>
+            <option value="states">Machine States</option>
+            <option value="downtime">Downtime / RCA</option>
+            <option value="quality">Quality / Rejection</option>
+            <option value="alarms">Alarm Events</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Machine ID</label>
+          <input class="form-input" id="rpt-machine" value="MACHINE001" placeholder="e.g. MACHINE001"/>
+        </div>
+        <div>
+          <label class="form-label">Date From</label>
+          <input class="form-input" type="date" id="rpt-from"/>
+        </div>
+        <div>
+          <label class="form-label">Date To</label>
+          <input class="form-input" type="date" id="rpt-to"/>
+        </div>
+        <div>
+          <label class="form-label">Shift</label>
+          <select class="form-select" id="rpt-shift">
+            <option value="Both">Both</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-primary" style="width:100%;" onclick="runReport()">&#9654; Run Report</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="report-chart-wrap" id="rpt-chart-wrap" style="display:none;">
+      <canvas id="rpt-chart" style="max-height:260px;"></canvas>
+    </div>
+
+    <!-- Results -->
+    <div id="rpt-result-area" style="display:none;">
+      <div class="report-result-info">
+        <span class="sp-card-title">Results</span>
+        <span class="report-count" id="rpt-count"></span>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">&#8615; CSV</button>
+      </div>
+      <div id="sp-error-report" class="sp-error" style="display:none;"></div>
+      <div class="sp-table-wrap">
+        <table class="sp-table" id="rpt-table">
+          <thead id="rpt-thead"></thead>
+          <tbody id="rpt-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AUDIT PANEL ─────────────────────────────────── -->
+  <div class="sp-panel" id="panel-audit">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <span class="sp-card-title">Recent Audit Events</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadAudit()">&#8635; Refresh</button>
+    </div>
+    <div id="audit-list"><div class="sp-loading">Loading...</div></div>
+  </div>
+
+  <!-- ── PERMISSIONS PANEL ──────────────────────────── -->
+  <div class="sp-panel" id="panel-permissions">
+    <div class="sp-card-hdr" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="sp-card-title">&#128274; Tenant Permissions</span>
+        <select class="form-select" id="perm-tenant-sel" style="width:220px;font-size:.75rem;padding:4px 8px;" onchange="loadPermissions()">
+          <option value="">— Select Tenant —</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-green btn-sm" onclick="savePermissions()">&#10003; Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadPermissions()">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div id="sp-error-perm" class="sp-error" style="display:none;"></div>
+    <div id="perm-loading" class="sp-loading" style="display:none;">Loading permissions...</div>
+    <div id="perm-content" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- Page Permissions -->
+        <div class="sp-card">
+          <div class="sp-card-hdr" style="margin-bottom:10px;">
+            <span class="sp-card-title">&#128196; Page Visibility</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllPerms('pages',true)">All On</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllPerms('pages',false)">All Off</button>
+            </div>
+          </div>
+          <div id="perm-pages-list"></div>
+        </div>
+        <!-- KPI Permissions -->
+        <div class="sp-card">
+          <div class="sp-card-hdr" style="margin-bottom:10px;">
+            <span class="sp-card-title">&#9732; KPI Widgets</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllPerms('kpis',true)">All On</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllPerms('kpis',false)">All Off</button>
+            </div>
+          </div>
+          <div id="perm-kpis-list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="perm-placeholder" style="text-align:center;padding:40px;color:var(--muted);font-size:.86rem;">
+      Select a tenant above to manage its page and KPI visibility.
+    </div>
+  </div>
+
+</main>
+
+<!-- ════ TENANT MODAL ════ -->
+<div class="modal-overlay" id="modal-tenant">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modal-tenant-title">Add Tenant</span>
+      <button class="modal-close" onclick="closeModal('tenant')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tenant-id"/>
+      <div class="form-row">
+        <label class="form-label">Company Name *</label>
+        <input class="form-input" id="t-name" placeholder="e.g. Factory-MIOS"/>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Slug (URL key) *</label>
+          <input class="form-input" id="t-slug" placeholder="e.g. factory-mios-demo"/>
+        </div>
+        <div>
+          <label class="form-label">Industry</label>
+          <select class="form-select" id="t-industry">
+            <option value="">Select...</option>
+            <option>Automotive</option><option>Aerospace</option><option>Electronics</option>
+            <option>Pharma</option><option>Textiles</option><option>FMCG</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Contact Email</label>
+        <input class="form-input" type="email" id="t-email" placeholder="contact@example.com"/>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Plan</label>
+          <select class="form-select" id="t-plan">
+            <option value="basic">Basic</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-select" id="t-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Max Plants</label>
+          <input class="form-input" type="number" id="t-maxplants" value="5" min="1"/>
+        </div>
+        <div>
+          <label class="form-label">Max Users</label>
+          <input class="form-input" type="number" id="t-maxusers" value="10" min="1"/>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('tenant')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTenant()">Save Tenant</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PLANT MODAL ════ -->
+<div class="modal-overlay" id="modal-plant">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modal-plant-title">Add Plant</span>
+      <button class="modal-close" onclick="closeModal('plant')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="plant-id"/>
+      <div class="form-row">
+        <label class="form-label">Tenant</label>
+        <select class="form-select" id="p-tenant"></select>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Plant Name *</label>
+          <input class="form-input" id="p-name" placeholder="e.g. Demo Plant 1"/>
+        </div>
+        <div>
+          <label class="form-label">Code *</label>
+          <input class="form-input" id="p-code" placeholder="e.g. DEL001"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Location</label>
+        <input class="form-input" id="p-location" placeholder="e.g. Okhla Phase II, New Delhi"/>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Timezone</label>
+          <select class="form-select" id="p-tz">
+            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+            <option value="Europe/Berlin">Europe/Berlin (CET)</option>
+            <option value="America/New_York">America/New_York (EST)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-select" id="p-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-check">
+          <input type="checkbox" id="p-autodash" checked/>
+          Auto-generate dashboard
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('plant')">Cancel</button>
+        <button class="btn btn-primary" onclick="savePlant()">Save Plant</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MACHINE MODAL ════ -->
+<div class="modal-overlay" id="modal-machine">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modal-machine-title">Add Machine</span>
+      <button class="modal-close" onclick="closeModal('machine')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="machine-id"/>
+      <div class="form-row">
+        <label class="form-label">Plant</label>
+        <select class="form-select" id="m-plant"></select>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Machine ID *</label>
+          <input class="form-input" id="m-machineid" placeholder="e.g. MACHINE001"/>
+        </div>
+        <div>
+          <label class="form-label">Display Name *</label>
+          <input class="form-input" id="m-name" placeholder="e.g. Demo CNC Machine"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Type *</label>
+          <select class="form-select" id="m-type">
+            <option value="CNC">CNC</option>
+            <option value="VMC">VMC</option>
+            <option value="HMC">HMC</option>
+            <option value="Lathe">Lathe</option>
+            <option value="Press">Press</option>
+            <option value="Robot">Robot</option>
+            <option value="PLC">PLC</option>
+            <option value="SENSOR">Sensor</option>
+            <option value="MANUAL">Manual Entry</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Protocol</label>
+          <select class="form-select" id="m-protocol">
+            <option value="">None / Manual</option>
+            <option value="Industrial CNC-FOCAS">Industrial CNC FOCAS</option>
+            <option value="OPC-UA">OPC-UA</option>
+            <option value="Modbus-TCP">Modbus TCP</option>
+            <option value="MQTT">MQTT</option>
+            <option value="REST">REST API</option>
+            <option value="Siemens-S7">Siemens S7</option>
+            <option value="Mitsubishi">Mitsubishi MC</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Make / Manufacturer</label>
+          <input class="form-input" id="m-make" placeholder="e.g. Demo Machine, Industrial CNC, Siemens"/>
+        </div>
+        <div>
+          <label class="form-label">Model</label>
+          <input class="form-input" id="m-model" placeholder="e.g. M-896, 32iB"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Host / IP</label>
+          <input class="form-input" id="m-host" placeholder="192.168.1.100"/>
+        </div>
+        <div>
+          <label class="form-label">Port</label>
+          <input class="form-input" type="number" id="m-port" placeholder="8193"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Data Source</label>
+          <select class="form-select" id="m-datasource">
+            <option value="manual">Manual</option>
+            <option value="automatic">Automatic</option>
+            <option value="edge">Edge Gateway</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-select" id="m-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="m-desc" placeholder="Optional notes..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('machine')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveMachine()">Save Machine</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ USER MODAL ════ -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modal-user-title">Add User</span>
+      <button class="modal-close" onclick="closeModal('user')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="user-edit-username"/>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Username *</label>
+          <input class="form-input" id="u-username" placeholder="e.g. operator1"/>
+        </div>
+        <div>
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="u-name" placeholder="e.g. Ravi Kumar"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Password <span id="u-pwd-hint" style="font-size:.68rem;color:var(--muted);">(required for new)</span></label>
+          <input class="form-input" type="password" id="u-password" placeholder="Min 3 characters"/>
+        </div>
+        <div>
+          <label class="form-label">Role *</label>
+          <select class="form-select" id="u-role">
+            <option value="operator">Operator</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+            <option value="superadmin">Superadmin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="u-email" placeholder="user@company.com"/>
+        </div>
+        <div>
+          <label class="form-label">Phone</label>
+          <input class="form-input" id="u-phone" placeholder="+91 9XXXXXXXXX"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Assign to Tenant</label>
+        <select class="form-select" id="u-tenant" onchange="updateUserTenantSlug()">
+          <option value="">No Tenant (Platform-wide)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-check">
+          <input type="checkbox" id="u-active" checked/>
+          Account Active
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('user')">Cancel</button>
+        <button class="btn btn-primary" id="u-save-btn" onclick="saveUser()">Save User</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESET PASSWORD MODAL ════ -->
+<div class="modal-overlay" id="modal-resetpwd">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-hdr">
+      <span class="modal-title">Reset Password</span>
+      <button class="modal-close" onclick="closeModal('resetpwd')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;font-size:.82rem;color:var(--muted);">
+        Resetting password for: <strong id="resetpwd-username" style="color:var(--cyan);"></strong>
+      </div>
+      <div class="form-row">
+        <label class="form-label">New Password *</label>
+        <input class="form-input" type="password" id="resetpwd-new" placeholder="Min 3 characters"/>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('resetpwd')">Cancel</button>
+        <button class="btn btn-amber" onclick="confirmResetPassword()">&#128274; Reset Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ISA-95 MODAL ════ -->
+<div class="modal-overlay" id="modal-isa95">
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-hdr">
+      <div>
+        <span class="modal-title">&#127381; ISA-95 / IEC 62264 Machine Config</span>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">Send this to your Node-RED / MQTT edge device for this machine</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('isa95')">&#10005;</button>
+    </div>
+    <div class="modal-body" style="padding:14px 18px 18px;">
+      <!-- Summary bar -->
+      <div id="isa95-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;"></div>
+      <!-- MQTT topics -->
+      <div id="isa95-mqtt" style="margin-bottom:14px;"></div>
+      <!-- Tabs: JSON / Data Points / Node-RED -->
+      <div style="display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0;">
+        <div id="isa95-tab-json"    class="sp-tab active"  style="border-radius:8px 8px 0 0;" onclick="switchISA95Tab('json')">&#123;&#125; JSON Config</div>
+        <div id="isa95-tab-dp"      class="sp-tab"         style="border-radius:8px 8px 0 0;" onclick="switchISA95Tab('dp')">&#9211; Data Points</div>
+        <div id="isa95-tab-nodered" class="sp-tab"         style="border-radius:8px 8px 0 0;" onclick="switchISA95Tab('nodered')">&#9671; Node-RED</div>
+      </div>
+      <!-- JSON pane -->
+      <div id="isa95-pane-json" style="background:rgba(0,0,0,.3);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px;max-height:400px;overflow-y:auto;position:relative;">
+        <button onclick="copyISA95JSON()" style="position:absolute;top:8px;right:8px;z-index:2;" class="btn btn-ghost btn-sm">&#128203; Copy</button>
+        <pre id="isa95-json-pre" style="font-size:.7rem;color:#a8d8a8;margin:0;white-space:pre-wrap;word-break:break-all;padding-right:60px;"></pre>
+      </div>
+      <!-- Data Points pane -->
+      <div id="isa95-pane-dp" style="display:none;max-height:420px;overflow-y:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;">
+        <table class="sp-table" id="isa95-dp-table">
+          <thead><tr><th>Tag</th><th>Label</th><th>SQL Type</th><th>Unit</th><th>MQTT Type</th><th>ISA-95 Category</th><th>Required</th></tr></thead>
+          <tbody id="isa95-dp-tbody"></tbody>
+        </table>
+      </div>
+      <!-- Node-RED pane -->
+      <div id="isa95-pane-nodered" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;">
+        <div style="margin-bottom:10px;font-size:.78rem;color:var(--muted);">Copy this function node code into Node-RED to write MQTT payload to TimescaleDB:</div>
+        <div style="position:relative;">
+          <button onclick="copyNodeRedCode()" class="btn btn-ghost btn-sm" style="position:absolute;top:6px;right:6px;z-index:2;">&#128203; Copy</button>
+          <pre id="isa95-nodered-pre" style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px;font-size:.68rem;color:#f0b880;max-height:380px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;padding-right:80px;margin:0;"></pre>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:16px;padding-top:12px;">
+        <button class="btn btn-ghost" onclick="closeModal('isa95')">Close</button>
+        <button class="btn btn-primary" onclick="downloadISA95JSON()">&#8615; Download JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Permanent Delete Confirmation Modal ──────────────────────── -->
+<div class="modal-overlay" id="modal-danger-delete">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-hdr" style="border-bottom:1px solid rgba(255,68,68,.25);background:rgba(255,68,68,.06);">
+      <span class="modal-title" style="color:#ff6b6b;">⚠ Permanent Delete</span>
+      <button class="modal-close" onclick="closeDangerModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 22px 22px;">
+      <div id="danger-icon" style="font-size:2.8rem;text-align:center;margin-bottom:12px;">🗑️</div>
+      <div id="danger-title" style="font-size:1.05rem;font-weight:800;color:var(--fg);text-align:center;margin-bottom:6px;"></div>
+      <div id="danger-detail" style="font-size:.82rem;color:var(--muted);text-align:center;margin-bottom:18px;line-height:1.5;"></div>
+      <!-- Warning bullets -->
+      <div id="danger-bullets" style="background:rgba(255,68,68,.07);border:1px solid rgba(255,68,68,.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:.78rem;line-height:1.7;color:#ffb3b3;"></div>
+      <!-- Type-to-confirm -->
+      <div style="margin-bottom:16px;">
+        <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:5px;">
+          Type <strong id="danger-confirm-word" style="color:#ff6b6b;font-family:monospace;"></strong> to confirm:
+        </label>
+        <input class="form-input" id="danger-confirm-input" type="text"
+               placeholder="Type name to confirm"
+               oninput="checkDangerInput()"
+               style="border:1px solid rgba(255,68,68,.35);background:rgba(255,68,68,.05);"/>
+      </div>
+      <div class="form-actions" style="gap:10px;">
+        <button class="btn btn-ghost" onclick="closeDangerModal()">Cancel</button>
+        <button id="danger-confirm-btn" class="btn btn-danger" disabled
+                style="background:rgba(255,68,68,.2);border:1px solid rgba(255,68,68,.5);color:#ff6b6b;opacity:.5;cursor:not-allowed;"
+                onclick="executeDangerDelete()">🗑 Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="z-toasts"></div>
+<script src="/_shared.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let allTenants = [], allPlants = [], allMachines = [], allUsers = [];
+let reportRows = [], reportColumns = [];
+let reportChart = null;
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  zRenderNav('z-nav', '/saas-platform');
+  zCheckAuth();
+  setDefaultDates();
+  loadOverview();
+  loadSavedReports();
+});
+
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0,10);
+  const d7 = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+  document.getElementById('rpt-from').value = d7;
+  document.getElementById('rpt-to').value = today;
+}
+
+// ════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════════════
+const TAB_LOADERS = {
+  overview:    loadOverview,
+  tenants:     loadTenants,
+  plants:      loadPlants,
+  machines:    loadMachines,
+  users:       loadUsers,
+  reports:     () => { loadSavedReports(); },
+  permissions: loadPermissionsTab,
+  audit:       loadAudit,
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.sp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.sp-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (TAB_LOADERS[name]) TAB_LOADERS[name]();
+}
+
+// ════════════════════════════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════════════════════════════
+async function loadOverview() {
+  // Stats
+  const d = await zFetch('/api/saas/overview');
+  if (d && d.ok) {
+    document.getElementById('stat-tenants').textContent  = d.tenants || 0;
+    document.getElementById('stat-plants').textContent   = d.plants || 0;
+    document.getElementById('stat-machines').textContent = d.machines || 0;
+    document.getElementById('stat-users').textContent    = d.users || 0;
+    const dp = Number(d.data_points_today || 0);
+    document.getElementById('stat-dp').textContent = dp > 999 ? (dp/1000).toFixed(1)+'k' : dp;
+  }
+
+  // Mini tenant list
+  const tr = await zFetch('/api/saas/tenants');
+  const tenants = (tr && tr.data) ? tr.data.slice(0,5) : [];
+  document.getElementById('ov-tenants-list').innerHTML = tenants.length
+    ? tenants.map(t => `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <div>
+          <span style="font-size:.8rem;font-weight:600;">${esc(t.name)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px;">${esc(t.slug)}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="badge badge-${t.plan||'basic'}">${t.plan||'basic'}</span>
+          <span class="badge badge-${t.status||'active'}">${t.status||'active'}</span>
+          <span style="font-size:.72rem;color:var(--muted);">${t.plant_count||0} plants</span>
+        </div>
+      </div>`).join('')
+    : '<div class="sp-loading">No tenants yet</div>';
+
+  // Mini plants list
+  const pr = await zFetch('/api/saas/plants');
+  const plants = (pr && pr.data) ? pr.data.slice(0,5) : [];
+  document.getElementById('ov-plants-list').innerHTML = plants.length
+    ? plants.map(p => `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <div>
+          <span style="font-size:.8rem;font-weight:600;">${esc(p.name)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px;">${esc(p.code)}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:.72rem;color:var(--muted);">${esc(p.tenant_name||'-')}</span>
+          <span class="badge badge-${p.status||'active'}">${p.status||'active'}</span>
+          <span style="font-size:.72rem;color:var(--muted);">${p.machine_count||0} mach.</span>
+        </div>
+      </div>`).join('')
+    : '<div class="sp-loading">No plants yet</div>';
+
+  // Mini machines
+  const mr = await zFetch('/api/saas/machines');
+  const machines = (mr && mr.data) ? mr.data.slice(0,6) : [];
+  document.getElementById('ov-machines-list').innerHTML = machines.length
+    ? `<div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Machine ID</th><th>Name</th><th>Plant</th><th>Type</th><th>Source</th><th>Status</th></tr></thead><tbody>
+        ${machines.map(m => `<tr>
+          <td><code style="font-size:.76rem;color:var(--cyan);">${esc(m.machine_id)}</code></td>
+          <td>${esc(m.name)}</td>
+          <td>${esc(m.plant_name||'-')}</td>
+          <td>${esc(m.type)}</td>
+          <td><span class="badge badge-${m.data_source||'manual'}">${m.data_source||'manual'}</span></td>
+          <td><span class="badge badge-${m.status||'active'}">${m.status||'active'}</span></td>
+        </tr>`).join('')}
+      </tbody></table></div>`
+    : '<div class="sp-loading">No machines yet</div>';
+}
+
+// ════════════════════════════════════════════════════════
+// TENANTS
+// ════════════════════════════════════════════════════════
+async function loadTenants() {
+  const r = await zFetch('/api/saas/tenants');
+  hideError('tenant');
+  if (!r || !r.ok) { showError('tenant', r && r.error); return; }
+  allTenants = r.data || [];
+  populateTenantSelects();
+  const tbody = document.getElementById('tenants-tbody');
+  if (!allTenants.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="12">No tenants found. Add one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allTenants.map(t => `<tr>
+    <td style="color:var(--muted);font-size:.72rem;">${t.id}</td>
+    <td style="font-weight:600;">${esc(t.name)}</td>
+    <td><code style="font-size:.74rem;color:var(--cyan);">${esc(t.slug)}</code></td>
+    <td>${esc(t.industry||'—')}</td>
+    <td style="font-size:.76rem;">${esc(t.contact_email||'—')}</td>
+    <td><span class="badge badge-${t.plan||'basic'}">${t.plan||'basic'}</span></td>
+    <td style="text-align:center;">${t.plant_count||0}</td>
+    <td style="text-align:center;">${t.max_plants||5}</td>
+    <td style="text-align:center;">${t.max_users||10}</td>
+    <td><span class="badge badge-${t.status||'active'}">${t.status||'active'}</span></td>
+    <td style="font-size:.72rem;color:var(--muted);">${fmtDate(t.created_at)}</td>
+    <td>
+      <button class="btn btn-amber btn-sm" onclick="openPermissionsForTenant(${t.id})" title="Manage Permissions">&#128274;</button>
+      <button class="btn btn-ghost btn-sm" onclick="editTenant(${t.id})">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTenant(${t.id},'${esc(t.name)}')">Del</button>
+    </td>
+  </tr>`).join('');
+}
+
+function openModal(type, data) {
+  if (type === 'tenant') {
+    document.getElementById('tenant-id').value = '';
+    document.getElementById('modal-tenant-title').textContent = 'Add Tenant';
+    document.getElementById('t-name').value = '';
+    document.getElementById('t-slug').value = '';
+    document.getElementById('t-industry').value = '';
+    document.getElementById('t-email').value = '';
+    document.getElementById('t-plan').value = 'basic';
+    document.getElementById('t-status').value = 'active';
+    document.getElementById('t-maxplants').value = '5';
+    document.getElementById('t-maxusers').value = '10';
+  } else if (type === 'plant') {
+    document.getElementById('plant-id').value = '';
+    document.getElementById('modal-plant-title').textContent = 'Add Plant';
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-code').value = '';
+    document.getElementById('p-location').value = '';
+    document.getElementById('p-tz').value = 'Asia/Kolkata';
+    document.getElementById('p-status').value = 'active';
+    document.getElementById('p-autodash').checked = true;
+    populatePTenantSelect();
+  } else if (type === 'machine') {
+    document.getElementById('machine-id').value = '';
+    document.getElementById('modal-machine-title').textContent = 'Add Machine';
+    document.getElementById('m-machineid').value = '';
+    document.getElementById('m-name').value = '';
+    document.getElementById('m-type').value = 'CNC';
+    document.getElementById('m-protocol').value = '';
+    document.getElementById('m-make').value = '';
+    document.getElementById('m-model').value = '';
+    document.getElementById('m-host').value = '';
+    document.getElementById('m-port').value = '';
+    document.getElementById('m-datasource').value = 'manual';
+    document.getElementById('m-status').value = 'active';
+    document.getElementById('m-desc').value = '';
+    populateMPlantSelect();
+  }
+  if (type === 'user') {
+    document.getElementById('user-edit-username').value = '';
+    document.getElementById('modal-user-title').textContent = 'Add User';
+    document.getElementById('u-username').value   = '';
+    document.getElementById('u-username').disabled = false;
+    document.getElementById('u-name').value       = '';
+    document.getElementById('u-email').value      = '';
+    document.getElementById('u-phone').value      = '';
+    document.getElementById('u-role').value       = 'operator';
+    document.getElementById('u-password').value   = '';
+    document.getElementById('u-pwd-hint').textContent = '(required for new)';
+    document.getElementById('u-active').checked   = true;
+    populateUserTenantSelect();
+    document.getElementById('u-tenant').value     = '';
+  }
+  if (type !== 'isa95') document.getElementById('modal-' + type).classList.add('open');
+}
+
+function closeModal(type) {
+  const el = document.getElementById('modal-' + type);
+  if (el) el.classList.remove('open');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ── Danger Delete Modal ───────────────────────────────────────────────────
+let _dangerAction = null;
+let _dangerWord   = '';
+
+function openDangerModal({ icon, title, detail, bullets, confirmWord, action }) {
+  _dangerAction = action;
+  _dangerWord   = confirmWord;
+  document.getElementById('danger-icon').textContent          = icon || '⚠️';
+  document.getElementById('danger-title').textContent         = title;
+  document.getElementById('danger-detail').innerHTML          = detail;
+  document.getElementById('danger-confirm-word').textContent  = confirmWord;
+  document.getElementById('danger-confirm-input').value       = '';
+  document.getElementById('danger-bullets').innerHTML         = bullets.map(b => `<div>• ${b}</div>`).join('');
+  const btn = document.getElementById('danger-confirm-btn');
+  btn.disabled = true;
+  btn.style.opacity = '.5';
+  btn.style.cursor  = 'not-allowed';
+  document.getElementById('modal-danger-delete').classList.add('open');
+  // Focus the input
+  setTimeout(() => document.getElementById('danger-confirm-input').focus(), 100);
+}
+
+function closeDangerModal() {
+  document.getElementById('modal-danger-delete').classList.remove('open');
+  _dangerAction = null;
+  _dangerWord   = '';
+}
+
+function checkDangerInput() {
+  const val = document.getElementById('danger-confirm-input').value.trim();
+  const btn = document.getElementById('danger-confirm-btn');
+  const match = val === _dangerWord;
+  btn.disabled       = !match;
+  btn.style.opacity  = match ? '1' : '.5';
+  btn.style.cursor   = match ? 'pointer' : 'not-allowed';
+  btn.style.background = match ? 'rgba(255,68,68,.35)' : 'rgba(255,68,68,.15)';
+}
+
+async function executeDangerDelete() {
+  if (!_dangerAction) return;
+  const btn = document.getElementById('danger-confirm-btn');
+  btn.disabled      = true;
+  btn.innerHTML     = '<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Deleting…';
+  btn.style.opacity = '.8';
+  try {
+    await _dangerAction();
+    closeDangerModal();
+  } catch(e) {
+    zToast('Delete failed: ' + e.message, 'error');
+    btn.disabled     = false;
+    btn.innerHTML    = '🗑 Delete Permanently';
+    btn.style.opacity = '1';
+  }
+}
+
+function editTenant(id) {
+  const t = allTenants.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('tenant-id').value = t.id;
+  document.getElementById('modal-tenant-title').textContent = 'Edit Tenant';
+  document.getElementById('t-name').value = t.name || '';
+  document.getElementById('t-slug').value = t.slug || '';
+  document.getElementById('t-industry').value = t.industry || '';
+  document.getElementById('t-email').value = t.contact_email || '';
+  document.getElementById('t-plan').value = t.plan || 'basic';
+  document.getElementById('t-status').value = t.status || 'active';
+  document.getElementById('t-maxplants').value = t.max_plants || 5;
+  document.getElementById('t-maxusers').value = t.max_users || 10;
+  document.getElementById('modal-tenant').classList.add('open');
+}
+
+async function saveTenant() {
+  const id = document.getElementById('tenant-id').value;
+  const body = {
+    name: document.getElementById('t-name').value.trim(),
+    slug: document.getElementById('t-slug').value.trim().toLowerCase().replace(/\s+/g,'-'),
+    industry: document.getElementById('t-industry').value,
+    contact_email: document.getElementById('t-email').value.trim(),
+    plan: document.getElementById('t-plan').value,
+    status: document.getElementById('t-status').value,
+    max_plants: Number(document.getElementById('t-maxplants').value),
+    max_users: Number(document.getElementById('t-maxusers').value),
+  };
+  if (!body.name || !body.slug) { zToast('Name and slug are required', 'error'); return; }
+  const url = id ? `/api/saas/tenants/${id}` : '/api/saas/tenants';
+  const method = id ? 'PUT' : 'POST';
+  const r = await zFetch(url, { method, body: JSON.stringify(body) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Save failed', 'error'); return; }
+  zToast(id ? 'Tenant updated' : 'Tenant created', 'success');
+  closeModal('tenant');
+  loadTenants();
+  loadOverview();
+}
+
+async function deleteTenant(id, name) {
+  // Count plants for this tenant
+  const pr = await zFetch(`/api/saas/plants?tenant_id=${id}`).catch(()=>null);
+  const plantCount = pr && pr.data ? pr.data.length : '?';
+  const machineCount = pr && pr.data
+    ? pr.data.reduce((s, p) => s + parseInt(p.machine_count || 0), 0) : '?';
+  openDangerModal({
+    icon: '🏭',
+    title: `Delete Tenant: "${name}"`,
+    detail: 'This tenant and all its data will be permanently removed from the database.',
+    bullets: [
+      `🔴 Tenant: <strong>${name}</strong>`,
+      `🔴 Plants that will be deleted: <strong>${plantCount}</strong>`,
+      `🔴 Machines that will be deleted: <strong>${machineCount}</strong>`,
+      `⚠️ All OEE data, audit logs, and permissions for this tenant will be lost`,
+      `❌ This action cannot be undone`,
+    ],
+    confirmWord: name,
+    action: async () => {
+      const r = await zFetch(`/api/saas/tenants/${id}`, { method: 'DELETE' });
+      if (!r || !r.ok) { zToast(r?.error || 'Delete failed', 'error'); return; }
+      zToast(`Tenant "${name}" permanently deleted`, 'success');
+      loadTenants(); loadOverview();
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// PLANTS
+// ════════════════════════════════════════════════════════
+async function loadPlants() {
+  const tid = document.getElementById('plant-tenant-filter').value;
+  const url = tid ? `/api/saas/plants?tenant_id=${tid}` : '/api/saas/plants';
+  const r = await zFetch(url);
+  hideError('plant');
+  if (!r || !r.ok) { showError('plant', r && r.error); return; }
+  allPlants = r.data || [];
+  populateMPlantSelect();
+
+  const tbody = document.getElementById('plants-tbody');
+  if (!allPlants.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No plants found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allPlants.map(p => `<tr>
+    <td style="color:var(--muted);font-size:.72rem;">${p.id}</td>
+    <td style="font-weight:600;">${esc(p.name)}</td>
+    <td><code style="font-size:.74rem;color:var(--cyan);">${esc(p.code)}</code></td>
+    <td style="font-size:.76rem;">${esc(p.tenant_name||'—')}</td>
+    <td style="font-size:.76rem;">${esc(p.location||'—')}</td>
+    <td style="font-size:.74rem;color:var(--muted);">${esc(p.timezone||'—')}</td>
+    <td style="text-align:center;">${p.machine_count||0}</td>
+    <td style="text-align:center;">${p.auto_dashboard ? '&#10003;' : '&#10007;'}</td>
+    <td><span class="badge badge-${p.status||'active'}">${p.status||'active'}</span></td>
+    <td style="font-size:.72rem;color:var(--muted);">${fmtDate(p.created_at)}</td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick="editPlant(${p.id})">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePlant(${p.id},'${esc(p.name)}')">Del</button>
+    </td>
+  </tr>`).join('');
+}
+
+function populateTenantSelects() {
+  // Plant tenant filter dropdown
+  const filter = document.getElementById('plant-tenant-filter');
+  const cur = filter.value;
+  filter.innerHTML = '<option value="">All Tenants</option>' +
+    allTenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  filter.value = cur;
+}
+
+function populatePTenantSelect() {
+  const sel = document.getElementById('p-tenant');
+  sel.innerHTML = '<option value="">No Tenant</option>' +
+    allTenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+}
+
+function populateMPlantSelect() {
+  const sel = document.getElementById('m-plant');
+  const filterSel = document.getElementById('machine-plant-filter');
+  const cur = filterSel ? filterSel.value : '';
+  const opts = '<option value="">No Plant</option>' +
+    allPlants.map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.code)})</option>`).join('');
+  sel.innerHTML = opts;
+
+  // Also populate filter dropdown
+  if (filterSel) {
+    const filterOpts = '<option value="">All Plants</option>' +
+      allPlants.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    filterSel.innerHTML = filterOpts;
+    filterSel.value = cur;
+  }
+}
+
+function editPlant(id) {
+  const p = allPlants.find(x => x.id === id);
+  if (!p) return;
+  populatePTenantSelect();
+  document.getElementById('plant-id').value = p.id;
+  document.getElementById('modal-plant-title').textContent = 'Edit Plant';
+  document.getElementById('p-name').value = p.name || '';
+  document.getElementById('p-code').value = p.code || '';
+  document.getElementById('p-location').value = p.location || '';
+  document.getElementById('p-tz').value = p.timezone || 'Asia/Kolkata';
+  document.getElementById('p-status').value = p.status || 'active';
+  document.getElementById('p-autodash').checked = !!p.auto_dashboard;
+  document.getElementById('p-tenant').value = p.tenant_id || '';
+  document.getElementById('modal-plant').classList.add('open');
+}
+
+async function savePlant() {
+  const id = document.getElementById('plant-id').value;
+  const body = {
+    tenant_id: document.getElementById('p-tenant').value || null,
+    name:     document.getElementById('p-name').value.trim(),
+    code:     document.getElementById('p-code').value.trim().toUpperCase(),
+    location: document.getElementById('p-location').value.trim(),
+    timezone: document.getElementById('p-tz').value,
+    status:   document.getElementById('p-status').value,
+    auto_dashboard: document.getElementById('p-autodash').checked,
+  };
+  if (!body.name || !body.code) { zToast('Name and code are required', 'error'); return; }
+  const url = id ? `/api/saas/plants/${id}` : '/api/saas/plants';
+  const method = id ? 'PUT' : 'POST';
+  const r = await zFetch(url, { method, body: JSON.stringify(body) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Save failed', 'error'); return; }
+  zToast(id ? 'Plant updated' : 'Plant created', 'success');
+  closeModal('plant');
+  loadPlants();
+  loadOverview();
+}
+
+async function deletePlant(id, name) {
+  // Fetch machine count for this plant
+  const mr = await zFetch(`/api/saas/machines?plant_id=${id}`).catch(()=>null);
+  const machineCount = mr && mr.data ? mr.data.length : '?';
+  const machineNames = mr && mr.data ? mr.data.map(m => m.machine_id || m.name).join(', ') : '';
+  openDangerModal({
+    icon: '🏗️',
+    title: `Delete Plant: "${name}"`,
+    detail: 'This plant and all its machines will be permanently removed from the database.',
+    bullets: [
+      `🔴 Plant: <strong>${name}</strong>`,
+      `🔴 Machines that will be deleted: <strong>${machineCount}</strong>${machineNames ? ' — ' + machineNames : ''}`,
+      `⚠️ All OEE data linked to this plant's machines will become unlinked`,
+      `❌ This action cannot be undone — the plant will NOT come back on server restart`,
+    ],
+    confirmWord: name,
+    action: async () => {
+      const r = await zFetch(`/api/saas/plants/${id}`, { method: 'DELETE' });
+      if (!r || !r.ok) { zToast(r?.error || 'Delete failed', 'error'); return; }
+      const detail = r.deleted ? ` (+${r.deleted.machines_removed} machine(s))` : '';
+      zToast(`Plant "${name}" permanently deleted${detail}`, 'success');
+      loadPlants(); loadMachines(); loadOverview();
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// MACHINES
+// ════════════════════════════════════════════════════════
+async function loadMachines() {
+  const pid = document.getElementById('machine-plant-filter').value;
+  const url = pid ? `/api/saas/machines?plant_id=${pid}` : '/api/saas/machines';
+  const r = await zFetch(url);
+  hideError('machine');
+  if (!r || !r.ok) { showError('machine', r && r.error); return; }
+  allMachines = r.data || [];
+
+  const tbody = document.getElementById('machines-tbody');
+  if (!allMachines.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No machines found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allMachines.map(m => `<tr>
+    <td style="color:var(--muted);font-size:.72rem;">${m.id}</td>
+    <td><code style="font-size:.76rem;color:var(--cyan);">${esc(m.machine_id)}</code></td>
+    <td style="font-weight:600;">${esc(m.name)}</td>
+    <td style="font-size:.76rem;">${esc(m.plant_name||'—')}</td>
+    <td style="font-size:.74rem;color:var(--muted);">${esc(m.tenant_name||'—')}</td>
+    <td><span class="badge badge-cnc">${esc(m.type)}</span></td>
+    <td style="font-size:.74rem;">${esc(m.protocol||'—')}</td>
+    <td style="font-size:.74rem;color:var(--muted);">${m.host ? esc(m.host)+(m.port?':'+m.port:'') : '—'}</td>
+    <td><span class="badge badge-${m.data_source||'manual'}">${m.data_source||'manual'}</span></td>
+    <td><span class="badge badge-${m.status||'active'}">${m.status||'active'}</span></td>
+    <td>
+      <button class="btn btn-primary btn-sm" onclick="showISA95(${m.id})" title="View ISA-95 Config">&#127381; ISA-95</button>
+      <button class="btn btn-ghost btn-sm" onclick="editMachine(${m.id})">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteMachine(${m.id},'${esc(m.name)}')">Del</button>
+    </td>
+  </tr>`).join('');
+}
+
+function editMachine(id) {
+  const m = allMachines.find(x => x.id === id);
+  if (!m) return;
+  populateMPlantSelect();
+  document.getElementById('machine-id').value = m.id;
+  document.getElementById('modal-machine-title').textContent = 'Edit Machine';
+  document.getElementById('m-machineid').value = m.machine_id || '';
+  document.getElementById('m-name').value = m.name || '';
+  document.getElementById('m-type').value = m.type || 'CNC';
+  document.getElementById('m-protocol').value = m.protocol || '';
+  document.getElementById('m-make').value = m.make || '';
+  document.getElementById('m-model').value = m.model || '';
+  document.getElementById('m-host').value = m.host || '';
+  document.getElementById('m-port').value = m.port || '';
+  document.getElementById('m-datasource').value = m.data_source || 'manual';
+  document.getElementById('m-status').value = m.status || 'active';
+  document.getElementById('m-desc').value = m.description || '';
+  document.getElementById('m-plant').value = m.plant_id || '';
+  document.getElementById('modal-machine').classList.add('open');
+}
+
+async function saveMachine() {
+  const id = document.getElementById('machine-id').value;
+  const body = {
+    plant_id:    document.getElementById('m-plant').value || null,
+    machine_id:  document.getElementById('m-machineid').value.trim(),
+    name:        document.getElementById('m-name').value.trim(),
+    type:        document.getElementById('m-type').value,
+    make:        document.getElementById('m-make').value.trim() || null,
+    model:       document.getElementById('m-model').value.trim() || null,
+    protocol:    document.getElementById('m-protocol').value || null,
+    host:        document.getElementById('m-host').value.trim() || null,
+    port:        Number(document.getElementById('m-port').value) || null,
+    data_source: document.getElementById('m-datasource').value,
+    status:      document.getElementById('m-status').value,
+    description: document.getElementById('m-desc').value.trim() || null,
+  };
+  if (!body.machine_id || !body.name || !body.type) { zToast('Machine ID, name, and type required', 'error'); return; }
+  const url = id ? `/api/saas/machines/${id}` : '/api/saas/machines';
+  const method = id ? 'PUT' : 'POST';
+  const r = await zFetch(url, { method, body: JSON.stringify(body) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Save failed', 'error'); return; }
+  zToast(id ? 'Machine updated' : 'Machine added ✔ ISA-95 config generated', 'success');
+  closeModal('machine');
+  loadMachines();
+  loadOverview();
+  // If new machine: show ISA-95 modal
+  if (!id && r.isa95_config) {
+    setTimeout(() => openISA95Modal(r.isa95_config), 400);
+  }
+}
+
+async function deleteMachine(id, name) {
+  const m = allMachines.find(x => x.id === id);
+  const plantName = m ? (m.plant_name || 'unknown plant') : 'unknown plant';
+  openDangerModal({
+    icon: '⚙️',
+    title: `Delete Machine: "${name}"`,
+    detail: `This machine will be permanently removed from <strong>${plantName}</strong>.`,
+    bullets: [
+      `🔴 Machine ID: <strong>${m ? m.machine_id : name}</strong>`,
+      `🔴 Plant: <strong>${plantName}</strong>`,
+      `⚠️ Live data collection for this machine will stop immediately`,
+      `❌ This action cannot be undone`,
+    ],
+    confirmWord: m ? m.machine_id : name,
+    action: async () => {
+      const r = await zFetch(`/api/saas/machines/${id}`, { method: 'DELETE' });
+      if (!r || !r.ok) { zToast(r?.error || 'Delete failed', 'error'); return; }
+      zToast(`Machine "${name}" permanently deleted`, 'success');
+      loadMachines(); loadOverview();
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// USERS
+// ════════════════════════════════════════════════════════
+async function loadUsers() {
+  const r = await zFetch('/api/saas/users');
+  hideError('user');
+  if (!r || !r.ok) {
+    document.getElementById('users-tbody').innerHTML = `<tr class="empty-row"><td colspan="9">${r && r.error || 'Failed to load users'}</td></tr>`;
+    return;
+  }
+  allUsers = r.data || [];
+  renderUsers();
+}
+
+function renderUsers() {
+  const search = (document.getElementById('user-search').value || '').toLowerCase();
+  const role   = document.getElementById('user-role-filter').value;
+  let rows = allUsers;
+  if (search) rows = rows.filter(u =>
+    (u.username||'').toLowerCase().includes(search) ||
+    (u.name||'').toLowerCase().includes(search) ||
+    (u.email||'').toLowerCase().includes(search)
+  );
+  if (role) rows = rows.filter(u => u.role === role);
+
+  const tbody = document.getElementById('users-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No users match filter</td></tr>';
+    return;
+  }
+
+  const ROLE_ICONS = { superadmin:'👑', admin:'🔑', manager:'📊', supervisor:'🔧', operator:'⚙️', viewer:'👁' };
+
+  tbody.innerHTML = rows.map((u,i) => {
+    const isBuiltin = u.username === 'admin' || u.username === 'superadmin';
+    const tenant = allTenants.find(t => t.id == u.tenant_id);
+    return `<tr>
+      <td style="color:var(--muted);font-size:.72rem;">${i+1}</td>
+      <td>
+        <span style="font-weight:700;font-size:.8rem;color:var(--cyan);">${esc(u.username)}</span>
+        ${isBuiltin ? '<span style="font-size:.65rem;color:var(--amber);margin-left:5px;">built-in</span>' : ''}
+      </td>
+      <td style="font-size:.78rem;">${esc(u.name||'—')}</td>
+      <td style="font-size:.74rem;color:var(--muted);">${esc(u.email||'—')}</td>
+      <td>
+        <span class="badge badge-${u.role}" style="gap:3px;">
+          ${ROLE_ICONS[u.role]||''} ${u.role}
+        </span>
+      </td>
+      <td style="font-size:.74rem;">
+        ${tenant ? `<span style="color:var(--cyan);">${esc(tenant.name)}</span>` : '<span style="color:var(--muted);">—</span>'}
+      </td>
+      <td>
+        <span class="badge badge-${u.active!==false?'active':'inactive'}">${u.active!==false?'Active':'Inactive'}</span>
+      </td>
+      <td style="font-size:.72rem;color:var(--muted);">${fmtDate(u.created_at)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="editUser('${esc(u.username)}')">Edit</button>
+        <button class="btn btn-amber btn-sm" onclick="openResetPwd('${esc(u.username)}')">&#128274; Pwd</button>
+        ${!isBuiltin ? `<button class="btn btn-danger btn-sm" onclick="toggleUserActive('${esc(u.username)}',${u.active!==false})">${u.active!==false?'Disable':'Enable'}</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterUsers() { renderUsers(); }
+
+// ── Add User modal ──────────────────────────────────────
+function populateUserTenantSelect() {
+  const sel = document.getElementById('u-tenant');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">No Tenant (Platform-wide)</option>' +
+    allTenants.map(t => `<option value="${t.id}" data-slug="${esc(t.slug)}">${esc(t.name)}</option>`).join('');
+}
+
+function updateUserTenantSlug() { /* slug derived server-side */ }
+
+function editUser(username) {
+  const u = allUsers.find(x => x.username === username);
+  if (!u) return;
+  populateUserTenantSelect();
+  document.getElementById('user-edit-username').value = username;
+  document.getElementById('modal-user-title').textContent = `Edit User — ${username}`;
+  document.getElementById('u-username').value  = u.username;
+  document.getElementById('u-username').disabled = true;
+  document.getElementById('u-name').value      = u.name    || '';
+  document.getElementById('u-email').value     = u.email   || '';
+  document.getElementById('u-phone').value     = u.phone   || '';
+  document.getElementById('u-role').value      = u.role    || 'operator';
+  document.getElementById('u-password').value  = '';
+  document.getElementById('u-pwd-hint').textContent = '(leave blank to keep current)';
+  document.getElementById('u-active').checked  = u.active !== false;
+  document.getElementById('u-tenant').value    = u.tenant_id || '';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+async function saveUser() {
+  const editUsername = document.getElementById('user-edit-username').value;
+  const isEdit = !!editUsername;
+
+  const username = document.getElementById('u-username').value.trim().toLowerCase();
+  const password = document.getElementById('u-password').value;
+  const name     = document.getElementById('u-name').value.trim();
+  const role     = document.getElementById('u-role').value;
+  const email    = document.getElementById('u-email').value.trim();
+  const phone    = document.getElementById('u-phone').value.trim();
+  const active   = document.getElementById('u-active').checked;
+  const tenantId = document.getElementById('u-tenant').value || null;
+
+  // Find tenant slug
+  const tenant = allTenants.find(t => String(t.id) === String(tenantId));
+  const tenantSlug = tenant ? tenant.slug : null;
+
+  if (!isEdit && !password) { zToast('Password is required for new users', 'error'); return; }
+  if (!isEdit && !username) { zToast('Username is required', 'error'); return; }
+
+  hideError('user');
+
+  if (isEdit) {
+    const body = { name, role, email, phone, active,
+      tenant_id: tenantId ? Number(tenantId) : null,
+      tenant_slug: tenantSlug };
+    const r = await zFetch(`/api/saas/users/${editUsername}`, { method:'PUT', body: JSON.stringify(body) });
+    if (!r || !r.ok) { zToast(r && r.error || 'Update failed', 'error'); return; }
+    // If password provided, also reset it
+    if (password) {
+      const pr = await zFetch(`/api/saas/users/${editUsername}/reset-password`,
+        { method:'POST', body: JSON.stringify({ newPassword: password }) });
+      if (!pr || !pr.ok) { zToast('User updated but password change failed: ' + (pr && pr.error), 'warning'); }
+    }
+    zToast('User updated ✔', 'success');
+  } else {
+    const body = { username, password, name, role, email, phone,
+      tenant_id: tenantId ? Number(tenantId) : null,
+      tenant_slug: tenantSlug };
+    const r = await zFetch('/api/saas/users', { method:'POST', body: JSON.stringify(body) });
+    if (!r || !r.ok) { zToast(r && r.error || 'Create failed', 'error'); return; }
+    zToast(`User "${username}" created ✔`, 'success');
+  }
+
+  closeModal('user');
+  loadUsers();
+  loadOverview();
+}
+
+function openResetPwd(username) {
+  document.getElementById('resetpwd-username').textContent = username;
+  document.getElementById('resetpwd-new').value = '';
+  document.getElementById('modal-resetpwd').classList.add('open');
+}
+
+async function confirmResetPassword() {
+  const username = document.getElementById('resetpwd-username').textContent;
+  const newPwd   = document.getElementById('resetpwd-new').value;
+  if (!newPwd || newPwd.length < 3) { zToast('Password must be at least 3 characters', 'error'); return; }
+  const r = await zFetch(`/api/saas/users/${username}/reset-password`,
+    { method:'POST', body: JSON.stringify({ newPassword: newPwd }) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Reset failed', 'error'); return; }
+  zToast(`Password reset for ${username} ✔`, 'success');
+  closeModal('resetpwd');
+}
+
+async function toggleUserActive(username, currentlyActive) {
+  const r = await zFetch(`/api/saas/users/${username}`,
+    { method:'PUT', body: JSON.stringify({ active: !currentlyActive }) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Update failed', 'error'); return; }
+  zToast(`User ${currentlyActive ? 'disabled' : 'enabled'} ✔`, 'success');
+  loadUsers();
+}
+
+// ════════════════════════════════════════════════════════
+// REPORTS
+// ════════════════════════════════════════════════════════
+async function runReport() {
+  const source  = document.getElementById('rpt-source').value;
+  const machine = document.getElementById('rpt-machine').value.trim();
+  const dateFrom= document.getElementById('rpt-from').value;
+  const dateTo  = document.getElementById('rpt-to').value;
+  const shift   = document.getElementById('rpt-shift').value;
+
+  hideError('report');
+  document.getElementById('rpt-result-area').style.display = 'none';
+  document.getElementById('rpt-chart-wrap').style.display = 'none';
+
+  const r = await zFetch('/api/saas/report', {
+    method: 'POST',
+    body: JSON.stringify({ source, machine, dateFrom, dateTo, shift })
+  }, 30000);
+
+  if (!r || !r.ok) {
+    showError('report', r && r.error || 'Report failed');
+    document.getElementById('rpt-result-area').style.display = 'block';
+    return;
+  }
+
+  reportColumns = r.columns || [];
+  reportRows    = r.rows    || [];
+
+  // Header
+  document.getElementById('rpt-count').textContent = `${r.count} row${r.count!==1?'s':''}`;
+  document.getElementById('rpt-thead').innerHTML = '<tr>' + reportColumns.map(c =>
+    `<th>${c}</th>`
+  ).join('') + '</tr>';
+
+  // Body (max 200 rows shown)
+  const show = reportRows.slice(0, 200);
+  document.getElementById('rpt-tbody').innerHTML = show.length
+    ? show.map(row => '<tr>' + reportColumns.map(c => `<td>${row[c] ?? ''}</td>`).join('') + '</tr>').join('')
+    : '<tr class="empty-row"><td colspan="' + reportColumns.length + '">No data in this range</td></tr>';
+
+  document.getElementById('rpt-result-area').style.display = 'block';
+
+  // Chart for OEE
+  if (source === 'oee' && reportRows.length) renderReportChart(source);
+}
+
+function renderReportChart(source) {
+  const wrap = document.getElementById('rpt-chart-wrap');
+  wrap.style.display = 'block';
+  const ctx = document.getElementById('rpt-chart').getContext('2d');
+  if (reportChart) { reportChart.destroy(); reportChart = null; }
+
+  const labels = reportRows.map(r => (r.date||r.bucket||'').slice(0,10) + (r.shift?' '+r.shift:''));
+
+  let datasets = [];
+  if (source === 'oee') {
+    datasets = [
+      { label:'OEE',          data: reportRows.map(r => r.oee),          borderColor:'#00d4ff', tension:.3, fill:false, pointRadius:3 },
+      { label:'Availability', data: reportRows.map(r => r.availability), borderColor:'#00ff88', tension:.3, fill:false, pointRadius:2 },
+      { label:'Performance',  data: reportRows.map(r => r.performance),  borderColor:'#ffb300', tension:.3, fill:false, pointRadius:2 },
+      { label:'Quality',      data: reportRows.map(r => r.quality),      borderColor:'#a855f7', tension:.3, fill:false, pointRadius:2 },
+    ];
+  }
+
+  reportChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#6b8cae', font: { size: 11 } } },
+        tooltip: { mode: 'index' }
+      },
+      scales: {
+        x: { ticks: { color: '#6b8cae', maxTicksLimit: 12, maxRotation: 45, font:{size:10} }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#6b8cae', font:{size:10} }, grid: { color: 'rgba(255,255,255,.05)' }, min: 0, max: 100 }
+      }
+    }
+  });
+}
+
+function exportCSV() {
+  if (!reportColumns.length) { zToast('Run a report first', 'warning'); return; }
+  const lines = [reportColumns.join(',')];
+  reportRows.forEach(row => {
+    lines.push(reportColumns.map(c => {
+      const v = (row[c] ?? '').toString().replace(/"/g,'""');
+      return v.includes(',') ? `"${v}"` : v;
+    }).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `report_${document.getElementById('rpt-source').value}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Saved Report Configs ─────────────────────────────────
+function saveReportConfig() {
+  const name = prompt('Config name:');
+  if (!name || !name.trim()) return;
+  const cfg = {
+    name: name.trim(),
+    source:  document.getElementById('rpt-source').value,
+    machine: document.getElementById('rpt-machine').value,
+    dateFrom: document.getElementById('rpt-from').value,
+    dateTo:   document.getElementById('rpt-to').value,
+    shift:    document.getElementById('rpt-shift').value,
+  };
+  const saved = getSavedReports();
+  saved.push(cfg);
+  localStorage.setItem('saas_report_configs', JSON.stringify(saved));
+  loadSavedReports();
+  zToast('Config saved', 'success');
+}
+
+function getSavedReports() {
+  try { return JSON.parse(localStorage.getItem('saas_report_configs') || '[]'); }
+  catch { return []; }
+}
+
+function loadSavedReports() {
+  const saved = getSavedReports();
+  const bar = document.getElementById('saved-reports-bar');
+  if (!saved.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = saved.map((cfg, i) =>
+    `<span class="report-saved-chip" onclick="applySavedReport(${i})">
+      ${esc(cfg.name)} <span class="rm" onclick="event.stopPropagation();removeSavedReport(${i})">&times;</span>
+    </span>`
+  ).join('');
+}
+
+function applySavedReport(i) {
+  const cfg = getSavedReports()[i];
+  if (!cfg) return;
+  document.getElementById('rpt-source').value  = cfg.source  || 'oee';
+  document.getElementById('rpt-machine').value = cfg.machine || 'MACHINE001';
+  document.getElementById('rpt-from').value    = cfg.dateFrom || '';
+  document.getElementById('rpt-to').value      = cfg.dateTo   || '';
+  document.getElementById('rpt-shift').value   = cfg.shift    || 'Both';
+  zToast('Config applied — click Run Report', 'success');
+}
+
+function removeSavedReport(i) {
+  const saved = getSavedReports();
+  saved.splice(i, 1);
+  localStorage.setItem('saas_report_configs', JSON.stringify(saved));
+  loadSavedReports();
+}
+
+// ════════════════════════════════════════════════════════
+// AUDIT LOG
+// ════════════════════════════════════════════════════════
+async function loadAudit() {
+  const r = await zFetch('/api/saas/audit');
+  const el = document.getElementById('audit-list');
+  if (!r || !r.ok) { el.innerHTML = '<div class="sp-error">Failed to load audit log</div>'; return; }
+  const rows = r.data || [];
+  if (!rows.length) { el.innerHTML = '<div class="sp-loading">No audit events yet</div>'; return; }
+  el.innerHTML = rows.map(e => `
+    <div class="audit-row">
+      <div class="audit-dot" style="background:${e.action==='CREATE'?'var(--green)':e.action==='DELETE'?'var(--red)':'var(--amber)'};"></div>
+      <div class="audit-text">
+        <span style="font-weight:600;font-size:.78rem;">${e.action}</span>
+        <span style="color:var(--muted);font-size:.76rem;"> · ${esc(e.entity||'')} #${e.entity_id||''}</span>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">${esc(e.details||'')}</div>
+      </div>
+      <div class="audit-time">${fmtDate(e.created_at)}</div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleDateString('en-IN', {
+      day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit', hour12:false,
+      timeZone:'Asia/Kolkata'
+    });
+  } catch { return String(ts).slice(0,10); }
+}
+
+function showError(scope, msg) {
+  const el = document.getElementById('sp-error-' + scope);
+  if (!el) return;
+  el.textContent = msg || 'An error occurred';
+  el.style.display = 'block';
+}
+
+function hideError(scope) {
+  const el = document.getElementById('sp-error-' + scope);
+  if (el) el.style.display = 'none';
+}
+
+// Auto-generate slug from tenant name
+document.getElementById('t-name').addEventListener('input', function() {
+  const idEl = document.getElementById('tenant-id');
+  if (idEl.value) return; // editing — don't override
+  document.getElementById('t-slug').value = this.value.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,40);
+});
+
+// ════════════════════════════════════════════════════════
+// ISA-95 CONFIG MODAL
+// ════════════════════════════════════════════════════════
+let _currentISA95 = null;
+
+async function showISA95(machineRowId) {
+  const m = allMachines.find(x => x.id === machineRowId);
+  if (!m) return;
+  zToast('Loading ISA-95 config…', 'info');
+  const r = await zFetch(`/api/saas/isa95/${encodeURIComponent(m.machine_id)}`);
+  if (!r || !r.ok) { zToast(r && r.error || 'Failed to load ISA-95 config', 'error'); return; }
+  openISA95Modal(r.isa95_config);
+}
+
+function openISA95Modal(config) {
+  _currentISA95 = config;
+  if (!config) return;
+
+  // Summary bar
+  const su = document.getElementById('isa95-summary');
+  su.innerHTML = [
+    { label:'Enterprise', val: config.enterprise?.name, color:'var(--cyan)' },
+    { label:'Site',       val: config.site?.name,       color:'var(--green)' },
+    { label:'Work Unit',  val: config.work_unit?.name,  color:'var(--amber)' },
+    { label:'Type',       val: config.work_unit?.type,  color:'var(--purple)' },
+    { label:'Protocol',   val: config.work_unit?.protocol, color:'var(--muted)' },
+  ].map(b => `<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:6px 12px;">
+    <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${b.label}</div>
+    <div style="font-size:.82rem;font-weight:700;color:${b.color};">${b.val||'—'}</div>
+  </div>`).join('');
+
+  // MQTT topics
+  const mqtt = config.mqtt || {};
+  document.getElementById('isa95-mqtt').innerHTML = `
+    <div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:12px;font-size:.76rem;">
+      <div style="font-weight:700;color:var(--cyan);margin-bottom:8px;">&#9993; MQTT Topics</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        ${['topic_telemetry','topic_state','topic_alarm','topic_heartbeat'].map(k =>
+          `<div><span style="color:var(--muted);">${k.replace('topic_','')}:</span>
+           <code style="color:#a8d8a8;font-size:.7rem;margin-left:6px;">${mqtt[k]||'—'}</code></div>`
+        ).join('')}
+      </div>
+      <div style="margin-top:8px;color:var(--muted);">Broker: <code style="color:var(--amber);">${mqtt.broker_host||'—'}:${mqtt.broker_port||1883}</code> &nbsp;|&nbsp; QoS: ${mqtt.qos||1} &nbsp;|&nbsp; Interval: ${mqtt.publish_interval_sec||5}s</div>
+    </div>`;
+
+  // JSON pane
+  document.getElementById('isa95-json-pre').textContent = JSON.stringify(config, null, 2);
+
+  // Data Points table
+  const dp = config.data_points || [];
+  document.getElementById('isa95-dp-tbody').innerHTML = dp.map(d => `<tr>
+    <td><code style="font-size:.73rem;color:var(--cyan);">${esc(d.tag)}</code></td>
+    <td style="font-size:.76rem;">${esc(d.label)}</td>
+    <td><code style="font-size:.7rem;color:var(--amber);">${esc(d.sql_type)}</code></td>
+    <td style="font-size:.72rem;color:var(--muted);">${esc(d.unit||'—')}</td>
+    <td><span class="badge badge-cnc" style="font-size:.65rem;">${esc(d.mqtt_type)}</span></td>
+    <td style="font-size:.72rem;color:var(--muted);">${esc(d.isa95_category)}</td>
+    <td style="text-align:center;">${d.required ? '<span style="color:var(--red);font-size:.8rem;">✦</span>' : ''}</td>
+  </tr>`).join('');
+
+  // Node-RED function
+  document.getElementById('isa95-nodered-pre').textContent = config.node_red?.sample_function || '// No Node-RED config';
+
+  // Show default tab
+  switchISA95Tab('json');
+  document.getElementById('modal-isa95').classList.add('open');
+}
+
+function switchISA95Tab(name) {
+  ['json','dp','nodered'].forEach(t => {
+    document.getElementById(`isa95-tab-${t}`).classList.toggle('active', t === name);
+    document.getElementById(`isa95-pane-${t}`).style.display = t === name ? '' : 'none';
+  });
+}
+
+function copyISA95JSON() {
+  if (!_currentISA95) return;
+  navigator.clipboard.writeText(JSON.stringify(_currentISA95, null, 2))
+    .then(() => zToast('ISA-95 JSON copied to clipboard', 'success'))
+    .catch(() => zToast('Copy failed — select manually', 'error'));
+}
+
+function copyNodeRedCode() {
+  const txt = document.getElementById('isa95-nodered-pre').textContent;
+  navigator.clipboard.writeText(txt)
+    .then(() => zToast('Node-RED code copied', 'success'))
+    .catch(() => zToast('Copy failed', 'error'));
+}
+
+function downloadISA95JSON() {
+  if (!_currentISA95) return;
+  const blob = new Blob([JSON.stringify(_currentISA95, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `isa95_${(_currentISA95.work_unit?.id || 'machine').replace(/[^a-zA-Z0-9_-]/g,'_')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  zToast('ISA-95 JSON downloaded', 'success');
+}
+
+// ════════════════════════════════════════════════════════
+// PERMISSIONS
+// ════════════════════════════════════════════════════════
+let _permData = { pages:[], kpis:[] };
+
+function loadPermissionsTab() {
+  // Populate tenant selector
+  const sel = document.getElementById('perm-tenant-sel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select Tenant —</option>' +
+    allTenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  sel.value = cur;
+  if (!allTenants.length) {
+    // Load tenants if not yet loaded
+    zFetch('/api/saas/tenants').then(r => {
+      if (r && r.data) {
+        allTenants = r.data;
+        const s = document.getElementById('perm-tenant-sel');
+        s.innerHTML = '<option value="">— Select Tenant —</option>' +
+          allTenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+      }
+    });
+  }
+}
+
+function openPermissionsForTenant(tenantId) {
+  switchTab('permissions');
+  setTimeout(() => {
+    const sel = document.getElementById('perm-tenant-sel');
+    sel.value = tenantId;
+    loadPermissions();
+  }, 200);
+}
+
+async function loadPermissions() {
+  const tid = document.getElementById('perm-tenant-sel').value;
+  const content    = document.getElementById('perm-content');
+  const placeholder= document.getElementById('perm-placeholder');
+  const loading    = document.getElementById('perm-loading');
+
+  if (!tid) {
+    content.style.display = 'none';
+    placeholder.style.display = '';
+    return;
+  }
+
+  placeholder.style.display = 'none';
+  loading.style.display = '';
+  content.style.display = 'none';
+  hideError('perm');
+
+  const r = await zFetch(`/api/saas/permissions/${tid}`);
+  loading.style.display = 'none';
+  if (!r || !r.ok) { showError('perm', r && r.error || 'Failed to load'); return; }
+
+  _permData = { pages: r.pages || [], kpis: r.kpis || [] };
+  renderPermissionToggles();
+  content.style.display = '';
+}
+
+function renderPermissionToggles() {
+  const pagesEl = document.getElementById('perm-pages-list');
+  const kpisEl  = document.getElementById('perm-kpis-list');
+
+  pagesEl.innerHTML = _permData.pages.map((p, i) => `
+    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.03);cursor:pointer;">
+      <span style="font-size:.8rem;">${esc(p.page_label || p.page_key)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <code style="font-size:.65rem;color:var(--muted);">${esc(p.page_key)}</code>
+        <input type="checkbox" data-type="page" data-key="${esc(p.page_key)}" ${p.enabled ? 'checked' : ''}
+          style="width:18px;height:18px;accent-color:var(--cyan);cursor:pointer;"
+          onchange="togglePermItem(this)"/>
+      </div>
+    </label>`).join('');
+
+  kpisEl.innerHTML = _permData.kpis.map((k, i) => `
+    <label style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.03);cursor:pointer;">
+      <span style="font-size:.8rem;">${esc(k.kpi_label || k.kpi_key)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <code style="font-size:.65rem;color:var(--muted);">${esc(k.kpi_key)}</code>
+        <input type="checkbox" data-type="kpi" data-key="${esc(k.kpi_key)}" ${k.enabled ? 'checked' : ''}
+          style="width:18px;height:18px;accent-color:var(--cyan);cursor:pointer;"
+          onchange="togglePermItem(this)"/>
+      </div>
+    </label>`).join('');
+
+  if (!_permData.pages.length) pagesEl.innerHTML = '<div class="sp-loading">No page permissions found</div>';
+  if (!_permData.kpis.length)  kpisEl.innerHTML  = '<div class="sp-loading">No KPI permissions found</div>';
+}
+
+function togglePermItem(cb) {
+  const type = cb.dataset.type;
+  const key  = cb.dataset.key;
+  if (type === 'page') {
+    const item = _permData.pages.find(p => p.page_key === key);
+    if (item) item.enabled = cb.checked;
+  } else {
+    const item = _permData.kpis.find(k => k.kpi_key === key);
+    if (item) item.enabled = cb.checked;
+  }
+}
+
+function toggleAllPerms(type, val) {
+  if (type === 'pages') {
+    _permData.pages.forEach(p => p.enabled = val);
+    document.querySelectorAll('[data-type="page"]').forEach(cb => cb.checked = val);
+  } else {
+    _permData.kpis.forEach(k => k.enabled = val);
+    document.querySelectorAll('[data-type="kpi"]').forEach(cb => cb.checked = val);
+  }
+}
+
+async function savePermissions() {
+  const tid = document.getElementById('perm-tenant-sel').value;
+  if (!tid) { zToast('Select a tenant first', 'warning'); return; }
+  hideError('perm');
+  const body = {
+    pages: _permData.pages.map(p => ({ page_key: p.page_key, enabled: p.enabled })),
+    kpis:  _permData.kpis.map(k => ({ kpi_key:  k.kpi_key,  enabled: k.enabled })),
+  };
+  const r = await zFetch(`/api/saas/permissions/${tid}`, { method:'PUT', body: JSON.stringify(body) });
+  if (!r || !r.ok) { zToast(r && r.error || 'Save failed', 'error'); return; }
+  zToast('Permissions saved ✔', 'success');
+}
+</script>
+</body>
+</html>
