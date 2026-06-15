@@ -61,8 +61,8 @@ th { color:var(--muted); background:var(--panel); position:sticky; top:0; }
   </p>
 
   <div class="grid2" style="margin-bottom:14px">
-    <div class="field"><label>Plant ID (schema)</label><input id="plantId" placeholder="acme_plant_1"/></div>
-    <div class="field"><label>Machine ID (table / device)</label><input id="machineId" placeholder="line_01"/></div>
+    <div class="field"><label>Plant ID (schema)</label><input id="plantId" value="fanuc" placeholder="acme_plant_1"/></div>
+    <div class="field"><label>Machine ID (table / device)</label><input id="machineId" value="CNC896" placeholder="line_01"/></div>
   </div>
 
   <div class="tabs">
@@ -79,13 +79,13 @@ th { color:var(--muted); background:var(--panel); position:sticky; top:0; }
       <p class="sub">Subscribe to a topic and wait for one JSON message. Payload should include <code>points</code> object or flat tag keys.</p>
       <div class="grid2">
         <div class="field"><label>Connection name</label><input id="mqttName" value="MQTT live feed"/></div>
-        <div class="field"><label>Broker URL</label><input id="mqttUrl" placeholder="mqtt://88.99.81.138:1883"/><small class="sub">Include <code>mqtt://</code> or <code>mqtts://</code> — bare IP:port is auto-fixed but always use the scheme for remote brokers.</small></div>
-        <div class="field"><label>Topic</label><input id="mqttTopic" placeholder="factory/plant1/line01/telemetry"/></div>
+        <div class="field"><label>Broker URL</label><input id="mqttUrl" value="mqtt://88.99.81.138:1883"/><small class="sub">Include <code>mqtt://</code> or <code>mqtts://</code>. Do not reuse the gateway reader Client ID — the platform adds <code>-platform</code> automatically.</small></div>
+        <div class="field"><label>Topic</label><input id="mqttTopic" value="fanuccnc01"/></div>
         <div class="field"><label>QoS</label>
           <select id="mqttQos"><option value="0">0 — At most once</option><option value="1">1 — At least once</option><option value="2">2 — Exactly once</option></select>
         </div>
-        <div class="field"><label>Client ID</label><input id="mqttClientId" placeholder="factory-mios-client-01"/></div>
-        <div class="field"><label>Username</label><input id="mqttUser" placeholder="optional"/></div>
+        <div class="field"><label>Client ID</label><input id="mqttClientId" value="fanuc_nidec_gateway" placeholder="gateway id ok — platform uses a unique suffix"/></div>
+        <div class="field"><label>Username</label><input id="mqttUser" value="fanuc_gateway"/></div>
         <div class="field"><label>Password</label><input id="mqttPass" type="password" placeholder="optional"/></div>
         <div class="field"><label>MQTT protocol version</label>
           <select id="mqttVer"><option value="4">4 (default)</option><option value="5">5</option></select>
@@ -239,11 +239,11 @@ function mqttCfg() {
 async function testMqtt() {
   try {
     const d = await api('/api/setup/connectors/test-mqtt', { method: 'POST', body: JSON.stringify(mqttCfg()) });
-    setSt('mqttStatus', true, 'Connected');
+    setSt('mqttStatus', true, d.message_received === false ? 'Broker OK' : 'Connected');
     const box = document.getElementById('mqttResult');
     box.classList.remove('hidden');
     box.textContent = JSON.stringify(d, null, 2);
-    toast('MQTT message received', true);
+    toast(d.message_received === false ? (d.note || 'Broker connected') : 'MQTT message received', true);
   } catch (e) {
     setSt('mqttStatus', false, 'Error');
     toast(e.message, false);

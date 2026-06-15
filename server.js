@@ -30,6 +30,7 @@ const dataConnectors = require('./lib/data-connectors');
 const factoryMiosOnboarding = require('./lib/factory-mios-onboarding');
 const setupWizard = require('./lib/setup-wizard');
 const ingestionConnectors = require('./lib/ingestion-connectors');
+const { startMqttLiveIngest } = require('./lib/mqtt-live-ingest');
 // For MACHINE-001 setup, use CNC suggestions as the default
 const SUGGESTIONS = CNC_SUGGESTIONS;
 
@@ -876,6 +877,7 @@ app.post('/api/setup/connectors/save', setupAuth, async (req, res) => {
       throw new Error('connector_type must be mqtt or https');
     }
     res.json({ ok: true, source: entry });
+    mqttLiveIngest.reload().catch(e => console.error('[MQTT] Reload failed:', e.message));
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
@@ -6206,6 +6208,8 @@ app.get('/api/shift-report/send-now', async (req, res) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────
+const mqttLiveIngest = startMqttLiveIngest(db, setupWizard);
+
 server.listen(PORT, () => {
   console.log(`\n  ✅ Factory-MIOS Dashboard → http://localhost:${PORT}`);
   console.log(`  🏭 Plant Manager         → http://localhost:${PORT}/plants`);
@@ -6226,4 +6230,6 @@ server.listen(PORT, () => {
     console.log('[TB] Initial OEE push on startup...');
     pushOEEToThingsBoard();
   }, 30 * 1000);
+
+  mqttLiveIngest.reload().catch(e => console.error('[MQTT] Startup reload failed:', e.message));
 });
