@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manage Setup — Factory-MIOS</title>
+<link rel="stylesheet" href="/_shared.css"/>
+<style>
+body { min-height:100vh; background:radial-gradient(ellipse at 20% 40%, #0a1628, #050d1f 60%, #020a14); padding:20px 16px 40px; }
+.wrap { max-width:1000px; margin:0 auto; }
+.top { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.top h1 { font-size:18px; color:var(--cyan); margin:0; }
+.tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.tab { padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-weight:700; font-size:11px; cursor:pointer; font-family:inherit; }
+.tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.08); }
+.panel { display:none; }
+.panel.active { display:block; }
+.card { background:rgba(13,27,53,.92); border:1px solid rgba(0,212,255,.15); border-radius:14px; padding:18px; margin-bottom:12px; }
+.card h2 { font-size:14px; color:var(--cyan); margin:0 0 10px; }
+.row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.row:last-child { border-bottom:none; }
+.row-meta { color:var(--muted); font-size:11px; margin-top:4px; line-height:1.4; }
+.row-actions { display:flex; gap:6px; flex-shrink:0; }
+.btn { padding:7px 12px; border-radius:7px; border:none; font-weight:700; font-size:11px; cursor:pointer; font-family:inherit; }
+.btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); text-decoration:none; display:inline-block; }
+.btn-danger { background:rgba(255,68,68,.12); border:1px solid rgba(255,68,68,.35); color:var(--red); }
+.btn-primary { background:linear-gradient(135deg,#1a5fff,#0040cc); color:#fff; }
+.empty { color:var(--muted); font-size:12px; padding:12px 0; }
+.scroll-box { max-height:420px; overflow-y:auto; padding-right:4px; }
+.toast { position:fixed; bottom:20px; right:20px; background:var(--panel); border:1px solid var(--cyan); padding:10px 14px; border-radius:8px; font-size:12px; z-index:99; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>⚙ Setup manager — edit · delete · add</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn btn-ghost" href="/welcome">← Back to wizard</a>
+      <a class="btn btn-primary" href="/welcome#step1">+ Add plant</a>
+      <a class="btn btn-ghost" href="/welcome#step2">+ Add connector</a>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="plants" onclick="switchTab('plants')">Plants &amp; machines</button>
+    <button class="tab" data-tab="sources" onclick="switchTab('sources')">Data connectors</button>
+    <button class="tab" data-tab="dashboards" onclick="switchTab('dashboards')">Dashboards</button>
+    <button class="tab" data-tab="kpi" onclick="switchTab('kpi')">KPI formulas</button>
+    <button class="tab" data-tab="admin" onclick="switchTab('admin')">Super admin</button>
+  </div>
+
+  <div id="panel-plants" class="panel active">
+    <div class="card"><h2>Plants &amp; machines</h2><div class="scroll-box" id="plantsList"></div></div>
+  </div>
+  <div id="panel-sources" class="panel">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <h2 style="margin:0">MQTT / HTTPS / file sources</h2>
+        <button class="btn btn-ghost" onclick="dedupeSources()">Remove duplicate connectors</button>
+      </div>
+      <div class="scroll-box" id="sourcesList"></div>
+    </div>
+  </div>
+  <div id="panel-dashboards" class="panel">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <h2 style="margin:0">Dashboard drafts</h2>
+        <button class="btn btn-ghost" onclick="dedupeDashboards()">Remove duplicate dashboards</button>
+      </div>
+      <div class="scroll-box" id="dashList"></div>
+    </div>
+  </div>
+  <div id="panel-kpi" class="panel">
+    <div class="card"><h2>KPI / metric formulas</h2><div class="scroll-box" id="kpiList"></div></div>
+  </div>
+  <div id="panel-admin" class="panel">
+    <div class="card"><h2>Super admin</h2><div id="adminInfo"></div></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('oee_token') || '';
+let state = null;
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + id));
+}
+
+async function api(url, opts = {}) {
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const r = await fetch(url, { ...opts, headers });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+function toast(msg, ok) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderColor = ok ? 'var(--green)' : 'var(--red)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+async function del(url, label) {
+  if (!confirm('Delete ' + label + '?')) return;
+  try {
+    await api(url, { method: 'DELETE' });
+    toast('Deleted', true);
+    await load();
+  } catch (e) { toast(e.message, false); }
+}
+
+function renderAll(s) {
+  state = s;
+  const plantsEl = document.getElementById('plantsList');
+  if (!s.plants?.length) {
+    plantsEl.innerHTML = '<div class="empty">No plants — <a href="/welcome#step1" style="color:var(--cyan)">add in wizard step 1</a></div>';
+  } else {
+    plantsEl.innerHTML = s.plants.map(p => `
+      <div class="row">
+        <div><strong>${esc(p.plant_name)}</strong> <code>${esc(p.plant_id)}</code>
+          <div class="row-meta">${(p.machines||[]).map(m =>
+            `${esc(m.machine_name)} (${esc(m.machine_id)}) · ${m.connectivity?.status||'pending'}`
+          ).join('<br>') || 'No machines'}</div>
+        </div>
+        <div class="row-actions">
+          <a class="btn btn-ghost" href="/welcome#step1">Edit</a>
+          <button class="btn btn-danger" onclick="del('/api/setup/plant/${encodeURIComponent(p.plant_id)}','plant ${esc(p.plant_id)}')">Delete plant</button>
+        </div>
+      </div>
+      ${(p.machines||[]).map(m => `
+        <div class="row" style="padding-left:16px;border-left:2px solid var(--border);margin-left:8px">
+          <div><strong>${esc(m.machine_name)}</strong> table <code>${esc(m.table)}</code></div>
+          <div class="row-actions">
+            <button class="btn btn-danger" onclick="del('/api/setup/machine/${encodeURIComponent(p.plant_id)}/${encodeURIComponent(m.machine_id)}','machine ${esc(m.machine_id)}')">Delete</button>
+          </div>
+        </div>`).join('')}
+    `).join('');
+  }
+
+  const srcEl = document.getElementById('sourcesList');
+  const allSrc = (s.plants||[]).flatMap(p => (p.data_sources||[]).map(ds => ({ ...ds, plant_id: p.plant_id })));
+  if (!allSrc.length) {
+    srcEl.innerHTML = '<div class="empty">No connectors — <a href="/welcome#step2" style="color:var(--cyan)">add in step 2</a></div>';
+  } else {
+    srcEl.innerHTML = allSrc.map(ds => `
+      <div class="row">
+        <div><strong>${esc(ds.name||ds.type)}</strong> · ${esc(ds.plant_id)}
+          <div class="row-meta">${ds.topic ? 'topic: '+esc(ds.topic) : ''} ${ds.brokerUrl ? '· '+esc(ds.brokerUrl) : ''} · ${esc(ds.status||'pending')}</div>
+        </div>
+        <div class="row-actions">
+          <a class="btn btn-ghost" href="/welcome#step2">Edit</a>
+          <button class="btn btn-danger" onclick="del('/api/setup/data-source/${encodeURIComponent(ds.plant_id)}/${encodeURIComponent(ds.id)}','connector ${esc(ds.name||ds.id)}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  const dashEl = document.getElementById('dashList');
+  if (!s.dashboards?.length) {
+    dashEl.innerHTML = '<div class="empty">No dashboards — <a href="/welcome#step4" style="color:var(--cyan)">add in step 4</a></div>';
+  } else {
+    dashEl.innerHTML = s.dashboards.map(d => `
+      <div class="row">
+        <div><strong>${esc(d.name)}</strong> · ${esc(d.plant_id||'')} · ${d.widgets_count||0} widgets</div>
+        <div class="row-actions">
+          <a class="btn btn-ghost" href="/welcome#step4">Edit</a>
+          <button class="btn btn-danger" onclick="del('/api/setup/dashboard/${encodeURIComponent(d.id)}','dashboard ${esc(d.name)}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  const kpiEl = document.getElementById('kpiList');
+  if (!s.metric_relations?.length) {
+    kpiEl.innerHTML = '<div class="empty">No KPI formulas — <a href="/welcome#step5" style="color:var(--cyan)">add in step 5</a></div>';
+  } else {
+    kpiEl.innerHTML = s.metric_relations.map(r => `
+      <div class="row">
+        <div><strong>${esc(r.name)}</strong> = ${esc(r.formula)}
+          <div class="row-meta">${esc(r.plant_id)} / ${esc(r.machine_id)}</div>
+        </div>
+        <div class="row-actions">
+          <a class="btn btn-ghost" href="/welcome#step5">Edit</a>
+          <button class="btn btn-danger" onclick="del('/api/setup/metric-relation/${encodeURIComponent(r.id)}','KPI ${esc(r.name)}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('adminInfo').innerHTML = s.superadmin
+    ? `<div class="row"><div><strong>${esc(s.superadmin.username)}</strong><div class="row-meta">Super admin · created ${new Date(s.superadmin.created_at).toLocaleString()}</div></div>
+       <a class="btn btn-ghost" href="/welcome#step1">Replace in wizard</a></div>`
+    : '<div class="empty">Not created — <a href="/welcome#step1" style="color:var(--cyan)">create in step 1</a></div>';
+}
+
+async function dedupeDashboards() {
+  if (!confirm('Remove duplicate dashboards (same name, plant, widgets)?')) return;
+  try {
+    const d = await api('/api/setup/dedupe-dashboards', { method: 'POST', body: '{}' });
+    toast('Removed ' + (d.removed || 0) + ' duplicate(s)', true);
+    await load();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function dedupeSources() {
+  if (!confirm('Remove duplicate connectors (same type, topic, broker)?')) return;
+  try {
+    const d = await api('/api/setup/dedupe-sources', { method: 'POST', body: '{}' });
+    toast('Removed ' + (d.removed || 0) + ' duplicate(s)', true);
+    await load();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function load() {
+  const s = await api('/api/setup/status');
+  renderAll(s);
+}
+
+load().catch(e => toast(e.message, false));
+</script>
+</body>
+</html>

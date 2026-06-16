@@ -205,8 +205,9 @@ function getTodayIST() {
 // ── Public pages (no auth required) ──────────────────────────────
 app.get('/welcome', (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
 app.get('/setup/connectors', (req, res) => res.sendFile(path.join(__dirname, 'public', 'setup-connectors.html')));
-app.get('/setup/data', (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
-app.get('/setup/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'welcome.html')));
+app.get('/setup/data', (req, res) => res.redirect('/welcome#step3'));
+app.get('/setup/dashboard', (req, res) => res.redirect('/welcome#step4'));
+app.get('/setup/manage', (req, res) => res.sendFile(path.join(__dirname, 'public', 'setup-manage.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 
 app.get('/', (req, res) => {
@@ -977,6 +978,90 @@ app.post('/api/setup/unfreeze', setupAuth, requireSetupSuperadmin, (req, res) =>
   try {
     setupWizard.unfreezeSetup(req.user);
     res.json({ ok: true, message: 'Setup unfrozen for editing.' });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/setup/plant/:plantId', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const removed = setupWizard.removePlant(req.params.plantId);
+    res.json({ ok: true, removed: removed.plant_id });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/setup/machine/:plantId/:machineId', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const removed = setupWizard.removeMachine(req.params.plantId, req.params.machineId);
+    res.json({ ok: true, removed: removed.machine_id });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/setup/data-source/:plantId/:sourceId', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const removed = setupWizard.removeDataSource(req.params.plantId, req.params.sourceId);
+    res.json({ ok: true, removed: removed.id });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/setup/dashboard/:id', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const removed = setupWizard.removeDashboard(req.params.id);
+    res.json({ ok: true, removed: removed.id });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/setup/metric-relation/:id', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const removed = setupWizard.removeMetricRelation(req.params.id);
+    res.json({ ok: true, removed: removed.id });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/setup/dedupe-sources', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const out = setupWizard.dedupeDataSources();
+    res.json({ ok: true, ...out, state: setupWizard.getPublicStatus() });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/setup/dedupe-dashboards', setupAuth, async (req, res) => {
+  cors(res);
+  try {
+    if (setupWizard.loadState().frozen) setupWizard.assertSuperadmin(req.user);
+    else setupWizard.assertNotFrozen();
+    const out = setupWizard.dedupeDashboards();
+    res.json({ ok: true, ...out, state: setupWizard.getPublicStatus() });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }

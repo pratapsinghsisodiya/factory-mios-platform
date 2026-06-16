@@ -123,6 +123,25 @@ services:
     ports:
       - "${ADMINER_PORT:-8081}:8080"
 
+  mqtt:
+    build:
+      context: ./deploy/mqtt
+    container_name: factory-mios-platform-mqtt
+    restart: unless-stopped
+    environment:
+      MQTT_USER: ${MQTT_USER:-factory_mios}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-factory_mios123}
+    ports:
+      - "${MQTT_PORT:-1884}:1883"
+    volumes:
+      - mqtt_data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u \"$$MQTT_USER\" -P \"$$MQTT_PASSWORD\" -t '$$SYS/broker/version' -C 1 -W 3 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   postgres_data:
   nodered_data:
+  mqtt_data:

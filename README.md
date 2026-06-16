@@ -31,6 +31,19 @@ docker compose up -d --build
 
 Open **http://localhost:8090** → welcome/setup wizard on first run.
 
+## Local MQTT broker
+
+```powershell
+docker compose up -d mqtt
+```
+
+| Connect from | Broker URL |
+|--------------|------------|
+| MQTTX / Python on your PC | `mqtt://localhost:1884` |
+| Factory-MIOS connectors (in Docker) | `mqtt://mqtt:1883` |
+
+Default user: `factory_mios` (password in `.env`). See **`MQTT_BROKER.md`**. Add as many MQTT sources as you need in Setup → Data connectors.
+
 ## GitHub
 
 Source branch: [cursor/docker-saas-foundation-0a15](https://github.com/pratapsinghsisodiya/oee-dashboard/tree/cursor/docker-saas-foundation-0a15)
@@ -43,3 +56,4 @@ Suggested new repo name: **`factory-mios-platform`**
 - `LOCAL_DOCKER_QUICKSTART.md` — Docker setup
 - `TENANT_ONBOARDING.md` — tenant/plant/device flow
 - `DATA_SOURCE_CONNECTORS.md` — MQTT, JSON, CSV, SQL connectors
+- `MQTT_BROKER.md` — local Mosquitto broker (publish & subscribe)

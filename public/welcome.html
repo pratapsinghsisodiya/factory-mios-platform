@@ -4,146 +4,200 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-<title>Factory-MIOS ??? Platform Setup</title>
+<title>Factory-MIOS — Platform Setup</title>
 <link rel="stylesheet" href="/_shared.css"/>
 <style>
-body { min-height:100vh; background:radial-gradient(ellipse at 20% 40%, #0a1628, #050d1f 60%, #020a14); padding:24px 16px 48px; }
-.wrap { max-width:960px; margin:0 auto; }
-.brand { text-align:center; margin-bottom:24px; }
-.brand img { width:96px; height:96px; object-fit:contain; }
-.brand h1 { font-size:22px; letter-spacing:2px; margin:10px 0 4px;
+body { min-height:100vh; background:radial-gradient(ellipse at 20% 40%, #0a1628, #050d1f 60%, #020a14); padding:24px 16px 72px; transition:padding .2s; }
+body.panel-open { padding-bottom:240px; }
+.wrap { max-width:980px; margin:0 auto; }
+.brand { text-align:center; margin-bottom:20px; }
+.brand img { width:80px; height:80px; object-fit:contain; }
+.brand h1 { font-size:22px; letter-spacing:2px; margin:8px 0 4px;
   background:linear-gradient(90deg,#00d4ff,#4488ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .brand p { color:var(--muted); font-size:12px; }
-.steps { display:flex; gap:8px; margin-bottom:20px; }
-.step-pill { flex:1; text-align:center; padding:10px 8px; border-radius:10px; font-size:11px; font-weight:700;
+.steps { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.step-pill { flex:1; min-width:120px; text-align:center; padding:9px 6px; border-radius:10px; font-size:10px; font-weight:700;
   border:1px solid var(--border); color:var(--muted); cursor:pointer; transition:.2s; }
 .step-pill.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,.08); }
-.step-pill.done { border-color:var(--green); color:var(--green); }
-.card { background:rgba(13,27,53,.9); border:1px solid rgba(0,212,255,.15); border-radius:16px; padding:22px; margin-bottom:16px; }
+.step-pill.done { border-color:var(--green); color:var(--green); background:rgba(0,255,136,.06); }
+.step-pill.incomplete { border-color:var(--border); color:var(--muted); }
+.card { background:rgba(13,27,53,.9); border:1px solid rgba(0,212,255,.15); border-radius:16px; padding:20px; margin-bottom:14px; }
 .card h2 { font-size:15px; margin:0 0 6px; color:var(--cyan); }
-.card .sub { font-size:12px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+.card .sub { font-size:12px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-@media(max-width:700px){ .grid2 { grid-template-columns:1fr; } }
-.field { margin-bottom:12px; }
-.field label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:5px; }
-.field input, .field select, .field textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+@media(max-width:700px){ .grid2 { grid-template-columns:1fr; } .step-pill { min-width:100%; } }
+.field { margin-bottom:10px; }
+.field label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:4px; }
+.field input, .field select, .field textarea { width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--border);
   background:var(--panel); color:var(--text); font-size:13px; font-family:inherit; }
-.field textarea { min-height:72px; resize:vertical; }
-.btn-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
-.btn { padding:10px 18px; border-radius:8px; border:none; font-weight:700; font-size:12px; cursor:pointer; font-family:inherit; }
+.field textarea { min-height:72px; resize:vertical; font-family:monospace; font-size:11px; }
+.btn-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; align-items:center; }
+.btn { padding:9px 16px; border-radius:8px; border:none; font-weight:700; font-size:12px; cursor:pointer; font-family:inherit; }
 .btn-primary { background:linear-gradient(135deg,#1a5fff,#0040cc); color:#fff; }
 .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
 .btn-danger { background:rgba(255,68,68,.15); border:1px solid rgba(255,68,68,.4); color:var(--red); }
-.status { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.status { display:inline-flex; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; }
 .status.ok { background:rgba(0,255,136,.12); color:var(--green); }
 .status.err { background:rgba(255,68,68,.12); color:var(--red); }
 .status.pending { background:rgba(255,179,0,.12); color:#ffb300; }
-.table-wrap { overflow:auto; max-height:280px; border:1px solid var(--border); border-radius:8px; margin-top:10px; }
+.table-wrap { overflow:auto; max-height:360px; border:1px solid var(--border); border-radius:8px; margin-top:10px; }
 table { width:100%; border-collapse:collapse; font-size:11px; }
-th, td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; }
+th, td { padding:7px 9px; border-bottom:1px solid var(--border); text-align:left; }
 th { color:var(--muted); position:sticky; top:0; background:var(--panel); }
-.code { font-family:monospace; font-size:11px; background:rgba(0,0,0,.3); padding:10px; border-radius:8px; color:var(--cyan);
-  word-break:break-all; line-height:1.5; margin-top:8px; }
-.list-item { border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; font-size:12px; }
-.list-item strong { color:var(--cyan); }
+.saved-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.saved-chip { font-size:11px; padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(0,0,0,.2); }
+.saved-chip strong { color:var(--cyan); }
+.saved-chip button { margin-left:8px; background:none; border:none; color:var(--cyan); cursor:pointer; font-size:10px; font-weight:700; }
 .hidden { display:none !important; }
-.toast { position:fixed; bottom:20px; right:20px; background:var(--panel); border:1px solid var(--cyan); padding:12px 16px;
+.toast { position:fixed; bottom:190px; right:20px; background:var(--panel); border:1px solid var(--cyan); padding:12px 16px;
   border-radius:10px; font-size:12px; z-index:99; max-width:320px; }
+.saved-panel { position:fixed; left:0; right:0; bottom:0; z-index:50; background:rgba(5,13,31,.98); border-top:1px solid rgba(0,212,255,.25); backdrop-filter:blur(8px); }
+.saved-panel-inner { max-width:980px; margin:0 auto; padding:0 16px; }
+.saved-panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; cursor:pointer; user-select:none; }
+.saved-panel-head h3 { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin:0; flex:1; }
+.saved-panel-head .summary { font-size:11px; color:var(--text); font-weight:600; }
+.saved-toggle { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--panel); color:var(--cyan); font-weight:900; font-size:16px; cursor:pointer; line-height:1; }
+.saved-body { max-height:0; overflow:hidden; transition:max-height .25s ease; }
+.saved-body.open { max-height:200px; overflow-y:auto; padding-bottom:12px; }
+.saved-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+.saved-block { font-size:11px; line-height:1.4; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(13,27,53,.8); max-height:88px; overflow-y:auto; }
+.saved-block .label { color:var(--muted); font-size:10px; text-transform:uppercase; }
+.saved-block .val { color:var(--text); margin-top:2px; }
+.manage-link { color:var(--cyan); font-size:11px; font-weight:700; text-decoration:none; margin-left:8px; }
+.conn-frame { width:100%; height:min(720px,70vh); border:1px solid var(--border); border-radius:12px; background:#050d1f; }
+.step-nav { display:flex; justify-content:space-between; gap:10px; margin-top:8px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="brand">
     <img src="/assets/factory-mios-logo.png" alt="Factory-MIOS"/>
-    <h1>FACTORY-MIOS</h1>
-    <p>Manufacturing Intelligent Operating System ??? First-time setup</p>
+    <h1>FACTORY-MIOS SETUP</h1>
+    <p>Save each step once · green only when complete · <a href="/setup/manage" class="manage-link">Manage all (edit / delete)</a></p>
   </div>
 
-  <div class="steps">
-    <div class="step-pill active" data-step="1" onclick="goStep(1)">1 ? Platform &amp; connectivity</div>
-    <div class="step-pill" data-step="2" onclick="window.location.href='/setup/connectors'">2 ? Data connectors</div>
-    <div class="step-pill" data-step="3" onclick="goStep(3)">3 ? Dashboards &amp; freeze</div>
+  <div class="steps" id="stepPills">
+    <div class="step-pill active" data-step="1" onclick="goStep(1)">1 · Platform</div>
+    <div class="step-pill" data-step="2" onclick="goStep(2)">2 · Connectors</div>
+    <div class="step-pill" data-step="3" onclick="goStep(3)">3 · Live data</div>
+    <div class="step-pill" data-step="4" onclick="goStep(4)">4 · Dashboard</div>
+    <div class="step-pill" data-step="5" onclick="goStep(5)">5 · KPI &amp; finish</div>
   </div>
 
   <!-- STEP 1 -->
   <section id="step1">
     <div class="card">
-      <h2>Database (TimescaleDB / PostgreSQL)</h2>
-      <p class="sub">Your Docker stack includes TimescaleDB. Test connectivity before creating plants and machines.</p>
+      <h2>Database</h2>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="testDb()">Test database</button>
+        <button class="btn btn-ghost" onclick="testDb()">Test database</button>
         <span id="dbStatus" class="status pending">Not tested</span>
       </div>
     </div>
 
     <div class="card" id="superadminCard">
-      <h2>Create super admin</h2>
-      <p class="sub">One platform owner account. Can edit plants, machines, sources, and unfreeze setup later.</p>
-      <div class="grid2">
-        <div class="field"><label>Username</label><input id="saUser" value="superadmin"/></div>
-        <div class="field"><label>Password</label><input id="saPass" type="password" placeholder="Strong password"/></div>
-        <div class="field"><label>Display name</label><input id="saName" value="Platform Super Admin"/></div>
-        <div class="field"><label>Email</label><input id="saEmail" type="email" placeholder="admin@yourcompany.com"/></div>
+      <h2>Super admin</h2>
+      <div id="saSavedView" class="hidden">
+        <p class="sub" style="margin:0">Account already saved — no need to create again.</p>
+        <div class="saved-row">
+          <span class="saved-chip"><strong id="saSavedName">—</strong> · superadmin</span>
+          <button class="btn btn-ghost" onclick="toggleSaForm(true)">Edit / replace</button>
+        </div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="createSuperadmin()">Create super admin</button>
-        <button class="btn btn-ghost" onclick="resetAuth()">Remove old demo users</button>
-        <span id="saStatus" class="status pending">Pending</span>
-      </div>
-      <div id="ingestKeyBox" class="hidden">
-        <p class="sub" style="margin-top:12px">Secure ingest key (use in MQTT bridge or HTTPS):</p>
-        <div class="code" id="ingestKey"></div>
-        <div class="code" id="ingestUrl"></div>
+      <div id="saFormView">
+        <p class="sub">Platform owner — can unfreeze and edit plants, connectors, dashboards later.</p>
+        <div class="grid2">
+          <div class="field"><label>Username</label><input id="saUser" value="superadmin"/></div>
+          <div class="field"><label>Password</label><input id="saPass" type="password" placeholder="Min 8 characters"/></div>
+          <div class="field"><label>Display name</label><input id="saName" value="Platform Super Admin"/></div>
+          <div class="field"><label>Email</label><input id="saEmail" type="email" placeholder="admin@company.com"/></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="saSaveBtn" onclick="createSuperadmin()">Save super admin</button>
+          <span id="saStatus" class="status pending">Not saved</span>
+        </div>
       </div>
     </div>
 
     <div class="card">
       <h2>Plant &amp; machine</h2>
-      <p class="sub"><strong>Plant ID</strong> = PostgreSQL schema (database name). <strong>Machine ID</strong> = table name (device). <strong>Data point tags</strong> = column names / <code>point_key</code> values stored in that table.</p>
+      <p class="sub">Plant ID = DB schema · Machine ID = table · Tags = point_key columns in TimescaleDB.</p>
       <div class="grid2">
-        <div class="field"><label>Plant ID (schema name)</label><input id="plantId" placeholder="acme_plant_1"/></div>
-        <div class="field"><label>Plant display name</label><input id="plantName" placeholder="Acme Plant 1"/></div>
-        <div class="field"><label>Machine ID (table name)</label><input id="machineId" placeholder="line_01"/></div>
-        <div class="field"><label>Machine display name</label><input id="machineName" placeholder="Line 01"/></div>
+        <div class="field"><label>Plant ID</label><input id="plantId" placeholder="fanuc"/></div>
+        <div class="field"><label>Plant name</label><input id="plantName" placeholder="FANUC Shop"/></div>
+        <div class="field"><label>Machine ID</label><input id="machineId" placeholder="CNC896"/></div>
+        <div class="field"><label>Machine name</label><input id="machineName" placeholder="CNC-896"/></div>
       </div>
-      <div class="field"><label>Data point tags (comma-separated keys)</label>
-        <input id="tagKeys" placeholder="parts_count,is_running,availability_pct,performance_pct,quality_pct,kwh_total"/></div>
+      <div class="field"><label>Data point tags (comma-separated)</label>
+        <input id="tagKeys" placeholder="machine_state,spindle_speed,part_count,is_running"/></div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="savePlantMachine()">Save plant &amp; machine</button>
       </div>
       <div id="plantList"></div>
     </div>
 
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="window.location.href='/setup/connectors'">Next: Data connectors (MQTT / HTTPS / Excel) &rarr;</button>
+    <div class="step-nav">
+      <span></span>
+      <button class="btn btn-primary" onclick="nextStep(2)">Next: Data connectors →</button>
     </div>
   </section>
 
   <!-- STEP 2 -->
   <section id="step2" class="hidden">
-    <div class="btn-row" style="margin-bottom:12px">
-      <a class="btn btn-ghost" href="/setup/connectors" style="text-decoration:none">Edit data connectors</a>
-    </div>
     <div class="card">
-      <h2>Data landing preview</h2>
-      <p class="sub">Live rows stored in TimescaleDB for the selected plant/machine. Set poll frequency for UI refresh.</p>
+      <h2>Data connectors (MQTT / HTTPS / Excel)</h2>
+      <p class="sub">Configure sources here — each save appears in the bottom panel. You can add multiple brokers/topics.</p>
+      <iframe id="connFrame" class="conn-frame" src="/setup/connectors?embed=1" title="Data connectors"></iframe>
+    </div>
+    <div class="step-nav">
+      <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(3)">Next: Live data table →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="step3" class="hidden">
+    <div class="card">
+      <h2>Live data (tabular)</h2>
+      <p class="sub">Rows landing in TimescaleDB from MQTT/HTTPS. Auto-refreshes while you stay on this step.</p>
       <div class="grid2">
-        <div class="field"><label>Plant ID</label><input id="dataPlant" placeholder="acme_plant_1"/></div>
-        <div class="field"><label>Machine ID</label><input id="dataMachine" placeholder="line_01"/></div>
-        <div class="field"><label>Refresh interval (seconds)</label><input id="pollSec" type="number" value="30" min="5"/></div>
-        <div class="field"><label>&nbsp;</label>
-          <button class="btn btn-primary" style="width:100%" onclick="loadTableData()">Load table data</button></div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-ghost" onclick="syncSource()">Sync last tested source ??? DB</button>
-        <button class="btn btn-ghost" onclick="runOeeQuery()">Run standard OEE query</button>
+        <div class="field"><label>Plant ID</label><input id="dataPlant"/></div>
+        <div class="field"><label>Machine ID</label><input id="dataMachine"/></div>
+        <div class="field"><label>Refresh (seconds)</label><input id="pollSec" type="number" value="10" min="5"/></div>
+        <div class="field"><label>&nbsp;</label><button class="btn btn-primary" style="width:100%" onclick="loadTableData()">Refresh now</button></div>
       </div>
       <div class="table-wrap"><table><thead><tr><th>Time</th><th>Point</th><th>Numeric</th><th>Text</th></tr></thead><tbody id="dataBody"></tbody></table></div>
     </div>
+    <div class="step-nav">
+      <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(4)">Next: Dashboard design →</button>
+    </div>
+  </section>
 
+  <!-- STEP 4 -->
+  <section id="step4" class="hidden">
     <div class="card">
-      <h2>Data point relation (simple math)</h2>
-      <p class="sub">Example: OEE = availability ?? performance ?? quality / 10000. Backend validates before saving.</p>
+      <h2>Dashboard design (draft)</h2>
+      <p class="sub">Name widgets for your first dashboard. Full builder available after login at <code>/dashboard-builder</code>.</p>
+      <div class="field"><label>Dashboard name</label><input id="dashName" value="Plant overview"/></div>
+      <div class="field"><label>Widgets JSON</label>
+        <textarea id="dashWidgets">[{"type":"kpi","title":"OEE","metric":"oee_pct"},{"type":"table","title":"Latest points"},{"type":"gauge","title":"Spindle","metric":"spindle_speed"}]</textarea></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveDashboard()">Save dashboard draft</button>
+        <span id="dashStatus" class="status pending">Not saved</span>
+      </div>
+    </div>
+    <div class="step-nav">
+      <button class="btn btn-ghost" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(5)">Next: KPI &amp; finish →</button>
+    </div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section id="step5" class="hidden">
+    <div class="card">
+      <h2>Low-code KPI / metric formula</h2>
+      <p class="sub">Define calculated metrics (e.g. OEE) used on dashboards. Validated before save.</p>
       <div class="grid2">
         <div class="field"><label>Metric name</label><input id="relName" value="oee_pct"/></div>
         <div class="field"><label>Formula</label><input id="relFormula" value="availability_pct * performance_pct * quality_pct / 10000"/></div>
@@ -151,76 +205,107 @@ th { color:var(--muted); position:sticky; top:0; background:var(--panel); }
       <div class="field"><label>Sample inputs JSON</label>
         <textarea id="relSample">{"availability_pct":92,"performance_pct":88,"quality_pct":99}</textarea></div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveRelation()">Validate &amp; save relation</button>
+        <button class="btn btn-primary" onclick="saveRelation()">Save KPI formula</button>
+        <button class="btn btn-ghost" onclick="runOeeQuery()">Test standard OEE query</button>
       </div>
-      <div id="relResult" class="code hidden"></div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goStep(1)">??? Back</button>
-      <button class="btn btn-primary" onclick="goStep(3)">Next: Dashboards ???</button>
-    </div>
-  </section>
-
-  <!-- STEP 3 -->
-  <section id="step3" class="hidden">
-    <div class="card">
-      <h2>Dashboard draft</h2>
-      <p class="sub">Define a dashboard before freezing. After freeze, use Dashboard Builder and login as super admin to edit.</p>
-      <div class="field"><label>Dashboard name</label><input id="dashName" value="Plant overview"/></div>
-      <div class="field"><label>Widgets JSON (optional)</label>
-        <textarea id="dashWidgets">[{"type":"kpi","title":"OEE","metric":"oee_pct"},{"type":"table","title":"Latest points"}]</textarea></div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveDashboard()">Save dashboard draft</button>
-      </div>
+      <div id="relResult" class="hidden" style="margin-top:10px;font-size:11px;color:var(--cyan)"></div>
     </div>
 
     <div class="card">
-      <h2>Freeze platform setup</h2>
-      <p class="sub">Super admin approval locks initial configuration. Unfreeze later to add machines, sources, or devices.</p>
+      <h2>Finish setup (freeze)</h2>
+      <p class="sub">Locks configuration. Super admin can unfreeze later to add plants, MQTT sources, or dashboards.</p>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="freezeSetup()">Freeze &amp; finish setup</button>
-        <button class="btn btn-danger hidden" id="unfreezeBtn" onclick="unfreezeSetup()">Unfreeze (super admin)</button>
-        <a class="btn btn-ghost" href="/login" id="loginLink" style="text-decoration:none;display:none">Go to login ???</a>
+        <button class="btn btn-primary" onclick="freezeSetup()">Freeze &amp; go to login</button>
+        <button class="btn btn-danger hidden" id="unfreezeBtn" onclick="unfreezeSetup()">Unfreeze</button>
+        <a class="btn btn-ghost hidden" href="/login" id="loginLink" style="text-decoration:none">Open login</a>
       </div>
       <p class="sub" id="freezeMsg"></p>
     </div>
-
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goStep(2)">??? Back</button>
+    <div class="step-nav">
+      <button class="btn btn-ghost" onclick="goStep(4)">← Back</button>
     </div>
   </section>
 </div>
 
+<!-- Saved configuration — collapsed by default -->
+<div class="saved-panel" id="savedPanel">
+  <div class="saved-panel-inner">
+    <div class="saved-panel-head" onclick="toggleSavedPanel()">
+      <h3>Saved setup</h3>
+      <span class="summary" id="savedSummary">Loading…</span>
+      <a href="/setup/manage" class="manage-link" onclick="event.stopPropagation()">Manage →</a>
+      <button type="button" class="saved-toggle" id="savedToggle" onclick="event.stopPropagation();toggleSavedPanel()">+</button>
+    </div>
+    <div class="saved-body" id="savedBody">
+      <div class="saved-grid">
+        <div class="saved-block"><div class="label">Super admin</div><div class="val" id="savedSa">—</div></div>
+        <div class="saved-block"><div class="label">Plants</div><div class="val" id="savedPlants">—</div></div>
+        <div class="saved-block"><div class="label">Connectors</div><div class="val" id="savedSources">—</div></div>
+        <div class="saved-block"><div class="label">Dashboards</div><div class="val" id="savedDash">—</div></div>
+        <div class="saved-block"><div class="label">KPI</div><div class="val" id="savedKpi">—</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-let currentStep = 1;
-let lastSourceConfig = null;
+const STEP_KEY = 'factory_mios_setup_step';
+let setupState = null;
 let pollTimer = null;
 let token = localStorage.getItem('oee_token') || '';
 
+let currentStep = 1;
+let savedPanelOpen = false;
+
+function updateStepPills(activeStep) {
+  const done = setupState?.step_completion || {};
+  [1,2,3,4,5].forEach(i => {
+    const pill = document.querySelector('.step-pill[data-step="'+i+'"]');
+    if (!pill) return;
+    pill.classList.toggle('active', i === activeStep);
+    pill.classList.toggle('done', Boolean(done[i]));
+    pill.classList.toggle('incomplete', !done[i] && i !== activeStep);
+  });
+}
+
+function toggleSavedPanel(force) {
+  savedPanelOpen = typeof force === 'boolean' ? force : !savedPanelOpen;
+  document.getElementById('savedBody').classList.toggle('open', savedPanelOpen);
+  document.getElementById('savedToggle').textContent = savedPanelOpen ? '−' : '+';
+  document.body.classList.toggle('panel-open', savedPanelOpen);
+}
+
 function goStep(n) {
   currentStep = n;
-  [1,2,3].forEach(i => {
+  [1,2,3,4,5].forEach(i => {
     document.getElementById('step'+i).classList.toggle('hidden', i !== n);
-    const pill = document.querySelector('.step-pill[data-step="'+i+'"]');
-    pill.classList.toggle('active', i === n);
-    pill.classList.toggle('done', i < n);
   });
-  if (n === 2) startPoll();
+  updateStepPills(n);
+  localStorage.setItem(STEP_KEY, String(n));
+  location.hash = 'step' + n;
+  if (n === 3) { loadTableData(); startPoll(); }
   else stopPoll();
-  location.hash = 'step'+n;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextStep(n) {
+  if (n === 2 && !setupState?.has_superadmin) return toast('Save super admin first (step 1)', false);
+  if (n === 2 && !(setupState?.plants || []).some(p => (p.machines || []).length)) {
+    return toast('Save at least one plant & machine first', false);
+  }
+  goStep(n);
 }
 
 function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 function startPoll() {
   stopPoll();
-  const sec = parseInt(document.getElementById('pollSec').value, 10) || 30;
+  const sec = parseInt(document.getElementById('pollSec').value, 10) || 10;
   pollTimer = setInterval(loadTableData, Math.max(sec, 5) * 1000);
 }
 
 async function api(url, opts = {}) {
   const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
-  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (token) headers.Authorization = 'Bearer ' + token;
   const r = await fetch(url, { ...opts, headers });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error || r.statusText);
@@ -236,62 +321,91 @@ function toast(msg, ok) {
   setTimeout(() => t.remove(), 3500);
 }
 
+function toggleSaForm(show) {
+  document.getElementById('saSavedView').classList.toggle('hidden', show);
+  document.getElementById('saFormView').classList.toggle('hidden', !show);
+}
+
+function renderSavedPanel(s) {
+  setupState = s;
+  const saEl = document.getElementById('savedSa');
+  if (s.superadmin?.username) {
+    saEl.textContent = s.superadmin.username;
+    document.getElementById('saSavedName').textContent = s.superadmin.username;
+    document.getElementById('saSavedView').classList.remove('hidden');
+    document.getElementById('saFormView').classList.add('hidden');
+    setStatus(document.getElementById('saStatus'), true, 'Saved');
+  } else {
+    saEl.textContent = 'Not created';
+    toggleSaForm(true);
+  }
+
+  const plants = s.plants || [];
+  document.getElementById('savedPlants').textContent = plants.length
+    ? plants.map(p => `${p.plant_name} · ${(p.machines||[]).length} machine(s)`).join('; ')
+    : 'None';
+
+  const sources = plants.flatMap(p => (p.data_sources || []).map(ds => ds.name || ds.type));
+  document.getElementById('savedSources').textContent = sources.length
+    ? sources.length + ' connector(s)'
+    : 'None';
+
+  document.getElementById('savedDash').textContent = (s.dashboards || []).length
+    ? (s.dashboards || []).map(d => d.name).join(', ')
+    : 'None';
+
+  document.getElementById('savedKpi').textContent = (s.metric_relations || []).length
+    ? (s.metric_relations || []).map(r => r.name).join(', ')
+    : 'None';
+
+  const doneCount = Object.values(s.step_completion || {}).filter(Boolean).length;
+  document.getElementById('savedSummary').innerHTML =
+    `${doneCount}/5 complete · ${plants.length} plant(s) · ${sources.length} connector(s)`;
+
+  if (s.dashboards?.length) setStatus(document.getElementById('dashStatus'), true, s.dashboards.length + ' saved');
+
+  renderPlants(plants);
+  updateStepPills(currentStep);
+
+  if (s.frozen) {
+    document.getElementById('loginLink').classList.remove('hidden');
+    document.getElementById('unfreezeBtn').classList.remove('hidden');
+    document.getElementById('freezeMsg').textContent = 'Setup is frozen. Sign in to use the platform.';
+    goStep(5);
+  }
+}
+
 function setStatus(el, ok, text) {
   el.className = 'status ' + (ok ? 'ok' : (text === 'pending' ? 'pending' : 'err'));
   el.textContent = text;
 }
 
-async function refreshStatus() {
-  const s = await api('/api/setup/status');
-  if (s.has_superadmin) {
-    setStatus(document.getElementById('saStatus'), true, 'Created');
-    document.getElementById('superadminCard').querySelector('.btn-primary').disabled = true;
-  }
-  if (s.frozen) {
-    document.getElementById('loginLink').style.display = 'inline-block';
-    document.getElementById('unfreezeBtn').classList.remove('hidden');
-    document.getElementById('freezeMsg').textContent = 'Setup is frozen. Sign in as super admin to change plants, machines, or sources.';
-  }
-  renderPlants(s.plants || []);
-  return s;
-}
-
 function renderPlants(plants) {
   const el = document.getElementById('plantList');
   if (!plants.length) { el.innerHTML = ''; return; }
-  el.innerHTML = plants.map(p => `
-    <div class="list-item">
-      <strong>${p.plant_name}</strong> ? schema <code>${p.schema}</code><br/>
-      Machines: ${(p.machines||[]).map(m =>
-        `${m.machine_name} (table ${m.table}) ??? <span class="status ${m.connectivity?.status==='connected'?'ok':'pending'}">${m.connectivity?.status||'pending'}</span>`
-      ).join('<br/>')}
-    </div>`).join('');
+  if (!document.getElementById('dataPlant').value.trim() && plants[0]) {
+    document.getElementById('dataPlant').value = plants[0].plant_id;
+    if (plants[0].machines?.[0]) document.getElementById('dataMachine').value = plants[0].machines[0].machine_id;
+  }
+  el.innerHTML = plants.map(p => `<div class="saved-chip" style="margin-top:8px"><strong>${p.plant_name}</strong> schema <code>${p.schema}</code><br>${(p.machines||[]).map(m =>
+    `${m.machine_name} (${m.machine_id}) <span class="status ${m.connectivity?.status==='connected'?'ok':'pending'}">${m.connectivity?.status||'pending'}</span>`
+  ).join(' · ')}</div>`).join('');
+}
+
+async function refreshStatus() {
+  const s = await api('/api/setup/status');
+  renderSavedPanel(s);
+  return s;
 }
 
 async function testDb() {
-  const el = document.getElementById('dbStatus');
   try {
     const d = await api('/api/setup/test-database', { method: 'POST', body: '{}' });
-    setStatus(el, true, 'Connected' + (d.timescaledb ? ' ? TimescaleDB' : ''));
-    toast('Database connected', true);
-  } catch (e) {
-    setStatus(el, false, 'Error');
-    toast(e.message, false);
-  }
-}
-
-async function resetAuth() {
-  try {
-    await api('/api/setup/reset-auth', { method: 'POST', body: '{}' });
-    document.getElementById('saStatus').className = 'status pending';
-    document.getElementById('saStatus').textContent = 'Pending';
-    toast('Old demo superadmin/admin removed. Create your account now.', true);
-    await refreshStatus();
-  } catch (e) { toast(e.message, false); }
+    setStatus(document.getElementById('dbStatus'), true, 'Connected' + (d.timescaledb ? ' · TimescaleDB' : ''));
+  } catch (e) { setStatus(document.getElementById('dbStatus'), false, 'Error'); toast(e.message, false); }
 }
 
 async function createSuperadmin() {
-  const el = document.getElementById('saStatus');
   try {
     const d = await api('/api/setup/superadmin', {
       method: 'POST',
@@ -302,79 +416,26 @@ async function createSuperadmin() {
         email: document.getElementById('saEmail').value,
       }),
     });
-    if (d.token) {
-      token = d.token;
-      localStorage.setItem('oee_token', token);
-    }
-    if (d.ingest_api_key) {
-      document.getElementById('ingestKeyBox').classList.remove('hidden');
-      document.getElementById('ingestKey').textContent = 'X-Ingest-Key: ' + d.ingest_api_key;
-      document.getElementById('ingestUrl').textContent = 'POST /api/ingest/v1/{plant_id}/{machine_id}';
-    }
-    setStatus(el, true, 'Created');
-    toast('Super admin created', true);
+    if (d.token) { token = d.token; localStorage.setItem('oee_token', token); }
+    toast('Super admin saved', true);
     await refreshStatus();
-  } catch (e) {
-    setStatus(el, false, 'Failed');
-    toast(e.message, false);
-  }
+  } catch (e) { toast(e.message, false); }
 }
 
 async function savePlantMachine() {
   const plant_id = document.getElementById('plantId').value.trim();
   const machine_id = document.getElementById('machineId').value.trim();
-  const tags = document.getElementById('tagKeys').value.split(',').map(s => s.trim()).filter(Boolean)
-    .map(k => ({ key: k, type: 'number' }));
+  if (!plant_id || !machine_id) return toast('Plant ID and Machine ID required', false);
+  const tags = document.getElementById('tagKeys').value.split(',').map(s => s.trim()).filter(Boolean).map(k => ({ key: k, type: 'number' }));
   try {
-    await api('/api/setup/plant', { method: 'POST', body: JSON.stringify({
-      plant_id, plant_name: document.getElementById('plantName').value || plant_id,
-    })});
+    await api('/api/setup/plant', { method: 'POST', body: JSON.stringify({ plant_id, plant_name: document.getElementById('plantName').value || plant_id }) });
     await api('/api/setup/machine', { method: 'POST', body: JSON.stringify({
-      plant_id, machine_id,
-      machine_name: document.getElementById('machineName').value || machine_id,
-      tags, poll_interval_sec: parseInt(document.getElementById('pollSec')?.value || '30', 10),
+      plant_id, machine_id, machine_name: document.getElementById('machineName').value || machine_id,
+      tags, poll_interval_sec: parseInt(document.getElementById('pollSec').value, 10) || 10,
     })});
     document.getElementById('dataPlant').value = plant_id;
     document.getElementById('dataMachine').value = machine_id;
-    toast('Plant & machine provisioned in PostgreSQL', true);
-    await refreshStatus();
-  } catch (e) { toast(e.message, false); }
-}
-
-function buildSourceConfig() {
-  const type = document.getElementById('srcType').value;
-  const name = document.getElementById('srcName').value;
-  const conn = document.getElementById('srcConn').value;
-  const extra = document.getElementById('srcExtra').value;
-  const cfg = { type, name: name || type };
-  if (type === 'json_url') cfg.url = conn;
-  else if (type === 'json_file' || type === 'excel_file') cfg.file = conn;
-  else if (type === 'postgres') { cfg.connectionString = conn; cfg.query = extra; }
-  else if (type === 'mqtt') { cfg.brokerUrl = conn; cfg.topic = extra; }
-  return cfg;
-}
-
-async function testSource() {
-  const el = document.getElementById('srcStatus');
-  lastSourceConfig = buildSourceConfig();
-  try {
-    const d = await api('/api/setup/test-source', { method: 'POST', body: JSON.stringify(lastSourceConfig) });
-    setStatus(el, true, 'Connected ? ' + (d.count || 0) + ' rows');
-    toast('Source connectivity OK', true);
-  } catch (e) {
-    setStatus(el, false, 'Error');
-    toast(e.message, false);
-  }
-}
-
-async function saveSource() {
-  const plant_id = document.getElementById('plantId').value.trim() || document.getElementById('dataPlant').value.trim();
-  if (!plant_id) return toast('Set plant ID first', false);
-  try {
-    await api('/api/setup/data-source', { method: 'POST', body: JSON.stringify({
-      plant_id, ...buildSourceConfig(),
-    })});
-    toast('Data source saved', true);
+    toast('Plant & machine saved', true);
     await refreshStatus();
   } catch (e) { toast(e.message, false); }
 }
@@ -382,26 +443,39 @@ async function saveSource() {
 async function loadTableData() {
   const plant_id = document.getElementById('dataPlant').value.trim();
   const machine_id = document.getElementById('dataMachine').value.trim();
+  if (!plant_id || !machine_id) return;
   try {
     const d = await api(`/api/setup/machine-data?plant_id=${encodeURIComponent(plant_id)}&machine_id=${encodeURIComponent(machine_id)}&limit=100`);
-    const tb = document.getElementById('dataBody');
-    tb.innerHTML = (d.rows || []).map(r =>
+    document.getElementById('dataBody').innerHTML = (d.rows || []).map(r =>
       `<tr><td>${r.time ? new Date(r.time).toLocaleString() : ''}</td><td>${r.point_key}</td><td>${r.value_num ?? ''}</td><td>${r.value_text ?? ''}</td></tr>`
-    ).join('') || '<tr><td colspan="4">No rows yet ??? sync a source or send MQTT/HTTPS ingest</td></tr>';
+    ).join('') || '<tr><td colspan="4">No rows yet — check MQTT connector (step 2)</td></tr>';
   } catch (e) { toast(e.message, false); }
 }
 
-async function syncSource() {
-  if (!lastSourceConfig) return toast('Test a source first', false);
-  const plant_id = document.getElementById('dataPlant').value.trim();
-  const machine_id = document.getElementById('dataMachine').value.trim();
+async function saveDashboard() {
+  const plant_id = document.getElementById('dataPlant').value.trim() || (setupState?.plants?.[0]?.plant_id);
+  let widgets = [];
+  try { widgets = JSON.parse(document.getElementById('dashWidgets').value); } catch { return toast('Invalid widgets JSON', false); }
   try {
-    const d = await api('/api/setup/sync-source', {
-      method: 'POST',
-      body: JSON.stringify({ plant_id, machine_id, source: lastSourceConfig, field_map: {} }),
-    });
-    toast('Synced ' + d.inserted + ' rows to database', true);
-    await loadTableData();
+    await api('/api/setup/dashboard', { method: 'POST', body: JSON.stringify({ plant_id, name: document.getElementById('dashName').value, widgets }) });
+    toast('Dashboard saved', true);
+    await refreshStatus();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function saveRelation() {
+  const plant_id = document.getElementById('dataPlant').value.trim() || setupState?.plants?.[0]?.plant_id;
+  const machine_id = document.getElementById('dataMachine').value.trim() || setupState?.plants?.[0]?.machines?.[0]?.machine_id;
+  let sample = {};
+  try { sample = JSON.parse(document.getElementById('relSample').value); } catch { return toast('Invalid sample JSON', false); }
+  try {
+    const d = await api('/api/setup/metric-relation', { method: 'POST', body: JSON.stringify({
+      plant_id, machine_id, name: document.getElementById('relName').value,
+      formula: document.getElementById('relFormula').value, sample,
+    })});
+    document.getElementById('relResult').classList.remove('hidden');
+    document.getElementById('relResult').textContent = 'Saved · sample result: ' + d.sample_result;
+    toast('KPI formula saved', true);
     await refreshStatus();
   } catch (e) { toast(e.message, false); }
 }
@@ -411,75 +485,43 @@ async function runOeeQuery() {
   const machine_id = document.getElementById('dataMachine').value.trim();
   try {
     const d = await api(`/api/setup/standard-query/oee_shift?plant_id=${encodeURIComponent(plant_id)}&machine_id=${encodeURIComponent(machine_id)}`);
-    toast('OEE query returned ' + (d.rows||[]).length + ' rows', true);
-  } catch (e) { toast(e.message, false); }
-}
-
-async function saveRelation() {
-  const plant_id = document.getElementById('dataPlant').value.trim();
-  const machine_id = document.getElementById('dataMachine').value.trim();
-  let sample = {};
-  try { sample = JSON.parse(document.getElementById('relSample').value); } catch { return toast('Invalid sample JSON', false); }
-  try {
-    const d = await api('/api/setup/metric-relation', {
-      method: 'POST',
-      body: JSON.stringify({
-        plant_id, machine_id,
-        name: document.getElementById('relName').value,
-        formula: document.getElementById('relFormula').value,
-        sample,
-      }),
-    });
-    const box = document.getElementById('relResult');
-    box.classList.remove('hidden');
-    box.textContent = 'Validated. Sample result: ' + d.sample_result;
-    toast('Relation saved', true);
-  } catch (e) { toast(e.message, false); }
-}
-
-async function saveDashboard() {
-  const plant_id = document.getElementById('dataPlant').value.trim();
-  let widgets = [];
-  try { widgets = JSON.parse(document.getElementById('dashWidgets').value); } catch { return toast('Invalid widgets JSON', false); }
-  try {
-    await api('/api/setup/dashboard', {
-      method: 'POST',
-      body: JSON.stringify({
-        plant_id,
-        name: document.getElementById('dashName').value,
-        widgets,
-      }),
-    });
-    toast('Dashboard draft saved', true);
+    toast('OEE query: ' + (d.rows||[]).length + ' rows', true);
   } catch (e) { toast(e.message, false); }
 }
 
 async function freezeSetup() {
-  if (!token) return toast('Create super admin first, then sign in at /login if needed', false);
+  if (!token) return toast('Sign in required — save super admin first or login at /login', false);
   try {
     await api('/api/setup/freeze', { method: 'POST', body: '{}' });
-    document.getElementById('loginLink').style.display = 'inline-block';
-    document.getElementById('freezeMsg').textContent = 'Setup complete. Redirecting to login???';
-    toast('Platform frozen and ready', true);
-    setTimeout(() => { window.location.href = '/login'; }, 2000);
+    toast('Setup frozen — opening login', true);
+    await refreshStatus();
+    setTimeout(() => { window.location.href = '/login'; }, 1500);
   } catch (e) { toast(e.message, false); }
 }
 
 async function unfreezeSetup() {
   try {
     await api('/api/setup/unfreeze', { method: 'POST', body: '{}' });
-    toast('Setup unfrozen', true);
+    toast('Unfrozen — you can edit again', true);
     await refreshStatus();
   } catch (e) { toast(e.message, false); }
 }
 
+window.addEventListener('message', e => {
+  if (e.data === 'connectors-saved') refreshStatus();
+});
+
 (async function init() {
-  const hash = location.hash.replace('#step','');
-  if (hash === '2' || hash === '3') goStep(parseInt(hash, 10));
+  toggleSavedPanel(false);
+  const hash = parseInt(location.hash.replace('#step', ''), 10);
+  const saved = parseInt(localStorage.getItem(STEP_KEY) || '1', 10);
+  const start = (hash >= 1 && hash <= 5) ? hash : (saved >= 1 && saved <= 5 ? saved : 1);
   try {
-    const s = await refreshStatus();
-    if (s.frozen) goStep(3);
-  } catch (e) { console.warn(e); }
+    await refreshStatus();
+    goStep(start);
+  } catch (e) {
+    goStep(1);
+  }
   testDb();
 })();
 </script>
