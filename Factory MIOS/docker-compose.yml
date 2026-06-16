@@ -1,6 +1,8 @@
 # Factory MIOS — Manufacturing Intelligence Operating System
-# One command brings up the whole platform locally or in the cloud.
-#   docker compose up --build
+# Default (no MQTT):   docker compose up --build
+# With MQTT broker:     docker compose --profile mqtt up --build
+# With demo data:       docker compose --profile demo up -d simulator
+# Combine profiles:     docker compose --profile mqtt --profile demo up --build
 services:
   db:
     image: timescale/timescaledb:2.14.2-pg16
@@ -29,10 +31,12 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
+  # ---- MQTT is OPT-IN. Bring your own broker, or enable this one with --profile mqtt ----
   mqtt:
     image: eclipse-mosquitto:2
     container_name: mios-mqtt
     restart: unless-stopped
+    profiles: ["mqtt"]
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mqtt_data:/mosquitto/data
@@ -50,17 +54,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      mqtt:
-        condition: service_started
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     command: >
       sh -c "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
+  # MQTT subscriber — only runs under the mqtt profile. Reads broker settings
+  # entirely from .env (MQTT_HOST/PORT/USERNAME/PASSWORD/TLS). Nothing hardcoded.
   mqtt_ingestor:
     build: ./backend
     container_name: mios-mqtt-ingestor
     restart: unless-stopped
+    profiles: ["mqtt"]
     env_file: .env
     depends_on:
       backend:
@@ -77,6 +82,20 @@ services:
       - backend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+
+  # Optional demo data generator (no MQTT needed — writes telemetry directly).
+  simulator:
+    build: ./backend
+    container_name: mios-simulator
+    restart: unless-stopped
+    profiles: ["demo"]
+    env_file: .env
+    environment:
+      SIM_INTERVAL: ${SIM_INTERVAL:-5}
+    depends_on:
+      backend:
+        condition: service_started
+    command: ["python", "-m", "app.services.simulator"]
 
 volumes:
   db_data:

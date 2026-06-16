@@ -1,5 +1,10 @@
 """Standalone MQTT subscriber. Subscribes to <prefix>/# and writes telemetry.
 
+All broker settings come from the environment (.env) — nothing hardcoded:
+    MQTT_HOST, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD, MQTT_TLS, MQTT_TOPIC_PREFIX
+If MQTT_HOST is empty (and MQTT_ENABLED is false), the ingestor exits cleanly so
+the platform runs fine without any MQTT broker — add your own when ready.
+
 Message payload (JSON), published to topic  <prefix>/<device_api_key> :
     {"parameter": "good_count", "value": 42}
   or a batch:
@@ -7,6 +12,7 @@ Message payload (JSON), published to topic  <prefix>/<device_api_key> :
 The device is identified by its api_key in the final topic segment.
 """
 import json
+import sys
 import logging
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
@@ -68,9 +74,23 @@ def on_message(client, userdata, msg):
 
 
 def main():
+    if not settings.MQTT_HOST and not settings.MQTT_ENABLED:
+        log.info("MQTT not configured (MQTT_HOST empty). Ingestor idle — set MQTT_* "
+                 "in .env and run with the 'mqtt' compose profile to enable. Exiting.")
+        return
+    if not settings.MQTT_HOST:
+        log.error("MQTT_ENABLED is true but MQTT_HOST is empty. Set MQTT_HOST in .env.")
+        sys.exit(1)
+
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    if settings.MQTT_USERNAME:
+        client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD or None)
+    if settings.MQTT_TLS:
+        client.tls_set()  # uses system CA bundle; configure certs as needed
     client.on_connect = on_connect
     client.on_message = on_message
+    log.info("Connecting to MQTT broker %s:%s (tls=%s)", settings.MQTT_HOST,
+             settings.MQTT_PORT, settings.MQTT_TLS)
     client.connect(settings.MQTT_HOST, settings.MQTT_PORT, 60)
     client.loop_forever()
 

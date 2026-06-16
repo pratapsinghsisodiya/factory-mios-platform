@@ -43,3 +43,30 @@ def get_dashboard(dash_id: str, db: DbDep, user: CurrentUser):
     if not d:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dashboard not found")
     return {"id": d.id, "name": d.name, "template": d.template, "layout": d.layout}
+
+
+@router.put("/{dash_id}", dependencies=[Depends(require_roles("tenant_admin", "engineer"))])
+def update_dashboard(dash_id: str, body: DashboardIn, db: DbDep, user: CurrentUser):
+    """Save a layout authored in the drag-and-drop builder."""
+    tid = tenant_scope(user)
+    d = db.query(Dashboard).filter(Dashboard.id == dash_id, Dashboard.tenant_id == tid).first()
+    if not d:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dashboard not found")
+    d.name = body.name or d.name
+    if body.template:
+        d.template = body.template
+    d.layout = body.layout
+    db.commit()
+    db.refresh(d)
+    return {"id": d.id, "name": d.name, "template": d.template, "layout": d.layout}
+
+
+@router.delete("/{dash_id}", status_code=204,
+               dependencies=[Depends(require_roles("tenant_admin", "engineer"))])
+def delete_dashboard(dash_id: str, db: DbDep, user: CurrentUser):
+    tid = tenant_scope(user)
+    d = db.query(Dashboard).filter(Dashboard.id == dash_id, Dashboard.tenant_id == tid).first()
+    if d:
+        db.delete(d)
+        db.commit()
+    return None

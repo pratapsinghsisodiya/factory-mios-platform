@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { clearToken } from "../lib/api";
 
 const items = [
-  ["/dashboard", "Dashboards"], ["/kpi-builder", "KPI Builder"], ["/clients", "Onboarding"],
+  ["/dashboard", "Dashboards"], ["/builder", "Builder"], ["/kpi-builder", "KPI Builder"], ["/clients", "Onboarding"],
 ];
 
 export default function Nav() {

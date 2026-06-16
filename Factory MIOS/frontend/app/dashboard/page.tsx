@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api, getToken } from "../../lib/api";
 import Nav from "../../components/Nav";
 import Widget from "../../components/Widget";
 import Assistant from "../../components/Assistant";
+
+const REPORTS = ["oee", "downtime", "quality", "performance"];
 
 export default function Dashboard() {
   const [authed, setAuthed] = useState(true);
@@ -13,6 +16,8 @@ export default function Dashboard() {
   const [name, setName] = useState("");
   const [template, setTemplate] = useState("oee");
   const [devices, setDevices] = useState<any[]>([]);
+  const [kpiValues, setKpiValues] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState("");
 
   async function load() {
     try {
@@ -23,10 +28,34 @@ export default function Dashboard() {
   }
   useEffect(() => { if (!getToken()) setAuthed(false); else load(); }, []);
 
+  // Live values for KPI-bound widgets; refreshes every 10s.
+  useEffect(() => {
+    const widgets = active?.layout?.widgets || [];
+    const ids: string[] = Array.from(new Set(widgets.map((w: any) => w.kpi_id).filter(Boolean)));
+    if (!ids.length) { setKpiValues({}); return; }
+    let cancelled = false;
+    async function pull() {
+      const out: Record<string, any> = {};
+      await Promise.all(ids.map(async (id) => {
+        try { out[id] = await api.computeKpi(id, "?window_minutes=60"); } catch {}
+      }));
+      if (!cancelled) setKpiValues(out);
+    }
+    pull();
+    const t = setInterval(pull, 10000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [active]);
+
   async function create() {
     const d = await api.createDashboard({ name: name || `${template} dashboard`, template });
     setName(""); const dash = await api.dashboards(); setDashboards(dash);
     setActive(dash.find((x: any) => x.id === d.id) || d);
+  }
+
+  async function exportReport(type: string) {
+    setExporting(type);
+    try { await api.downloadReport(type, 1440); } catch (e: any) { alert(e.message); }
+    finally { setExporting(""); }
   }
 
   if (!authed) return (
@@ -55,23 +84,39 @@ export default function Dashboard() {
               {catalog?.templates.map((t: any) => <option key={t.key} value={t.key}>{t.name}</option>)}
             </select>
             <button className="btn" onClick={create}>Create</button>
+            <Link href="/builder" className="btn-ghost">Open builder</Link>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-500">Export Excel report:</span>
+          {REPORTS.map(t => (
+            <button key={t} onClick={() => exportReport(t)} disabled={!!exporting}
+              className="btn-ghost text-sm capitalize">
+              {exporting === t ? "Exporting…" : `${t} .xlsx`}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {dashboards.map(d => (
             <button key={d.id} onClick={() => setActive(d)}
               className={`rounded-lg px-3 py-1.5 text-sm ${active?.id === d.id ? "bg-brand text-white" : "card"}`}>{d.name}</button>
           ))}
+          {active && <Link href={`/builder?id=${active.id}`} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100">✎ Edit “{active.name}”</Link>}
         </div>
 
         {active ? (
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {widgets.map((w: any, i: number) => <Widget key={i} type={w.type} title={w.title} />)}
+            {widgets.map((w: any, i: number) => {
+              const kv = w.kpi_id ? kpiValues[w.kpi_id] : null;
+              return <Widget key={i} type={w.type} title={w.title}
+                value={kv ? kv.value : undefined} unit={kv ? kv.unit : undefined} />;
+            })}
           </div>
         ) : (
           <div className="card mt-6 p-10 text-center text-slate-500">
-            Create a dashboard from a template to get started.
+            Create a dashboard from a template, or open the builder to drag widgets.
           </div>
         )}
       </main>

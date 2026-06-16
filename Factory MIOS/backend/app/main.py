@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import (
-    auth, onboarding, devices, ingest, masterdata, kpi, shifts, dashboards, chatbot,
+    auth, onboarding, devices, ingest, masterdata, kpi, shifts, dashboards, chatbot, reports,
 )
 
 app = FastAPI(title=settings.PROJECT_NAME, version="0.1.0",
@@ -22,5 +22,5 @@ def health():
     return {"status": "ok", "service": settings.PROJECT_NAME}
 
 
-for r in (auth, onboarding, devices, ingest, masterdata, kpi, shifts, dashboards, chatbot):
+for r in (auth, onboarding, devices, ingest, masterdata, kpi, shifts, dashboards, chatbot, reports):
     app.include_router(r.router, prefix=settings.API_V1)

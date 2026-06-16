@@ -11,8 +11,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://mios:change-me-in-prod@db:5432/mios"
     REDIS_URL: str = "redis://redis:6379/0"
 
-    MQTT_HOST: str = "mqtt"
+    # ---- MQTT (optional). Nothing hardcoded — all values come from the environment.
+    # Leave MQTT_HOST empty to disable the MQTT ingestor entirely.
+    MQTT_ENABLED: bool = False
+    MQTT_HOST: str = ""
     MQTT_PORT: int = 1883
+    MQTT_USERNAME: str = ""
+    MQTT_PASSWORD: str = ""
+    MQTT_TLS: bool = False
     MQTT_TOPIC_PREFIX: str = "mios/telemetry"
 
     SECRET_KEY: str = "dev-insecure-change-me"

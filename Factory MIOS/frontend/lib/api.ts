@@ -39,10 +39,26 @@ export const api = {
   createDevice: (data: any) => req("/devices", { method: "POST", body: JSON.stringify(data) }),
   catalog: () => req("/dashboards/catalog", {}, false),
   dashboards: () => req("/dashboards"),
+  getDashboard: (id: string) => req(`/dashboards/${id}`),
   createDashboard: (data: any) => req("/dashboards", { method: "POST", body: JSON.stringify(data) }),
+  updateDashboard: (id: string, data: any) => req(`/dashboards/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteDashboard: (id: string) => req(`/dashboards/${id}`, { method: "DELETE" }),
   kpis: () => req("/kpis"),
   createKpi: (data: any) => req("/kpis", { method: "POST", body: JSON.stringify(data) }),
   computeKpi: (id: string, q = "") => req(`/kpis/${id}/compute${q}`),
   shifts: () => req("/shifts"),
   chat: (message: string) => req("/assistant", { method: "POST", body: JSON.stringify({ message }) }),
+  reportUrl: (type: string, windowMinutes = 1440) =>
+    `${API}/api/v1/reports/${type}.xlsx?window_minutes=${windowMinutes}`,
+  downloadReport: async (type: string, windowMinutes = 1440) => {
+    const res = await fetch(`${V1}/reports/${type}.xlsx?window_minutes=${windowMinutes}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error("Report export failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `mios-${type}.xlsx`; a.click();
+    URL.revokeObjectURL(url);
+  },
 };
