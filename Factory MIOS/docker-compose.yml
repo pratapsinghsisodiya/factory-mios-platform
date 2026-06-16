@@ -1,0 +1,83 @@
+# Factory MIOS — Manufacturing Intelligence Operating System
+# One command brings up the whole platform locally or in the cloud.
+#   docker compose up --build
+services:
+  db:
+    image: timescale/timescaledb:2.14.2-pg16
+    container_name: mios-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mios}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-prod}
+      POSTGRES_DB: ${POSTGRES_DB:-mios}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mios}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: mios-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: mios-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_WS_PORT:-9001}:9001"
+
+  backend:
+    build: ./backend
+    container_name: mios-backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mqtt:
+        condition: service_started
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    command: >
+      sh -c "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  mqtt_ingestor:
+    build: ./backend
+    container_name: mios-mqtt-ingestor
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      backend:
+        condition: service_started
+    command: ["python", "-m", "app.services.mqtt_ingestor"]
+
+  frontend:
+    build: ./frontend
+    container_name: mios-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  db_data:
+  mqtt_data:
