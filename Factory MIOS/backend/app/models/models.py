@@ -154,3 +154,114 @@ class Dashboard(Base):
     template: Mapped[str | None] = mapped_column(String(80))  # oee|downtime|quality|ems|wms|custom
     layout: Mapped[dict] = mapped_column(JSONB, default=dict)  # widget grid
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ===================== Asset hierarchy & extended modules =====================
+# Tenant → Location → Plant → Department → Line → Machine/Device → Telemetry
+
+class Location(Base):
+    __tablename__ = "locations"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    code: Mapped[str | None] = mapped_column(String(60))
+    timezone: Mapped[str] = mapped_column(String(60), default="UTC")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Plant(Base):
+    __tablename__ = "plants"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    location_id: Mapped[str | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(255))
+    code: Mapped[str | None] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Department(Base):
+    __tablename__ = "departments"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    plant_id: Mapped[str | None] = mapped_column(ForeignKey("plants.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Line(Base):
+    __tablename__ = "lines"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    plant_id: Mapped[str | None] = mapped_column(ForeignKey("plants.id", ondelete="SET NULL"))
+    department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(255))
+    code: Mapped[str | None] = mapped_column(String(60))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class TelemetryDefinition(Base):
+    """Maps a raw incoming parameter to a display/KPI/report-ready definition."""
+    __tablename__ = "telemetry_definitions"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    raw_name: Mapped[str] = mapped_column(String(120))
+    display_name: Mapped[str] = mapped_column(String(120))
+    data_type: Mapped[str] = mapped_column(String(30), default="numeric")  # numeric|counter|status|text
+    unit: Mapped[str | None] = mapped_column(String(40))
+    aggregation: Mapped[str] = mapped_column(String(20), default="last")  # last|sum|avg|min|max|delta
+    usage: Mapped[dict] = mapped_column(JSONB, default=dict)  # {"oee":true,"ems":false,...}
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    alarm_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    color_rules: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DowntimeLog(Base):
+    __tablename__ = "downtime_logs"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
+    shift_id: Mapped[str | None] = mapped_column(ForeignKey("shifts.id", ondelete="SET NULL"))
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_min: Mapped[float | None] = mapped_column(Float)
+    category: Mapped[str | None] = mapped_column(String(40))  # planned|unplanned
+    reason: Mapped[str | None] = mapped_column(String(255))   # from downtime_reasons master
+    operator: Mapped[str | None] = mapped_column(String(120))
+    remarks: Mapped[str | None] = mapped_column(Text)
+    approved_by: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(30), default="open")  # open|closed|approved
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class QualityLog(Base):
+    __tablename__ = "quality_logs"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
+    shift_id: Mapped[str | None] = mapped_column(ForeignKey("shifts.id", ondelete="SET NULL"))
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    product: Mapped[str | None] = mapped_column(String(120))
+    job_id: Mapped[str | None] = mapped_column(String(120))
+    batch_id: Mapped[str | None] = mapped_column(String(120))
+    serial_no: Mapped[str | None] = mapped_column(String(120))
+    good_qty: Mapped[float] = mapped_column(Float, default=0)
+    reject_qty: Mapped[float] = mapped_column(Float, default=0)
+    rework_qty: Mapped[float] = mapped_column(Float, default=0)
+    defect_reason: Mapped[str | None] = mapped_column(String(255))
+    operator: Mapped[str | None] = mapped_column(String(120))
+    remarks: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class FormInput(Base):
+    """Generic custom user-input form submissions (job/serial/checklist/etc.)."""
+    __tablename__ = "form_inputs"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    form_type: Mapped[str] = mapped_column(String(80), index=True)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"))
+    shift_id: Mapped[str | None] = mapped_column(ForeignKey("shifts.id", ondelete="SET NULL"))
+    data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
