@@ -32,6 +32,10 @@ def init():
             ("kpi_type", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS kpi_type VARCHAR(40) DEFAULT 'raw'"),
             ("is_static", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS is_static BOOLEAN DEFAULT FALSE"),
             ("static_value", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS static_value VARCHAR(255)"),
+            ("alarm_min", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS alarm_min DOUBLE PRECISION"),
+            ("alarm_max", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS alarm_max DOUBLE PRECISION"),
+            ("kpi_device", "ALTER TABLE kpi_definitions ADD COLUMN IF NOT EXISTS device_id UUID"),
+            ("shift_device", "ALTER TABLE shifts ADD COLUMN IF NOT EXISTS device_id UUID"),
         ]:
             try:
                 conn.execute(text(ddl))

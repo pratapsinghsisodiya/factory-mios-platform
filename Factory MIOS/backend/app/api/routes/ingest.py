@@ -1,10 +1,11 @@
 import io
 from datetime import datetime, timezone
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, status, Header, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Header, UploadFile, File, Body
 from app.api.deps import DbDep, CurrentUser, tenant_scope
 from app.models.models import Device, Telemetry
 from app.schemas.schemas import IngestBatch
+from app.services.ingest_util import normalize
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
@@ -22,14 +23,18 @@ def _mark_seen(db, dev: Device):
 
 
 @router.post("/http")
-def ingest_http(batch: IngestBatch, db: DbDep, x_api_key: str = Header(...)):
-    """Device pushes telemetry over HTTPS, authenticated by its API key."""
+def ingest_http(db: DbDep, payload: dict = Body(...), x_api_key: str = Header(...)):
+    """Device pushes telemetry over HTTPS, authenticated by its API key.
+
+    Accepts a flat machine payload ({"part_count":480,"cycle_time":29.5,"timestamp":"..."}),
+    a points map, or a points list — see app/services/ingest_util.normalize.
+    """
     dev = _auth_device(db, x_api_key)
+    parsed, ts = normalize(payload)
     rows = [
-        Telemetry(tenant_id=dev.tenant_id, device_id=dev.id, parameter=p.parameter,
-                  value=p.value, value_text=p.value_text,
-                  ts=p.ts or datetime.now(timezone.utc))
-        for p in batch.points
+        Telemetry(tenant_id=dev.tenant_id, device_id=dev.id, parameter=parameter,
+                  value=value, value_text=value_text, ts=ts)
+        for parameter, value, value_text in parsed
     ]
     db.add_all(rows)
     _mark_seen(db, dev)

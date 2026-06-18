@@ -19,6 +19,7 @@ import paho.mqtt.client as mqtt
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.models import Device, Telemetry
+from app.services.ingest_util import normalize
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("mqtt_ingestor")
@@ -31,15 +32,12 @@ def _handle(api_key: str, payload: dict):
         if not dev:
             log.warning("Unknown device api_key in topic: %s", api_key)
             return
-        points = payload.get("points") or [payload]
+        parsed, ts = normalize(payload)
         rows = []
-        for p in points:
-            if "parameter" not in p:
-                continue
+        for parameter, value, value_text in parsed:
             rows.append(Telemetry(
-                tenant_id=dev.tenant_id, device_id=dev.id, parameter=str(p["parameter"]),
-                value=_num(p.get("value")), value_text=p.get("value_text"),
-                ts=datetime.now(timezone.utc),
+                tenant_id=dev.tenant_id, device_id=dev.id, parameter=parameter,
+                value=value, value_text=value_text, ts=ts,
             ))
         if rows:
             db.add_all(rows)

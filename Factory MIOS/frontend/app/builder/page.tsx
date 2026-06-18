@@ -5,7 +5,7 @@ import { api, getToken } from "../../lib/api";
 import Nav from "../../components/Nav";
 import Widget from "../../components/Widget";
 
-type W = { id: string; type: string; title: string; kpi_id?: string };
+type W = { id: string; type: string; title: string; kpi_id?: string; device_id?: string; parameter?: string; agg?: string };
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -16,6 +16,7 @@ function Builder() {
   const [authed, setAuthed] = useState(true);
   const [catalog, setCatalog] = useState<any>(null);
   const [kpis, setKpis] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
   const [name, setName] = useState("New dashboard");
   const [widgets, setWidgets] = useState<W[]>([]);
   const [dragType, setDragType] = useState<string | null>(null);
@@ -26,12 +27,12 @@ function Builder() {
     if (!getToken()) { setAuthed(false); return; }
     (async () => {
       try {
-        const [cat, kp] = await Promise.all([api.catalog(), api.kpis()]);
-        setCatalog(cat); setKpis(kp);
+        const [cat, kp, dv] = await Promise.all([api.catalog(), api.kpis(), api.devices()]);
+        setCatalog(cat); setKpis(kp); setDevices(dv);
         if (dashId) {
           const d = await api.getDashboard(dashId);
           setName(d.name);
-          setWidgets((d.layout?.widgets || []).map((w: any) => ({ id: uid(), type: w.type, title: w.title || w.type, kpi_id: w.kpi_id })));
+          setWidgets((d.layout?.widgets || []).map((w: any) => ({ id: uid(), type: w.type, title: w.title || w.type, kpi_id: w.kpi_id, device_id: w.device_id, parameter: w.parameter, agg: w.agg })));
         }
       } catch (e: any) { if (/401|token/i.test(e.message)) setAuthed(false); }
     })();
@@ -59,7 +60,7 @@ function Builder() {
 
   async function save() {
     setMsg("");
-    const layout = { widgets: widgets.map((w, i) => ({ type: w.type, title: w.title, kpi_id: w.kpi_id, x: i % 3, y: Math.floor(i / 3) })) };
+    const layout = { widgets: widgets.map((w, i) => ({ type: w.type, title: w.title, kpi_id: w.kpi_id, device_id: w.device_id, parameter: w.parameter, agg: w.agg, x: i % 3, y: Math.floor(i / 3) })) };
     try {
       if (dashId) { await api.updateDashboard(dashId, { name, template: "custom", layout }); setMsg("Saved."); }
       else { const d = await api.createDashboard({ name, template: "custom", layout }); router.replace(`/builder?id=${d.id}`); setMsg("Created & saved."); }
@@ -130,6 +131,17 @@ function Builder() {
                     <option value="">— bind a KPI (optional) —</option>
                     {kpis.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                   </select>
+                  <div className="mt-1 text-[10px] text-slate-400">or bind a raw parameter:</div>
+                  <div className="flex gap-1">
+                    <select className="input text-xs" value={w.device_id || ""} onChange={e => update(w.id, { device_id: e.target.value || undefined })}>
+                      <option value="">device</option>
+                      {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                    <input className="input text-xs" placeholder="parameter" value={w.parameter || ""} onChange={e => update(w.id, { parameter: e.target.value || undefined })} />
+                    <select className="input w-20 text-xs" value={w.agg || "last"} onChange={e => update(w.id, { agg: e.target.value })}>
+                      {["last", "avg", "min", "max", "sum", "delta"].map(a => <option key={a}>{a}</option>)}
+                    </select>
+                  </div>
                 </div>
               ))}
             </div>

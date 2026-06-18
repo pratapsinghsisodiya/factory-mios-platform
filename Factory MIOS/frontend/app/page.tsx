@@ -23,10 +23,7 @@ export default function Home() {
     <main>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2 font-bold text-lg">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">M</span>
-            Factory MIOS
-          </div>
+          <img src="/assets/factory-mios-logo.png" alt="Factory MIOS" className="h-10 rounded-md" />
           <nav className="flex items-center gap-3">
             <a href="#features" className="text-sm text-slate-600 hover:text-ink">Features</a>
             <a href="#use-cases" className="text-sm text-slate-600 hover:text-ink">Use cases</a>

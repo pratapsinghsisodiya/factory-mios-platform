@@ -24,7 +24,7 @@ export default function Login() {
   return (
     <main className="grid min-h-screen place-items-center px-6">
       <form onSubmit={submit} className="card w-full max-w-sm p-8">
-        <Link href="/" className="mb-6 block text-center font-bold text-lg">Factory MIOS</Link>
+        <Link href="/" className="mb-6 flex justify-center"><img src="/assets/factory-mios-logo.png" alt="Factory MIOS" className="h-12 rounded-md" /></Link>
         <h1 className="mb-6 text-xl font-semibold">Sign in</h1>
         <label className="label">Email</label>
         <input className="input mb-4" value={email} onChange={e => setEmail(e.target.value)} type="email" required />

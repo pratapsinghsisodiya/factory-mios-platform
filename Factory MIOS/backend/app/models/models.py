@@ -124,6 +124,7 @@ class Shift(Base):
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
+    device_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), index=True)
     start_time: Mapped[str] = mapped_column(String(5))  # "06:00"
     end_time: Mapped[str] = mapped_column(String(5))    # "14:00"
     target_production: Mapped[float | None] = mapped_column(Float)
@@ -138,6 +139,7 @@ class KPIDefinition(Base):
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
+    device_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), index=True)
     unit: Mapped[str | None] = mapped_column(String(40))
     expression: Mapped[str] = mapped_column(Text)  # e.g. "good_count / total_count * 100"
     # mapping of variable name -> spec: {"source":"telemetry","parameter":"good_count","agg":"last"}
@@ -218,6 +220,8 @@ class TelemetryDefinition(Base):
     kpi_type: Mapped[str] = mapped_column(String(40), default="raw")
     is_static: Mapped[bool] = mapped_column(Boolean, default=False)
     static_value: Mapped[str | None] = mapped_column(String(255))
+    alarm_min: Mapped[float | None] = mapped_column(Float)
+    alarm_max: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

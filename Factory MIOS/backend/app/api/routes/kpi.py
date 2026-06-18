@@ -23,11 +23,14 @@ def create_kpi(body: KPIIn, db: DbDep, user: CurrentUser):
 
 
 @router.get("")
-def list_kpis(db: DbDep, user: CurrentUser):
+def list_kpis(db: DbDep, user: CurrentUser, device_id: str | None = None):
     tid = tenant_scope(user)
-    return [{"id": k.id, "name": k.name, "unit": k.unit, "expression": k.expression,
-             "inputs": k.inputs, "description": k.description}
-            for k in db.query(KPIDefinition).filter(KPIDefinition.tenant_id == tid).all()]
+    q = db.query(KPIDefinition).filter(KPIDefinition.tenant_id == tid)
+    if device_id:
+        q = q.filter(KPIDefinition.device_id == device_id)
+    return [{"id": k.id, "name": k.name, "device_id": k.device_id, "unit": k.unit,
+             "expression": k.expression, "inputs": k.inputs, "description": k.description}
+            for k in q.all()]
 
 
 @router.get("/{kpi_id}/compute", response_model=KPIResult)

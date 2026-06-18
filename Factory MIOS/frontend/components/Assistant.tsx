@@ -30,12 +30,12 @@ export default function Assistant() {
 
   return (
     <>
-      <button onClick={() => setOpen(!open)} className="btn fixed bottom-6 right-6 z-40 rounded-full shadow-lg">
-        {open ? "Close" : "🤖 Facto Bot"}
+      <button onClick={() => setOpen(!open)} className="btn fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full shadow-lg">
+        {open ? "Close" : (<><img src="/assets/facto-bot-logo.png" alt="" className="h-5 w-5 rounded-full object-cover" /> Facto Bot</>)}
       </button>
       {open && (
         <div className="card fixed bottom-20 right-6 z-40 flex h-[28rem] w-96 flex-col p-3">
-          <div className="mb-2 border-b pb-2 text-sm font-semibold">Facto Bot</div>
+          <div className="mb-2 flex items-center gap-2 border-b pb-2"><img src="/assets/facto-bot-logo.png" alt="" className="h-6 rounded" /><span className="text-sm font-semibold">Facto Bot</span></div>
           <div className="flex-1 space-y-2 overflow-y-auto">
             {msgs.map((m, i) => (
               <div key={i} className={`max-w-[88%] rounded-lg px-3 py-2 text-sm ${m.role === "user" ? "ml-auto bg-brand text-white" : "bg-slate-100"}`}>{m.text}</div>

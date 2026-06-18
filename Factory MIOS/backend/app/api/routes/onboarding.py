@@ -74,6 +74,10 @@ def submit(token: str, body: OnboardingSubmit, db: DbDep):
     if db.query(User).filter(User.email == body.contact_email.lower()).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
 
+    from sqlalchemy import func as _func
+    if db.query(Tenant).filter(_func.lower(Tenant.name) == body.company_name.strip().lower()).first():
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"A company named '{body.company_name}' already exists. Please use a unique name.")
     tenant = Tenant(name=body.company_name, slug=_slugify(body.company_name),
                     industry=body.industry or link.intended_industry)
     db.add(tenant)

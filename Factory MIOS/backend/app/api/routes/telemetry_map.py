@@ -22,6 +22,8 @@ class DefIn(BaseModel):
     kpi_type: str = "raw"
     is_static: bool = False
     static_value: str | None = None
+    alarm_min: float | None = None
+    alarm_max: float | None = None
 
 
 @router.get("")

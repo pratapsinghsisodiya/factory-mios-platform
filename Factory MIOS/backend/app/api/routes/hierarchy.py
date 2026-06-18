@@ -30,7 +30,8 @@ def tree(db: DbDep, user: CurrentUser):
         "lines": _list(db, Line, tid),
         "devices": [{"id": d.id, "name": d.name, "machine_type": d.machine_type,
                      "connection_type": d.connection_type, "status": d.status,
-                     "config": d.config} for d in db.query(Device).filter(Device.tenant_id == tid).all()],
+                     "api_key": d.api_key, "config": d.config}
+                    for d in db.query(Device).filter(Device.tenant_id == tid).all()],
     }
 
 

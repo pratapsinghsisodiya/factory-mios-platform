@@ -8,13 +8,24 @@ export function getToken(): string | null {
 export function setToken(t: string) { window.localStorage.setItem("mios_token", t); }
 export function clearToken() { window.localStorage.removeItem("mios_token"); }
 
+function formatDetail(detail: any): string {
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((d: any) => d?.msg || (typeof d === "string" ? d : JSON.stringify(d))).join("; ");
+  if (typeof detail === "object") return detail.msg || JSON.stringify(detail);
+  return String(detail);
+}
+
 async function req(path: string, opts: RequestInit = {}, auth = true) {
   const headers: Record<string, string> = { "Content-Type": "application/json", ...(opts.headers as any) };
   if (auth) { const t = getToken(); if (t) headers["Authorization"] = `Bearer ${t}`; }
   const res = await fetch(`${V1}${path}`, { ...opts, headers });
   if (!res.ok) {
-    let detail = res.statusText;
-    try { detail = (await res.json()).detail || detail; } catch {}
+    let detail: string = res.statusText;
+    try {
+      const j = await res.json();
+      detail = formatDetail(j.detail) || detail;
+    } catch {}
     throw new Error(detail);
   }
   return res.status === 204 ? null : res.json();
@@ -26,7 +37,7 @@ export const api = {
     const res = await fetch(`${V1}/auth/login`, {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body,
     });
-    if (!res.ok) throw new Error((await res.json()).detail || "Login failed");
+    if (!res.ok) { let d = "Login failed"; try { d = formatDetail((await res.json()).detail) || d; } catch {} throw new Error(d); }
     return res.json();
   },
   me: () => req("/auth/me"),
@@ -52,6 +63,12 @@ export const api = {
   telemetryDefs: (deviceId?: string) => req(`/telemetry-map${deviceId ? `?device_id=${deviceId}` : ""}`),
   saveTelemetryDef: (data: any) => req("/telemetry-map", { method: "POST", body: JSON.stringify(data) }),
   liveTest: (deviceId: string) => req(`/telemetry-map/live-test/${deviceId}`),
+  deviceParameters: (id: string) => req(`/devices/${id}/parameters`),
+  deviceValue: (id: string, parameter: string, agg = "last", windowMinutes = 60) =>
+    req(`/devices/${id}/value?parameter=${encodeURIComponent(parameter)}&agg=${agg}&window_minutes=${windowMinutes}`),
+  createShift: (data: any) => req("/shifts", { method: "POST", body: JSON.stringify(data) }),
+  shiftsFor: (deviceId?: string) => req(`/shifts${deviceId ? `?device_id=${deviceId}` : ""}`),
+  kpisFor: (deviceId?: string) => req(`/kpis${deviceId ? `?device_id=${deviceId}` : ""}`),
 
   // dashboards
   catalog: () => req("/dashboards/catalog", {}, false),

@@ -11,13 +11,13 @@ class Token(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
 class UserOut(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     full_name: str | None = None
     role: str
     tenant_id: str | None = None
@@ -49,7 +49,7 @@ class OnboardingLinkOut(BaseModel):
 class OnboardingSubmit(BaseModel):
     company_name: str
     contact_name: str
-    contact_email: EmailStr
+    contact_email: str
     contact_phone: str | None = None
     industry: str | None = None
     address: str | None = None
@@ -105,6 +105,7 @@ class MasterRow(BaseModel):
 # ---- Shifts ----
 class ShiftIn(BaseModel):
     name: str
+    device_id: str | None = None
     start_time: str
     end_time: str
     target_production: float | None = None
@@ -114,6 +115,7 @@ class ShiftIn(BaseModel):
 # ---- KPI ----
 class KPIIn(BaseModel):
     name: str
+    device_id: str | None = None
     unit: str | None = None
     expression: str
     inputs: dict[str, Any] = {}

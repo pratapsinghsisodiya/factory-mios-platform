@@ -28,16 +28,20 @@ export default function Dashboard() {
   }
   useEffect(() => { if (!getToken()) setAuthed(false); else load(); }, []);
 
-  // Live values for KPI-bound widgets; refreshes every 10s.
+  // Live values for KPI-bound AND raw-parameter-bound widgets; refreshes every 10s.
   useEffect(() => {
     const widgets = active?.layout?.widgets || [];
-    const ids: string[] = Array.from(new Set(widgets.map((w: any) => w.kpi_id).filter(Boolean)));
-    if (!ids.length) { setKpiValues({}); return; }
+    const kpiIds: string[] = Array.from(new Set(widgets.map((w: any) => w.kpi_id).filter(Boolean)));
+    const raws = widgets.filter((w: any) => !w.kpi_id && w.device_id && w.parameter);
+    if (!kpiIds.length && !raws.length) { setKpiValues({}); return; }
     let cancelled = false;
     async function pull() {
       const out: Record<string, any> = {};
-      await Promise.all(ids.map(async (id) => {
-        try { out[id] = await api.computeKpi(id, "?window_minutes=60"); } catch {}
+      await Promise.all(kpiIds.map(async (id) => {
+        try { out[`kpi:${id}`] = await api.computeKpi(id, "?window_minutes=60"); } catch {}
+      }));
+      await Promise.all(raws.map(async (w: any) => {
+        try { out[`raw:${w.device_id}:${w.parameter}:${w.agg || "last"}`] = await api.deviceValue(w.device_id, w.parameter, w.agg || "last", 1440); } catch {}
       }));
       if (!cancelled) setKpiValues(out);
     }
@@ -109,7 +113,8 @@ export default function Dashboard() {
         {active ? (
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {widgets.map((w: any, i: number) => {
-              const kv = w.kpi_id ? kpiValues[w.kpi_id] : null;
+              const kv = w.kpi_id ? kpiValues[`kpi:${w.kpi_id}`]
+                : (w.device_id && w.parameter ? kpiValues[`raw:${w.device_id}:${w.parameter}:${w.agg || "last"}`] : null);
               return <Widget key={i} type={w.type} title={w.title}
                 value={kv ? kv.value : undefined} unit={kv ? kv.unit : undefined} />;
             })}

@@ -18,8 +18,11 @@ def create_shift(body: ShiftIn, db: DbDep, user: CurrentUser):
 
 
 @router.get("")
-def list_shifts(db: DbDep, user: CurrentUser):
+def list_shifts(db: DbDep, user: CurrentUser, device_id: str | None = None):
     tid = tenant_scope(user)
-    return [{"id": s.id, "name": s.name, "start_time": s.start_time, "end_time": s.end_time,
+    q = db.query(Shift).filter(Shift.tenant_id == tid)
+    if device_id:
+        q = q.filter(Shift.device_id == device_id)
+    return [{"id": s.id, "name": s.name, "device_id": s.device_id, "start_time": s.start_time, "end_time": s.end_time,
              "target_production": s.target_production, "days": s.days}
-            for s in db.query(Shift).filter(Shift.tenant_id == tid).all()]
+            for s in q.all()]

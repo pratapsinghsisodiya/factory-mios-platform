@@ -20,7 +20,7 @@ export default function Nav() {
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-6 py-3">
-        <Link href="/" className="font-bold">Factory MIOS</Link>
+        <Link href="/" className="flex items-center"><img src="/assets/factory-mios-logo.png" alt="Factory MIOS" className="h-9 rounded-md" /></Link>
         <nav className="flex flex-wrap items-center gap-1">
           {items.map(([href, label]) => (
             <Link key={href} href={href}
