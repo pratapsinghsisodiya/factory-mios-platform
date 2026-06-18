@@ -19,6 +19,9 @@ class DefIn(BaseModel):
     ai_enabled: bool = True
     alarm_enabled: bool = False
     color_rules: dict = {}
+    kpi_type: str = "raw"
+    is_static: bool = False
+    static_value: str | None = None
 
 
 @router.get("")

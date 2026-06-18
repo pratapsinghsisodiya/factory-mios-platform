@@ -214,6 +214,10 @@ class TelemetryDefinition(Base):
     ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     alarm_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     color_rules: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # KPI intent for this parameter: oee|availability|performance|quality|delta|shift|daily|timestamp|raw
+    kpi_type: Mapped[str] = mapped_column(String(40), default="raw")
+    is_static: Mapped[bool] = mapped_column(Boolean, default=False)
+    static_value: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

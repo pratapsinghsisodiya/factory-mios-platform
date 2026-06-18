@@ -15,7 +15,7 @@ export default function Assets() {
   const [selDevice, setSelDevice] = useState("");
   const [defs, setDefs] = useState<any[]>([]);
   const [test, setTest] = useState<any>(null);
-  const [mapForm, setMapForm] = useState({ raw_name: "", display_name: "", data_type: "numeric", unit: "", aggregation: "last" });
+  const [mapForm, setMapForm] = useState<any>({ raw_name: "", display_name: "", data_type: "numeric", unit: "", aggregation: "last", kpi_type: "raw", is_static: false, static_value: "" });
 
   async function load() {
     try {
@@ -117,19 +117,29 @@ export default function Assets() {
               {(tree?.devices || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-5">
-            <input className="input" placeholder="raw_name" value={mapForm.raw_name} onChange={e => setMapForm({ ...mapForm, raw_name: e.target.value })} />
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <input className="input" placeholder="raw_name (e.g. part_count)" value={mapForm.raw_name} onChange={e => setMapForm({ ...mapForm, raw_name: e.target.value })} />
             <input className="input" placeholder="display name" value={mapForm.display_name} onChange={e => setMapForm({ ...mapForm, display_name: e.target.value })} />
             <select className="input" value={mapForm.data_type} onChange={e => setMapForm({ ...mapForm, data_type: e.target.value })}>
               {["numeric", "counter", "status", "text"].map(t => <option key={t}>{t}</option>)}
             </select>
             <input className="input" placeholder="unit" value={mapForm.unit} onChange={e => setMapForm({ ...mapForm, unit: e.target.value })} />
-            <button className="btn" onClick={saveMap}>Save mapping</button>
+            <select className="input" value={mapForm.aggregation} onChange={e => setMapForm({ ...mapForm, aggregation: e.target.value })}>
+              {["last", "sum", "avg", "min", "max", "delta", "count"].map(t => <option key={t} value={t}>agg: {t}</option>)}
+            </select>
+            <select className="input" value={mapForm.kpi_type} onChange={e => setMapForm({ ...mapForm, kpi_type: e.target.value })}>
+              {["raw", "oee", "availability", "performance", "quality", "delta", "shift", "daily", "timestamp"].map(t => <option key={t} value={t}>kpi: {t}</option>)}
+            </select>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mapForm.is_static} onChange={e => setMapForm({ ...mapForm, is_static: e.target.checked })} /> static</label>
+            {mapForm.is_static
+              ? <input className="input" placeholder="static value (e.g. machine name)" value={mapForm.static_value} onChange={e => setMapForm({ ...mapForm, static_value: e.target.value })} />
+              : <span />}
+            <button className="btn sm:col-span-1" onClick={saveMap}>Save parameter</button>
           </div>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <div>
               <h3 className="mb-2 text-sm font-semibold">Mapped parameters</h3>
-              {defs.map(d => <div key={d.id} className="border-t py-1 text-sm">{d.display_name} <span className="text-slate-400">({d.raw_name}, {d.unit || "—"}, {d.aggregation})</span></div>)}
+              {defs.map(d => <div key={d.id} className="border-t py-1 text-sm">{d.display_name} <span className="text-slate-400">({d.raw_name}, {d.unit || "—"}, agg:{d.aggregation}, kpi:{d.kpi_type || "raw"}{d.is_static ? `, static=${d.static_value}` : ""})</span></div>)}
               {!defs.length && <p className="text-slate-400 text-sm">None mapped.</p>}
             </div>
             <div>

@@ -35,6 +35,10 @@ export const api = {
   createLink: (data: any) => req("/onboarding/links", { method: "POST", body: JSON.stringify(data) }),
   listLinks: () => req("/onboarding/links"),
   validateLink: (token: string) => req(`/onboarding/links/${token}`, {}, false),
+  deleteLink: (id: string) => req(`/onboarding/links/${id}`, { method: "DELETE" }),
+  listClients: () => req("/onboarding/clients"),
+  editClient: (tenantId: string, data: any) => req(`/onboarding/clients/${tenantId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteClient: (tenantId: string) => req(`/onboarding/clients/${tenantId}`, { method: "DELETE" }),
   submitOnboarding: (token: string, data: any) =>
     req(`/onboarding/links/${token}/submit`, { method: "POST", body: JSON.stringify(data) }, false),
 

@@ -27,6 +27,16 @@ def init():
             log.info("telemetry is a hypertable")
         except Exception as e:  # noqa: BLE001
             log.warning("Skipping hypertable creation: %s", e)
+        # Idempotent column adds for telemetry_definitions (no Alembic in this build)
+        for col, ddl in [
+            ("kpi_type", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS kpi_type VARCHAR(40) DEFAULT 'raw'"),
+            ("is_static", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS is_static BOOLEAN DEFAULT FALSE"),
+            ("static_value", "ALTER TABLE telemetry_definitions ADD COLUMN IF NOT EXISTS static_value VARCHAR(255)"),
+        ]:
+            try:
+                conn.execute(text(ddl))
+            except Exception as e:  # noqa: BLE001
+                log.warning("Column migrate %s skipped: %s", col, e)
 
     db = SessionLocal()
     try:
