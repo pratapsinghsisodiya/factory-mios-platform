@@ -69,6 +69,7 @@ export const api = {
   createShift: (data: any) => req("/shifts", { method: "POST", body: JSON.stringify(data) }),
   shiftsFor: (deviceId?: string) => req(`/shifts${deviceId ? `?device_id=${deviceId}` : ""}`),
   kpisFor: (deviceId?: string) => req(`/kpis${deviceId ? `?device_id=${deviceId}` : ""}`),
+  ingestInfo: () => req("/ingest/info", {}, false),
 
   // dashboards
   catalog: () => req("/dashboards/catalog", {}, false),

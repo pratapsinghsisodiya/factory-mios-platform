@@ -6,6 +6,7 @@ from app.api.deps import DbDep, CurrentUser, tenant_scope
 from app.models.models import Device, Telemetry
 from app.schemas.schemas import IngestBatch
 from app.services.ingest_util import normalize
+from app.core.config import settings
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
@@ -89,3 +90,15 @@ def _num(v):
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+@router.get("/info")
+def ingest_info():
+    """Connectivity details shown in the UI so devices can be pointed at the platform."""
+    return {
+        "mqtt_enabled": bool(settings.MQTT_HOST) or settings.MQTT_ENABLED,
+        "mqtt_host": settings.MQTT_HOST or "mqtt",
+        "mqtt_port": settings.MQTT_PORT,
+        "topic_prefix": settings.MQTT_TOPIC_PREFIX,
+        "http_path": "/api/v1/ingest/http",
+    }

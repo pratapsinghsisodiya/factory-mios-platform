@@ -1,7 +1,5 @@
 "use client";
-import { PieChart, Pie, Cell, LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-
-const demoTrend = Array.from({ length: 12 }, (_, i) => ({ x: `${i + 1}`, v: 60 + Math.round(Math.sin(i) * 15 + Math.random() * 10) }));
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 export default function Widget({ type, title, value, unit }:
   { type: string; title: string; value?: number | null; unit?: string }) {
@@ -14,33 +12,46 @@ export default function Widget({ type, title, value, unit }:
 }
 
 function render(type: string, value?: number | null, unit?: string) {
-  const live = value !== undefined && value !== null;
+  const live = value !== undefined && value !== null && !Number.isNaN(value);
   const display = live ? `${Math.round((value as number) * 10) / 10}${unit || ""}` : null;
+
+  if (!live) {
+    // No bound data → honest empty state, never fake numbers.
+    return (
+      <div className="grid h-full place-items-center text-center">
+        <div>
+          <div className="text-2xl font-bold text-slate-300">—</div>
+          <div className="text-xs text-slate-400">no data — bind a KPI or parameter</div>
+        </div>
+      </div>
+    );
+  }
+
   switch (type) {
     case "oee_donut": {
-      const data = [{ name: "OEE", value: 72 }, { name: "Loss", value: 28 }];
+      const v = Math.max(0, Math.min(100, value as number));
+      const data = [{ name: "v", value: v }, { name: "rest", value: 100 - v }];
       return (
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie data={data} innerRadius={45} outerRadius={65} dataKey="value" startAngle={90} endAngle={-270}>
-              {data.map((_, i) => <Cell key={i} fill={i === 0 ? "#0ea5e9" : "#e2e8f0"} />)}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="relative h-full">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie data={data} innerRadius={45} outerRadius={65} dataKey="value" startAngle={90} endAngle={-270}>
+                {data.map((_, i) => <Cell key={i} fill={i === 0 ? "#0ea5e9" : "#e2e8f0"} />)}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 grid place-items-center text-lg font-bold text-brand-dark">{display}</div>
+        </div>
       );
     }
-    case "line": case "energy":
-      return (<ResponsiveContainer><LineChart data={demoTrend}><XAxis dataKey="x" hide /><YAxis hide /><Tooltip /><Line dataKey="v" stroke="#0ea5e9" dot={false} strokeWidth={2} /></LineChart></ResponsiveContainer>);
-    case "bar": case "pareto": case "inventory":
-      return (<ResponsiveContainer><BarChart data={demoTrend}><XAxis dataKey="x" hide /><YAxis hide /><Tooltip /><Bar dataKey="v" fill="#0ea5e9" /></BarChart></ResponsiveContainer>);
-    case "gauge": case "stat":
-      return (<div className="flex h-full flex-col items-center justify-center"><div className="text-4xl font-bold text-brand-dark">{display ?? "72%"}</div><div className="text-xs text-slate-500">{live ? "live" : "demo value"}</div></div>);
     case "status_grid":
-      return (<div className="grid h-full grid-cols-4 gap-2">{Array.from({ length: 12 }).map((_, i) => <div key={i} className={`rounded ${[2, 5, 9].includes(i) ? "bg-red-400" : "bg-green-400"}`} />)}</div>);
-    case "map":
-      return (<div className="grid h-full place-items-center rounded bg-slate-100 text-sm text-slate-500">📍 Device GPS map</div>);
-    case "spc": case "waterfall": case "heatmap": case "table":
+      return <div className="grid h-full place-items-center text-3xl font-bold text-brand-dark">{display}</div>;
     default:
-      return (<div className="grid h-full place-items-center rounded bg-slate-50 text-sm text-slate-400">{display ?? `${type} widget`}</div>);
+      return (
+        <div className="flex h-full flex-col items-center justify-center">
+          <div className="text-4xl font-bold text-brand-dark">{display}</div>
+          <div className="text-xs text-slate-500">live</div>
+        </div>
+      );
   }
 }
